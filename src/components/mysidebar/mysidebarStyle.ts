@@ -1,5 +1,9 @@
 import styled from "@emotion/styled";
 
+interface MenuButtonProps {
+  $active: boolean;
+}
+
 export const SidebarContainer = styled.aside`
   width: 186px;
   min-width: 186px;
@@ -31,6 +35,7 @@ export const LogoArea = styled.div`
 export const Logo = styled.img`
   width: 88px;
   height: auto;
+  display: block;
   object-fit: contain;
 `;
 
@@ -39,6 +44,7 @@ export const UserSection = styled.div`
   flex-direction: column;
   align-items: center;
   margin-top: 17px;
+  flex-shrink: 0;
 `;
 
 export const Avatar = styled.img`
@@ -50,9 +56,11 @@ export const Avatar = styled.img`
 
 export const UserName = styled.span`
   margin-top: 16px;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 700;
   line-height: 24px;
+  text-align: center;
 `;
 
 export const Navigation = styled.nav`
@@ -62,7 +70,7 @@ export const Navigation = styled.nav`
   margin-top: 24px;
 `;
 
-export const MenuButton = styled.button`
+export const MenuButton = styled.button<MenuButtonProps>`
   width: 100%;
   height: 38px;
   padding: 0 13px;
@@ -73,6 +81,7 @@ export const MenuButton = styled.button`
 
   border: none;
   border-radius: 9px;
+
   background: ${({ $active }) => ($active ? "#edf8f5" : "transparent")};
 
   color: ${({ $active }) => ($active ? "#005044" : "#ffffff")};
@@ -133,8 +142,8 @@ export const FooterButton = styled.button`
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
-  white-space: nowrap;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 
   transition: background 0.2s;
