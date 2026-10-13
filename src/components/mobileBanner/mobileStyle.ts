@@ -12,7 +12,7 @@ export const HeaderStyle = styled.header({
   alignItems: "center",
 
   width: "100%",
-  height: "56px",
+  minHeight: "56px",
   padding: "15px 20px",
   backgroundColor: "#fefefd",
 
@@ -34,7 +34,7 @@ export const NavStyle = styled.nav({
 
   width: "90%",
   margin: "0 auto",
-  padding: "10px 15px",
+  padding: "13px 22px",
 
   backgroundColor: "#fefefd",
   borderRadius: "80px",
@@ -47,7 +47,7 @@ export const UlStyle = styled.ul({
   flexDirection: "row",
   justifyContent: "space-between",
   alignItems: "center",
-  gap: "15px",
+  gap: 15,
   width: "100%",
 });
 
