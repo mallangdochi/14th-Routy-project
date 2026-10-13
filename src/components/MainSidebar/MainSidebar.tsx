@@ -1,7 +1,7 @@
 import { useState } from "react";
 import * as S from "./MainSidebarStyle";
+import RoutyLogo from "./RoutyLogo";
 
-import RoutyLogo from "../../assets/로고.webp";
 import ProfileImage from "../../assets/profile.webp";
 import SidebarBanner from "../../assets/mainsidebar.webp";
 
@@ -103,7 +103,7 @@ const MainSidebar = () => {
     <S.SidebarContainer>
       {/* 로고 */}
       <S.LogoWrapper>
-        <S.LogoImage src={RoutyLogo} alt="Routy" />
+        <RoutyLogo width={100} height="auto" />
       </S.LogoWrapper>
 
       {/* 프로필 */}

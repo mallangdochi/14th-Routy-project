@@ -18,8 +18,8 @@ export const SidebarContainer = styled.aside({
 // 로고
 export const LogoWrapper = styled.div({
   display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
+  alignItems: "flex-start",
+  justifyContent: "flex-start",
   width: "100%",
   height: "47px",
   marginBottom: "12px",
@@ -189,14 +189,30 @@ export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
   gap: "12px",
   border: "none",
   borderRadius: "9px",
-  backgroundColor: $active ? "#ECF8F5" : "transparent",
+
   color: $active ? "#005259" : "#333333",
   fontSize: "12px",
   fontWeight: $active ? 700 : 400,
   textAlign: "left",
   cursor: "pointer",
-  boxSizing: "border-box",
-  transition: "background-color 0.2s ease",
+  isolation: "isolate",
+
+  transition: "color 0.25s ease",
+
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    inset: 0,
+    borderRadius: "9px",
+    backgroundColor: "#ECF8F5",
+    zIndex: -1,
+
+    clipPath: $active
+      ? "inset(0 0 0 0 round 9px)"
+      : "inset(0 0 100% 0 round 9px)",
+
+    transition: "clip-path 0.24s cubic-bezier(0.22, 1, 0.36, 1)",
+  },
 
   "&::before": {
     content: '""',
@@ -207,11 +223,22 @@ export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
     height: "29px",
     borderRadius: "3px",
     backgroundColor: "#005259",
-    opacity: $active ? 1 : 0,
+
+    clipPath: $active ? "inset(0 0 0 0)" : "inset(0 0 100% 0)",
+
+    transition: "clip-path 0.24s cubic-bezier(0.22, 1, 0.36, 1)",
   },
 
   "&:hover": {
-    backgroundColor: "#ECF8F5",
+    color: "#005259",
+  },
+
+  "@media (prefers-reduced-motion: reduce)": {
+    transition: "none",
+
+    "&::before, &::after": {
+      transition: "none",
+    },
   },
 }));
 

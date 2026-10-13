@@ -1,13 +1,7 @@
-import Sidebar from "./components/mysidebar/mysidebar";
+import MainSidebar from "./components/MainSidebar/MainSidebar";
 
 function App() {
-  return (
-    <Sidebar
-      onNavigate={(page: string) => console.log("선택한 메뉴:", page)}
-      onBack={() => console.log("여행으로 돌아가기")}
-      onLogout={() => console.log("로그아웃")}
-    />
-  );
+  return <MainSidebar />;
 }
 
 export default App;
