@@ -1,5 +1,17 @@
 import { HeaderStyle } from "./mobileStyle";
 
+// 메뉴 ID 타입
+type MenuId = "notification";
+
+// 메뉴 데이터 타입
+interface MenuItemType {
+  id: MenuId;
+  label: string;
+}
+
+// 메인 메뉴
+const MENU_ITEM: MenuItemType = { id: "notification", label: "알림" };
+
 export default function MobileHeader() {
   return (
     <HeaderStyle>
