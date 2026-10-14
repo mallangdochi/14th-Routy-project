@@ -1,5 +1,4 @@
-import { useState } from "react";
-
+import { useLocation } from "react-router";
 import {
   UserRound,
   LockKeyhole,
@@ -9,11 +8,9 @@ import {
   LogOut,
 } from "lucide-react";
 
-// 이미지 불러오기
 import routyLogo from "../../assets/routy-logo.svg";
 import routyMascot from "../../assets/routy-mascot.png";
 
-// Emotion 스타일
 import {
   SidebarContainer,
   LogoArea,
@@ -28,17 +25,16 @@ import {
   FooterButton,
 } from "./mysidebarStyle";
 
-// 메뉴 타입
 type MenuId = "profile" | "security" | "settings" | "support";
 
-// Props 타입
 interface SidebarProps {
+  profileName?: string;
+  profileImage?: string;
   onNavigate?: (page: MenuId) => void;
   onBack?: () => void;
   onLogout?: () => void;
 }
 
-// 메뉴 데이터
 const menuItems = [
   {
     id: "profile",
@@ -63,31 +59,34 @@ const menuItems = [
 ] as const;
 
 export default function Sidebar({
+  profileName = "홍길동",
+  profileImage = routyMascot,
   onNavigate,
   onBack,
   onLogout,
 }: SidebarProps) {
-  const [activeMenu, setActiveMenu] = useState<MenuId>("profile");
+  const { pathname } = useLocation();
+
+  const currentSection = pathname.split("/")[2];
+
+  const activeMenu: MenuId =
+    menuItems.find((item) => item.id === currentSection)?.id ?? "profile";
 
   const handleMenuClick = (id: MenuId): void => {
-    setActiveMenu(id);
     onNavigate?.(id);
   };
 
   return (
     <SidebarContainer>
-      {/* 로고 */}
       <LogoArea>
         <Logo src={routyLogo} alt="Routy" />
       </LogoArea>
 
-      {/* 프로필 */}
       <UserSection>
-        <Avatar src={routyMascot} alt="프로필" />
-        <UserName>홍길동님</UserName>
+        <Avatar src={profileImage} alt="프로필" />
+        <UserName>{profileName}님</UserName>
       </UserSection>
 
-      {/* 메인 메뉴 */}
       <Navigation aria-label="계정 메뉴">
         {menuItems.map(({ id, label, icon: Icon }) => (
           <MenuButton
@@ -97,23 +96,22 @@ export default function Sidebar({
             aria-current={activeMenu === id ? "page" : undefined}
             onClick={() => handleMenuClick(id)}
           >
-            <Icon size={17} strokeWidth={1.7} />
+            <Icon size={20} strokeWidth={1.9} aria-hidden="true" />
             <span>{label}</span>
           </MenuButton>
         ))}
       </Navigation>
 
-      {/* 하단 메뉴 */}
       <Footer>
         <Divider />
 
         <FooterButton type="button" onClick={onBack}>
-          <Plane size={20} strokeWidth={1.6} />
+          <Plane size={22} strokeWidth={1.8} aria-hidden="true" />
           <span>여행으로 돌아가기</span>
         </FooterButton>
 
         <FooterButton type="button" onClick={onLogout}>
-          <LogOut size={18} strokeWidth={1.6} />
+          <LogOut size={21} strokeWidth={1.8} aria-hidden="true" />
           <span>로그아웃</span>
         </FooterButton>
       </Footer>
