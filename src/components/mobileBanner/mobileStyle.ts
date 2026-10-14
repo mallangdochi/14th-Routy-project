@@ -89,8 +89,7 @@ export const MobileProfile = styled.div({
 
   padding: 8,
   backgroundColor: " #005358",
-  // minWidth: 45,
-  // maxWidth: 60,
+
   width: 45,
   aspectRatio: "1/1",
   borderRadius: "999px",
