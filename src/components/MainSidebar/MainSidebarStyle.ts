@@ -6,8 +6,10 @@ export const SidebarContainer = styled.aside({
   flexDirection: "column",
   width: "200px",
   minWidth: "200px",
-  height: "100vh",
-  minHeight: "600px",
+
+  height: "100%",
+  minHeight: "100vh",
+
   padding: "16px 13px 15px",
   backgroundColor: "#FFFFFF",
   boxSizing: "border-box",
