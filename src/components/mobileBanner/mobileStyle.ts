@@ -34,7 +34,7 @@ export const NavStyle = styled.nav({
 
   width: "90%",
   margin: "0 auto",
-  padding: "13px 22px",
+  padding: "10px 22px",
 
   backgroundColor: "#fefefd",
   borderRadius: "80px",
@@ -44,16 +44,17 @@ export const NavStyle = styled.nav({
 
 export const UlStyle = styled.ul({
   display: "flex",
-  flexDirection: "row",
-  justifyContent: "space-between",
   alignItems: "center",
-  gap: 15,
+  gap: 0,
   width: "100%",
-});
 
-export const SvgStyle = styled.div({
-  width: 18,
-  aspectRatio: "1/1",
+  "& > li": {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    flex: "1 1 0",
+    minWidth: 0,
+  },
 });
 
 export const LinkStyle = styled(Link)({
@@ -62,6 +63,9 @@ export const LinkStyle = styled(Link)({
   justifyContent: "center",
   alignItems: "center",
   gap: "3px",
+
+  width: "100%",
+  minWidth: 0,
 
   flexShrink: 0,
 
@@ -72,12 +76,23 @@ export const LinkStyle = styled(Link)({
     fontWeight: 600,
   },
   "& .move-loc": {
-    fontSize: 15,
+    flexShrink: 0,
+    whiteSpace: " nowrap",
+    fontSize: 11,
   },
 });
 
 export const MobileProfile = styled.div({
-  minWidth: 20,
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+
+  padding: 8,
+  backgroundColor: " #005358",
+
+  width: 45,
   aspectRatio: "1/1",
   borderRadius: "999px",
+
+  color: "#fff",
 });

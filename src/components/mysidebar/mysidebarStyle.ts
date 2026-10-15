@@ -4,155 +4,145 @@ interface MenuButtonProps {
   $active: boolean;
 }
 
-export const SidebarContainer = styled.aside`
-  width: 186px;
-  min-width: 186px;
-  height: 100vh;
-  height: 100dvh;
-  padding: 16px 16px 17px;
-  box-sizing: border-box;
+export const SidebarContainer = styled.aside({
+  width: "230px",
+  minWidth: "230px",
+  height: "100dvh",
+  position: "sticky",
+  top: 0,
+  alignSelf: "flex-start",
+  flexShrink: 0,
+  overflowY: "auto",
+  zIndex: 10,
+  padding: "16px 16px 17px",
 
-  display: flex;
-  flex-direction: column;
+  display: "flex",
+  flexDirection: "column",
 
-  background: #005044;
-  color: #ffffff;
-  font-family: "Pretendard", sans-serif;
+  background: "#005044",
+  color: "#ffffff",
+});
 
-  @media (max-height: 520px) {
-    overflow-y: auto;
-  }
-`;
+export const LogoArea = styled.div({
+  height: "36px",
+  paddingLeft: "6px",
+  display: "flex",
+  alignItems: "center",
+  flexShrink: 0,
+});
 
-export const LogoArea = styled.div`
-  height: 36px;
-  padding-left: 6px;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-`;
+export const Logo = styled.img({
+  width: "88px",
+  height: "auto",
+  display: "block",
+  objectFit: "contain",
+  filter: "brightness(0) invert(1)",
+});
 
-export const Logo = styled.img`
-  width: 88px;
-  height: auto;
-  display: block;
-  object-fit: contain;
-`;
+export const UserSection = styled.div({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  marginTop: "17px",
+  flexShrink: 0,
+});
 
-export const UserSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 17px;
-  flex-shrink: 0;
-`;
+export const Avatar = styled.img({
+  width: "90px",
+  height: "90px",
+  borderRadius: "50%",
+  objectFit: "cover",
+});
 
-export const Avatar = styled.img`
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  object-fit: cover;
-`;
+export const UserName = styled.span({
+  marginTop: "18px",
+  color: "#ffffff",
+  fontSize: "20px",
+  fontWeight: 700,
+  lineHeight: "28px",
+  textAlign: "center",
+});
 
-export const UserName = styled.span`
-  margin-top: 16px;
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 24px;
-  text-align: center;
-`;
+export const Navigation = styled.nav({
+  display: "flex",
+  flexDirection: "column",
+  gap: "5px",
+  marginTop: "28px",
+});
 
-export const Navigation = styled.nav`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 24px;
-`;
+export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
+  width: "100%",
+  height: "48px",
+  padding: "0 16px",
 
-export const MenuButton = styled.button<MenuButtonProps>`
-  width: 100%;
-  height: 38px;
-  padding: 0 13px;
+  display: "flex",
+  alignItems: "center",
+  gap: "13px",
 
-  display: flex;
-  align-items: center;
-  gap: 11px;
+  borderRadius: "9px",
 
-  border: none;
-  border-radius: 9px;
+  background: $active ? "#edf8f5" : "transparent",
+  color: $active ? "#005044" : "#ffffff",
 
-  background: ${({ $active }) => ($active ? "#edf8f5" : "transparent")};
+  fontSize: "16px",
+  fontWeight: $active ? 700 : 500,
+  textAlign: "left",
+  whiteSpace: "nowrap",
 
-  color: ${({ $active }) => ($active ? "#005044" : "#ffffff")};
+  transition: "background 0.2s, color 0.2s",
 
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: ${({ $active }) => ($active ? 700 : 500)};
-  text-align: left;
-  white-space: nowrap;
-  cursor: pointer;
+  "& svg": {
+    flexShrink: 0,
+  },
 
-  transition:
-    background 0.2s,
-    color 0.2s;
+  "&:hover": {
+    background: $active ? "#edf8f5" : "rgba(255, 255, 255, 0.1)",
+  },
+}));
 
-  svg {
-    flex-shrink: 0;
-  }
+export const Footer = styled.div({
+  marginTop: "auto",
+  display: "flex",
+  flexDirection: "column",
+  gap: "3px",
 
-  &:hover {
-    background: ${({ $active }) =>
-      $active ? "#edf8f5" : "rgba(255,255,255,0.1)"};
-  }
-`;
+  "@media (max-height: 520px)": {
+    marginTop: "28px",
+  },
+});
 
-export const Footer = styled.div`
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+export const Divider = styled.div({
+  width: "100%",
+  height: "2px",
+  marginBottom: "14px",
+  background: "rgba(255, 255, 255, 0.35)",
+});
 
-  @media (max-height: 520px) {
-    margin-top: 28px;
-  }
-`;
+export const FooterButton = styled.button({
+  width: "100%",
+  minHeight: "48px",
+  padding: "0 16px",
 
-export const Divider = styled.div`
-  width: 100%;
-  height: 2px;
-  margin-bottom: 14px;
-  background: rgba(255, 255, 255, 0.35);
-`;
+  display: "flex",
+  alignItems: "center",
+  gap: "13px",
 
-export const FooterButton = styled.button`
-  width: 100%;
-  min-height: 38px;
-  padding: 0 12px;
+  borderRadius: "8px",
+  background: "transparent",
 
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  color: "#ffffff",
+  fontSize: "16px",
+  fontWeight: 500,
+  textAlign: "left",
+  whiteSpace: "nowrap",
 
-  border: none;
-  border-radius: 8px;
-  background: transparent;
+  transition: "background 0.2s",
 
-  color: #ffffff;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  text-align: left;
-  white-space: nowrap;
-  cursor: pointer;
+  "& svg": {
+    flexShrink: 0,
+  },
 
-  transition: background 0.2s;
-
-  svg {
-    flex-shrink: 0;
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-`;
+  "&:hover": {
+    background: "rgba(255, 255, 255, 0.1)",
+  },
+});
