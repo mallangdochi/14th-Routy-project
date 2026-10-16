@@ -1,7 +1,17 @@
 import styled from "@emotion/styled";
+import { dropdownAnimation } from "../../styles/animation";
+export const SidebarShell = styled.div({
+  position: "relative",
+  display: "flex",
+  flexShrink: 0,
+  height: "100%",
+  minHeight: "100vh",
 
-// 사이드바 전체
+});
+
 export const SidebarContainer = styled.aside({
+  position: "relative",
+
   display: "flex",
   flexDirection: "column",
   width: "200px",
@@ -12,30 +22,104 @@ export const SidebarContainer = styled.aside({
 
   padding: "16px 13px 15px",
   backgroundColor: "#FFFFFF",
-  boxSizing: "border-box",
   overflowY: "auto",
   scrollbarWidth: "thin",
+  transition: "width 0.28s ease, min-width 0.28s ease",
+
+  '&[data-collapsed="true"]': {
+    width: "104px",
+    minWidth: "104px",
+
+    "& [data-sidebar-header]": {
+
+      justifyContent: "center",
+      gap: "2px",
+
+    },
+    "& [data-sidebar-logo]": {
+
+      width: "auto",
+
+      flex: "0 0 56px",
+
+      height: "40px",
+
+      "& img": {
+
+        objectFit: "contain",
+
+      },
+    },
+
+    "& [data-profile-button]": {
+      justifyContent: "center",
+      padding: "10px 6px",
+      gap: "4px",
+    },
+    "& [data-profile-name], & [data-menu-label], & [data-create-label], & [data-sidebar-banner]":
+      {
+        display: "none",
+      },
+    "& [data-profile-arrow]": {
+      marginLeft: 0,
+      flexShrink: 0,
+      "& svg": { width: "18px", height: "18px" },
+    },
+    "& [data-create-button]": {
+      width: "56px",
+      height: "56px",
+      alignSelf: "center",
+      borderRadius: "50%",
+      marginBottom: "20px",
+      gap: 0,
+
+      "& svg": {
+        strokeWidth: 3,
+      },
+    },
+    "& [data-menu-button]": {
+      justifyContent: "center",
+      height: "52px",
+      padding: 0,
+      gap: 0,
+      "&::before": { top: "4px", height: "44px" },
+    },
+    "& [data-menu-icon]": {
+      width: "28px",
+      height: "28px",
+      "& svg": { width: "28px", height: "28px" },
+    },
+    "& [data-create-button] svg": {
+      width: "28px",
+      height: "28px",
+    },
+
+    "& [data-main-navigation]": { gap: "12px" },
+    "& [data-bottom-navigation]": { gap: "12px", marginBottom: 0 },
+  },
+});
+export const HeaderStyle = styled.div({
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+
+  width: "100%",
+  minWidth: 0,
+  gap: "8px",
+  padding: "30px 0 20px",
 });
 
-// 로고
 export const LogoWrapper = styled.div({
   display: "flex",
-  alignItems: "flex-start",
-  justifyContent: "flex-start",
-  width: "100%",
-  height: "47px",
+  alignItems: "center",
+  justifyContent: "center",
+  flex: "1 1 0",
+  minWidth: 0,
+  height: "40px",
   marginBottom: "12px",
-  flexShrink: 0,
+  order: -1,
 });
 
-export const LogoImage = styled.img({
-  display: "block",
-  width: "100px",
-  height: "auto",
-  objectFit: "contain",
-});
-
-// 프로필
 export const ProfileWrapper = styled.div({
   position: "relative",
   width: "100%",
@@ -50,11 +134,8 @@ export const ProfileButton = styled.button({
   height: "67px",
   padding: "10px 12px",
   gap: "12px",
-  border: "none",
   borderRadius: "12px",
   backgroundColor: "#ECF8F5",
-  cursor: "pointer",
-  boxSizing: "border-box",
 });
 
 export const ProfileImage = styled.img({
@@ -67,12 +148,14 @@ export const ProfileImage = styled.img({
 
 export const ProfileName = styled.span({
   color: "#183B40",
-  fontSize: "13px",
+  fontSize: "16px",
   fontWeight: 700,
   whiteSpace: "nowrap",
+  minWidth: 0,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
 });
 
-// 프로필 화살표 Props
 interface ProfileArrowProps {
   $isOpen: boolean;
 }
@@ -87,8 +170,8 @@ export const ProfileArrow = styled.span<ProfileArrowProps>(({ $isOpen }) => ({
   transition: "transform 0.2s ease",
 }));
 
-// 프로필 드롭다운
 export const ProfileDropdown = styled.div({
+  ...dropdownAnimation,
   position: "absolute",
   top: "calc(100% + 6px)",
   left: 0,
@@ -100,11 +183,10 @@ export const ProfileDropdown = styled.div({
   borderRadius: "12px",
   backgroundColor: "#FFFFFF",
   boxShadow: "0 5px 18px rgba(0, 0, 0, 0.12)",
-  boxSizing: "border-box",
   zIndex: 10,
+
 });
 
-// 드롭다운 항목
 export const DropdownItem = styled.button({
   display: "flex",
   alignItems: "center",
@@ -112,16 +194,12 @@ export const DropdownItem = styled.button({
   minHeight: "38px",
   padding: "9px 10px",
   gap: "12px",
-  border: "none",
   borderRadius: "8px",
-  backgroundColor: "transparent",
   color: "#172F32",
-  fontSize: "12px",
+  fontSize: "16px",
   fontWeight: 500,
   textAlign: "left",
   whiteSpace: "nowrap",
-  cursor: "pointer",
-  boxSizing: "border-box",
   transition: "background-color 0.2s ease, color 0.2s ease",
 
   "& svg": {
@@ -134,7 +212,6 @@ export const DropdownItem = styled.button({
   },
 });
 
-// 로그아웃 구분선
 export const DropdownDivider = styled.div({
   width: "100%",
   height: "1px",
@@ -143,7 +220,6 @@ export const DropdownDivider = styled.div({
   flexShrink: 0,
 });
 
-// 새 여행 만들기
 export const CreateTripButton = styled.button({
   display: "flex",
   alignItems: "center",
@@ -152,14 +228,12 @@ export const CreateTripButton = styled.button({
   height: "38px",
   gap: "7px",
   marginBottom: "12px",
-  border: "none",
   borderRadius: "9px",
   backgroundColor: "#005259",
   color: "#FFFFFF",
-  fontSize: "13px",
+  fontSize: "16px",
   fontWeight: 700,
   whiteSpace: "nowrap",
-  cursor: "pointer",
   flexShrink: 0,
   transition: "background-color 0.2s ease",
 
@@ -168,7 +242,6 @@ export const CreateTripButton = styled.button({
   },
 });
 
-// 메인 메뉴
 export const MainNavigation = styled.nav({
   display: "flex",
   flexDirection: "column",
@@ -176,7 +249,6 @@ export const MainNavigation = styled.nav({
   gap: "5px",
 });
 
-// 메뉴 버튼 Props
 interface MenuButtonProps {
   $active: boolean;
 }
@@ -189,14 +261,12 @@ export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
   height: "35px",
   padding: "0 13px",
   gap: "12px",
-  border: "none",
   borderRadius: "9px",
 
   color: $active ? "#005259" : "#333333",
-  fontSize: "12px",
+  fontSize: "16px",
   fontWeight: $active ? 700 : 400,
   textAlign: "left",
-  cursor: "pointer",
   isolation: "isolate",
 
   transition: "color 0.25s ease",
@@ -234,14 +304,6 @@ export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
   "&:hover": {
     color: "#005259",
   },
-
-  "@media (prefers-reduced-motion: reduce)": {
-    transition: "none",
-
-    "&::before, &::after": {
-      transition: "none",
-    },
-  },
 }));
 
 export const MenuIcon = styled.span({
@@ -257,7 +319,6 @@ export const MenuLabel = styled.span({
   whiteSpace: "nowrap",
 });
 
-// 하단 전체
 export const BottomSection = styled.div({
   display: "flex",
   flexDirection: "column",
@@ -267,7 +328,6 @@ export const BottomSection = styled.div({
   flexShrink: 0,
 });
 
-// 하단 메뉴
 export const BottomNavigation = styled.nav({
   display: "flex",
   flexDirection: "column",
@@ -276,7 +336,6 @@ export const BottomNavigation = styled.nav({
   marginBottom: "20px",
 });
 
-// 하단 마스코트 배너
 export const BannerWrapper = styled.div({
   width: "100%",
   aspectRatio: "1 / 1",
@@ -287,8 +346,90 @@ export const BannerWrapper = styled.div({
 });
 
 export const BannerImage = styled.img({
-  display: "block",
-  width: "100%",
   height: "100%",
   objectFit: "cover",
+});
+
+export const CollapseButton = styled.button({
+  position: "absolute",
+  top: 0,
+  right: 0,
+  left: "auto",
+  zIndex: 20,
+  transform: "none",
+
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "flex-end",
+  width: "48px",
+  height: "52px",
+  padding: "7px 5px 0 0",
+
+  borderRadius: 0,
+  color: "#FFFFFF",
+  isolation: "isolate",
+  filter: "drop-shadow(-3px 5px 4px rgba(13, 62, 65, 0.2))",
+
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    inset: 0,
+    zIndex: -1,
+    background: "linear-gradient(135deg, #D6E6E2 0%, #F7FCFA 48%, #FFFFFF 75%)",
+    clipPath: "polygon(0 0, 100% 100%, 20% 62%, 16% 30%)",
+    pointerEvents: "none",
+  },
+
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    inset: 0,
+    zIndex: -1,
+
+    backgroundColor: "#00666b",
+    clipPath: "polygon(0 0, 100% 0, 100% 100%)",
+    transition: "filter 0.2s ease",
+    pointerEvents: "none",
+  },
+
+  "& svg": {
+    width: "20px",
+    height: "20px",
+    flexShrink: 0,
+    transition: "transform 0.28s ease",
+  },
+
+  '&[aria-expanded="true"] svg': {
+    transform: "rotate(180deg)",
+  },
+
+  "&:hover::after": {
+    filter: "brightness(1.12)",
+  },
+
+  "&:focus-visible": {
+    outline: "3px solid #EB654B",
+    outlineOffset: "3px",
+  },
+
+  "@media (prefers-reduced-motion: reduce)": {
+    "&::after, & svg": {
+      transition: "none",
+    },
+  },
+});
+
+export const Tooltip = styled.div({
+  position: "fixed",
+  zIndex: 1000,
+  transform: "translateY(-50%)",
+  maxWidth: "calc(100vw - 16px)",
+  padding: "8px 12px",
+  borderRadius: "8px",
+  backgroundColor: "#005259",
+  color: "#FFFFFF",
+  fontSize: "16px",
+  fontWeight: 500,
+  overflowWrap: "anywhere",
+  pointerEvents: "none",
 });
