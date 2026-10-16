@@ -1,4 +1,3 @@
-
 import { CalendarDays, MapPin, MoreVertical } from "lucide-react";
 import { useState } from "react";
 import type { Trip, TripStatus } from "../../data/trips";
@@ -84,31 +83,34 @@ export default function TripCard({
             >
               <MoreVertical aria-hidden="true" />
             </button>
+            <div
+              className="trip-menu-dropdown"
+              data-open={menuOpen}
+              aria-hidden={!menuOpen}
+            >
+              <button
+                type="button"
+                tabIndex={menuOpen ? 0 : -1}
+                onClick={() => {
+                  onEdit?.(trip.id);
+                  setMenuOpen(false);
+                }}
+              >
+                여행 수정
+              </button>
 
-            {menuOpen && (
-              <div className="trip-menu-dropdown">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onEdit?.(trip.id);
-                    setMenuOpen(false);
-                  }}
-                >
-                  여행 수정
-                </button>
-
-                <button
-                  type="button"
-                  className="delete"
-                  onClick={() => {
-                    onDelete?.(trip.id);
-                    setMenuOpen(false);
-                  }}
-                >
-                  여행 삭제
-                </button>
-              </div>
-            )}
+              <button
+                type="button"
+                className="delete"
+                tabIndex={menuOpen ? 0 : -1}
+                onClick={() => {
+                  onDelete?.(trip.id);
+                  setMenuOpen(false);
+                }}
+              >
+                여행 삭제
+              </button>
+            </div>
           </div>
         </div>
 

@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import { dropdownAnimation } from "../../styles/animation";
 
 export const TripCardStyle = styled.article({
   "--trip-font-size": "16px",
@@ -55,6 +56,7 @@ export const TripCardStyle = styled.article({
   },
 
   "& .trip-menu-dropdown": {
+    ...dropdownAnimation,
     position: "absolute",
     top: "100%",
     right: 0,
