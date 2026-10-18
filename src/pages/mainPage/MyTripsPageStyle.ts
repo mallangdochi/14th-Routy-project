@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import { dropdownAnimation } from "../../styles/animation";
 
 export const MyTripsPageStyle = styled.div({
   "--page-font-size": "16px",
@@ -6,12 +7,11 @@ export const MyTripsPageStyle = styled.div({
   display: "flex",
   alignItems: "stretch",
   width: "100%",
-  minHeight: "100dvh",
+  minHeight: "100vh",
   backgroundColor: "#FEFBF5",
 
   "& .page-sidebar": {
-    flex: "0 0 200px",
-    width: "200px",
+    flex: "0 0 auto",
     minWidth: 0,
     display: "flex",
     alignSelf: "stretch",
@@ -20,9 +20,10 @@ export const MyTripsPageStyle = styled.div({
   "& .page-content": {
     display: "flex",
     flexDirection: "column",
-    flex: 1,
+    // flex: 1,
+    flex: "1 1 0",
     minWidth: 0,
-    minHeight: "100dvh",
+    minHeight: "100vh",
     backgroundColor: "#fff",
   },
 
@@ -163,6 +164,8 @@ export const MyTripsPageStyle = styled.div({
   },
 
   "& .sort-dropdown": {
+    ...dropdownAnimation,
+
     position: "absolute",
     top: "100%",
     right: 0,

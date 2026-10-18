@@ -1,23 +1,27 @@
 import { Routes, Route } from "react-router";
 
-import Loader from "./components/loader/Loader";
-import MobileNav from "./components/mobileBanner/MobileFooter";
-import MobileHeader from "./components/mobileBanner/MobileHeader";
+// import Loader from "./components/loader/Loader";
+// import MobileNav from "./components/mobileBanner/MobileFooter";
+// import MobileHeader from "./components/mobileBanner/MobileHeader";
 
 import RoutyBookLogin from "./components/RoutyBookLogin/RoutyBookLogin";
+import MyTripsPage from "./pages/mainPage/MyTripsPages";
+// import CreateTripPage from "./pages/newTravelPage/CreateTripPage";
 
 function MainPage() {
   return (
     <>
-      <MobileHeader />
+      <MyTripsPage />
+      {/* <CreateTripPage /> */}
+      {/* <MobileHeader /> */}
       {/* <Sidebar
       onNavigate={(page: string) => console.log("선택한 메뉴:", page)}
       onBack={() => console.log("여행으로 돌아가기")}
       onLogout={() => console.log("로그아웃")}
     /> */}
       {/* <MainSidebar /> */}
-      <Loader />
-      <MobileNav />
+      {/* <Loader /> */}
+      {/* <MobileNav /> */}
     </>
   );
 }
