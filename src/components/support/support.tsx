@@ -98,15 +98,20 @@ export default function Support() {
                   </S.FaqChevron>
                 </S.FaqQuestionButton>
 
-                {expanded && (
-                  <S.FaqAnswer
-                    id={`faq-answer-${index}`}
-                    role="region"
-                    aria-labelledby={`faq-question-${index}`}
-                  >
-                    {answer}
-                  </S.FaqAnswer>
-                )}
+                <S.FaqAnswerWrapper
+                  $expanded={expanded}
+                  aria-hidden={!expanded}
+                >
+                  <S.FaqAnswerClip>
+                    <S.FaqAnswer
+                      id={`faq-answer-${index}`}
+                      role="region"
+                      aria-labelledby={`faq-question-${index}`}
+                    >
+                      {answer}
+                    </S.FaqAnswer>
+                  </S.FaqAnswerClip>
+                </S.FaqAnswerWrapper>
               </S.FaqItem>
             );
           })}
