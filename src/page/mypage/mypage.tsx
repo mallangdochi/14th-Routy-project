@@ -1,12 +1,26 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Image as ImageIcon, Eye, EyeOff } from "lucide-react";
+import {
+  Image as ImageIcon,
+  Eye,
+  EyeOff,
+  ChevronLeft,
+  Menu,
+  CircleAlert,
+} from "lucide-react";
 import Settings, {
   type SettingsData,
 } from "../../components/settings/settings";
 import Sidebar from "../../components/mysidebar/mysidebar";
 import Support from "../../components/support/support";
 import profileAvatar from "../../assets/routy-mascot.png";
+import routyLogo from "../../assets/routy-logo.svg";
 import avatarP1 from "../../assets/profileAvatars/P1.webp";
 import avatarP2 from "../../assets/profileAvatars/P2.webp";
 import avatarP3 from "../../assets/profileAvatars/P3.webp";
@@ -208,31 +222,36 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
 
       <S.ProfileContent>
         <S.ImageColumn>
-          <S.ProfileImage src={profileImage} alt="프로필 이미지 미리보기" />
+          <S.AvatarControlRow>
+            <S.ProfileImage src={profileImage} alt="프로필 이미지 미리보기" />
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            hidden
-            onChange={handleFileChange}
-          />
+            <S.ImageControls>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden
+                onChange={handleFileChange}
+              />
 
-          <S.ImageChangeButton
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <ImageIcon size={22} strokeWidth={2} aria-hidden="true" />
-            이미지 변경
-          </S.ImageChangeButton>
+              <S.ImageChangeButton
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImageIcon size={20} strokeWidth={2} aria-hidden="true" />
+                이미지 변경
+              </S.ImageChangeButton>
 
-          <S.DefaultImageButton type="button" onClick={handleOpenPicker}>
-            기본 이미지로 변경
-          </S.DefaultImageButton>
+              <S.DefaultImageButton type="button" onClick={handleOpenPicker}>
+                기본 이미지로 변경
+              </S.DefaultImageButton>
 
-          <S.ImageHelp>JPG, PNG, WEBP · 최대 5MB</S.ImageHelp>
-
-          {imageError && <S.ImageError role="alert">{imageError}</S.ImageError>}
+              <S.ImageHelp>JPG, PNG, WEBP · 최대 5MB</S.ImageHelp>
+              {imageError && (
+                <S.ImageError role="alert">{imageError}</S.ImageError>
+              )}
+            </S.ImageControls>
+          </S.AvatarControlRow>
         </S.ImageColumn>
 
         <S.InputColumn>
@@ -327,6 +346,8 @@ type BasicInfoCardProps = {
   editing: boolean;
   onEdit: () => void;
   onSave: (account: AccountData) => void;
+  mobileEditLayout?: boolean;
+  onCancel?: () => void;
 };
 
 function BasicInfoCard({
@@ -334,6 +355,8 @@ function BasicInfoCard({
   editing,
   onEdit,
   onSave,
+  mobileEditLayout = false,
+  onCancel,
 }: BasicInfoCardProps) {
   const [draft, setDraft] = useState<AccountData>(account);
 
@@ -354,23 +377,25 @@ function BasicInfoCard({
       <S.SecurityCardHeader>
         <S.SecurityCardTitle>기본 정보</S.SecurityCardTitle>
 
-        <S.SecurityActionButton
-          type="button"
-          onClick={() => {
-            if (editing) {
-              onSave(draft);
-            } else {
-              onEdit();
-            }
-          }}
-        >
-          {editing ? "저장" : "수정"}
-        </S.SecurityActionButton>
+        {!mobileEditLayout && (
+          <S.SecurityActionButton
+            type="button"
+            onClick={() => {
+              if (editing) {
+                onSave(draft);
+              } else {
+                onEdit();
+              }
+            }}
+          >
+            {editing ? "저장" : "수정"}
+          </S.SecurityActionButton>
+        )}
       </S.SecurityCardHeader>
 
       <S.SecurityInfoList>
         {fields.map((field) => (
-          <S.SecurityInfoRow key={field.id}>
+          <S.SecurityInfoRow key={field.id} $editing={editing}>
             <S.SecurityInfoLabel
               htmlFor={editing ? `account-${field.id}` : undefined}
             >
@@ -397,6 +422,17 @@ function BasicInfoCard({
           </S.SecurityInfoRow>
         ))}
       </S.SecurityInfoList>
+
+      {mobileEditLayout && (
+        <S.PasswordActionRow>
+          <S.PasswordCancelButton type="button" onClick={onCancel}>
+            취소
+          </S.PasswordCancelButton>
+          <S.PasswordSubmitButton type="button" onClick={() => onSave(draft)}>
+            저장
+          </S.PasswordSubmitButton>
+        </S.PasswordActionRow>
+      )}
     </S.SecurityCard>
   );
 }
@@ -417,12 +453,53 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
     confirm: false,
   });
   const [showNotice, setShowNotice] = useState(false);
+  const [validationError, setValidationError] = useState<{
+    field: PasswordFieldId;
+    message: string;
+    attempt: number;
+  } | null>(null);
+  const inputRefs = useRef<Record<PasswordFieldId, HTMLInputElement | null>>({
+    current: null,
+    new: null,
+    confirm: null,
+  });
+  const attemptRef = useRef(0);
+
+  useEffect(() => {
+    if (!validationError) return;
+    inputRefs.current[validationError.field]?.focus();
+  }, [validationError]);
 
   const toggleVisibility = (id: PasswordFieldId) => {
     setVisible((previous) => ({
       ...previous,
       [id]: !previous[id],
     }));
+  };
+
+  const showValidation = (field: PasswordFieldId, message: string) => {
+    attemptRef.current += 1;
+    setValidationError({ field, message, attempt: attemptRef.current });
+    setShowNotice(false);
+  };
+
+  const handlePasswordSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const emptyField = passwordFields.find(({ id }) => !passwords[id].trim());
+
+    if (emptyField) {
+      showValidation(emptyField.id, "이 입력란을 작성하세요.");
+      return;
+    }
+
+    if (passwords.new !== passwords.confirm) {
+      showValidation("confirm", "새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    setValidationError(null);
+    setShowNotice(true);
   };
 
   return (
@@ -435,54 +512,73 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
         계정 보안을 위해 비밀번호를 변경할 수 있어요.
       </S.PasswordDescription>
 
-      <S.PasswordForm
-        onSubmit={(event) => {
-          event.preventDefault();
-          setShowNotice(true);
-        }}
-      >
-        {passwordFields.map((field) => (
-          <S.PasswordRow key={field.id}>
-            <S.PasswordLabel htmlFor={`password-${field.id}`}>
-              {field.label}
-            </S.PasswordLabel>
+      <S.PasswordForm noValidate onSubmit={handlePasswordSubmit}>
+        {passwordFields.map((field) => {
+          const hasError = validationError?.field === field.id;
 
-            <S.PasswordInputWrapper>
-              <S.PasswordInput
-                id={`password-${field.id}`}
-                name={`password-${field.id}`}
-                type={visible[field.id] ? "text" : "password"}
-                value={passwords[field.id]}
-                placeholder={field.placeholder}
-                autoComplete={field.autoComplete}
-                spellCheck={false}
-                required
-                onChange={(event) => {
-                  setPasswords((previous) => ({
-                    ...previous,
-                    [field.id]: event.target.value,
-                  }));
-                  setShowNotice(false);
-                }}
-              />
+          return (
+            <S.ValidationRow key={field.id} $hasError={hasError}>
+              <S.PasswordLabel htmlFor={`password-${field.id}`}>
+                {field.label}
+              </S.PasswordLabel>
 
-              <S.PasswordVisibilityButton
-                type="button"
-                aria-label={`${field.label} ${
-                  visible[field.id] ? "숨기기" : "표시"
-                }`}
-                aria-pressed={visible[field.id]}
-                onClick={() => toggleVisibility(field.id)}
+              <S.ValidatedInputWrapper
+                $hasError={hasError}
+                $attempt={validationError?.attempt ?? 0}
               >
-                {visible[field.id] ? (
-                  <EyeOff size={21} strokeWidth={1.8} aria-hidden="true" />
-                ) : (
-                  <Eye size={21} strokeWidth={1.8} aria-hidden="true" />
+                <S.PasswordInput
+                  ref={(node) => {
+                    inputRefs.current[field.id] = node;
+                  }}
+                  id={`password-${field.id}`}
+                  name={`password-${field.id}`}
+                  type={visible[field.id] ? "text" : "password"}
+                  value={passwords[field.id]}
+                  placeholder={field.placeholder}
+                  autoComplete={field.autoComplete}
+                  spellCheck={false}
+                  aria-invalid={hasError}
+                  aria-describedby={
+                    hasError ? `password-${field.id}-error` : undefined
+                  }
+                  onChange={(event) => {
+                    setPasswords((previous) => ({
+                      ...previous,
+                      [field.id]: event.target.value,
+                    }));
+                    if (hasError) setValidationError(null);
+                    setShowNotice(false);
+                  }}
+                />
+
+                <S.PasswordVisibilityButton
+                  type="button"
+                  aria-label={`${field.label} ${
+                    visible[field.id] ? "숨기기" : "표시"
+                  }`}
+                  aria-pressed={visible[field.id]}
+                  onClick={() => toggleVisibility(field.id)}
+                >
+                  {visible[field.id] ? (
+                    <EyeOff size={21} strokeWidth={1.8} aria-hidden="true" />
+                  ) : (
+                    <Eye size={21} strokeWidth={1.8} aria-hidden="true" />
+                  )}
+                </S.PasswordVisibilityButton>
+
+                {hasError && (
+                  <S.ValidationMessage
+                    id={`password-${field.id}-error`}
+                    role="alert"
+                  >
+                    <CircleAlert size={18} strokeWidth={2} aria-hidden="true" />
+                    {validationError.message}
+                  </S.ValidationMessage>
                 )}
-              </S.PasswordVisibilityButton>
-            </S.PasswordInputWrapper>
-          </S.PasswordRow>
-        ))}
+              </S.ValidatedInputWrapper>
+            </S.ValidationRow>
+          );
+        })}
 
         {showNotice && (
           <S.PasswordNotice role="status">
@@ -570,9 +666,44 @@ export default function MyPage() {
   const [account, setAccount] = useState<AccountData>(initialAccount);
   const [toastVersion, setToastVersion] = useState(0);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 760px)").matches,
+  );
 
   const [savedSettings, setSavedSettings] =
     useState<SettingsData>(initialSettings);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 760px)");
+    const updateViewport = (event: MediaQueryListEvent) => {
+      setIsMobileViewport(event.matches);
+      if (!event.matches) setIsMobileMenuOpen(false);
+    };
+
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsMobileMenuOpen(false);
+    };
+
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     if (toastVersion === 0) return;
@@ -608,6 +739,24 @@ export default function MyPage() {
     if (currentPage === "security") {
       if (detail === "password") {
         return <PasswordEditView onBack={() => navigate("/mypage/security")} />;
+      }
+
+      if (detail === "edit" && isMobileViewport) {
+        return (
+          <BasicInfoCard
+            key="mobile-basic-info-edit"
+            account={account}
+            editing
+            mobileEditLayout
+            onCancel={() => navigate("/mypage/security")}
+            onEdit={() => navigate("/mypage/security/edit")}
+            onSave={(next) => {
+              setAccount(next);
+              navigate("/mypage/security");
+              showSavedToast();
+            }}
+          />
+        );
       }
 
       return (
@@ -650,13 +799,53 @@ export default function MyPage() {
 
   return (
     <S.PageLayout>
-      <Sidebar
-        profileName={savedProfile.nickname}
-        profileImage={savedProfile.image}
-        onNavigate={(page) => navigate(`/mypage/${page}`)}
-        onBack={() => navigate("/")}
-        onLogout={() => navigate("/")}
+      <S.MobileTopBar>
+        <S.MobileTopBack
+          type="button"
+          aria-label="뒤로 가기"
+          onClick={() =>
+            navigate(
+              currentPage === "security" && detail ? "/mypage/security" : "/",
+            )
+          }
+        >
+          <ChevronLeft size={26} strokeWidth={1.8} aria-hidden="true" />
+        </S.MobileTopBack>
+        <S.MobileTopLogo src={routyLogo} alt="Routy" />
+        <S.MobileMenuToggle
+          type="button"
+          aria-label="계정 메뉴 열기"
+          aria-controls="mypage-sidebar"
+          aria-expanded={isMobileMenuOpen}
+          onClick={() => setIsMobileMenuOpen(true)}
+        >
+          <Menu size={26} strokeWidth={1.9} aria-hidden="true" />
+        </S.MobileMenuToggle>
+      </S.MobileTopBar>
+
+      <S.MobileDrawerBackdrop
+        $open={isMobileMenuOpen}
+        aria-hidden="true"
+        onClick={() => setIsMobileMenuOpen(false)}
       />
+      <S.SidebarShell id="mypage-sidebar" $open={isMobileMenuOpen}>
+        <Sidebar
+          profileName={savedProfile.nickname}
+          profileImage={savedProfile.image}
+          onNavigate={(page) => {
+            setIsMobileMenuOpen(false);
+            navigate(`/mypage/${page}`);
+          }}
+          onBack={() => {
+            setIsMobileMenuOpen(false);
+            navigate("/");
+          }}
+          onLogout={() => {
+            setIsMobileMenuOpen(false);
+            navigate("/");
+          }}
+        />
+      </S.SidebarShell>
 
       <S.PageMain>
         <S.MainInner>
