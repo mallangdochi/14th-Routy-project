@@ -222,35 +222,35 @@ export default function MyTripsPage() {
                   />
                 </button>
 
-                {isSortOpen && (
-                  <div
-                    className="sort-dropdown"
-                    role="menu"
-                    aria-label="여행 정렬"
-                  >
-                    {sortOptions.map((option, index) => (
-                      <button
-                        key={option.value}
-                        ref={(element) => {
-                          sortOptionRefs.current[index] = element;
-                        }}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={sort === option.value}
-                        tabIndex={sortFocusIndex === index ? 0 : -1}
-                        className={sort === option.value ? "is-selected" : ""}
-                        onFocus={() => setSortFocusIndex(index)}
-                        onClick={() => {
-                          setSort(option.value);
-                          setIsSortOpen(false);
-                          sortTriggerRef.current?.focus();
-                        }}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div
+                  className="sort-dropdown"
+                  role="menu"
+                  data-open={isSortOpen}
+                  aria-hidden={!isSortOpen}
+                  aria-label="여행 정렬"
+                >
+                  {sortOptions.map((option, index) => (
+                    <button
+                      key={option.value}
+                      ref={(element) => {
+                        sortOptionRefs.current[index] = element;
+                      }}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={sort === option.value}
+                      tabIndex={isSortOpen && sortFocusIndex === index ? 0 : -1}
+                      className={sort === option.value ? "is-selected" : ""}
+                      onFocus={() => setSortFocusIndex(index)}
+                      onClick={() => {
+                        setSort(option.value);
+                        setIsSortOpen(false);
+                        sortTriggerRef.current?.focus();
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="view-switch" role="group" aria-label="보기 방식">
