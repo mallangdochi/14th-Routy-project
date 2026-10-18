@@ -1,8 +1,107 @@
+import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 
 const green = "#005044";
 const navy = "#09184d";
 const muted = "#60769e";
+
+export const MobileTopBar = styled.header({
+  display: "none",
+
+  "@media (max-width: 760px)": {
+    position: "sticky",
+    top: 0,
+    zIndex: 50,
+    display: "grid",
+    gridTemplateColumns: "48px 1fr 48px",
+    alignItems: "center",
+    height: 68,
+    padding: "0 14px",
+    backgroundColor: "#fcfbf8",
+  },
+});
+
+export const MobileTopBack = styled.button({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 44,
+  height: 44,
+  color: "#111827",
+});
+
+export const MobileTopLogo = styled.img({
+  width: 96,
+  maxHeight: 42,
+  objectFit: "contain",
+  justifySelf: "center",
+});
+
+export const MobileMenuToggle = styled.button({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 44,
+  height: 44,
+  justifySelf: "end",
+  color: "#111827",
+});
+
+export const MobileDrawerBackdrop = styled.div<{ $open: boolean }>(
+  ({ $open }) => ({
+    display: "none",
+
+    "@media (max-width: 760px)": {
+      display: "block",
+      position: "fixed",
+      inset: 0,
+      zIndex: 89,
+      backgroundColor: "rgba(9, 24, 35, 0.42)",
+      opacity: $open ? 1 : 0,
+      visibility: $open ? "visible" : "hidden",
+      pointerEvents: $open ? "auto" : "none",
+      transition: $open
+        ? "opacity 220ms ease, visibility 0s"
+        : "opacity 220ms ease, visibility 0s linear 220ms",
+    },
+  }),
+);
+
+export const SidebarShell = styled.div<{ $open: boolean }>(({ $open }) => ({
+  width: 230,
+  flexShrink: 0,
+
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    width: 200,
+    "& > aside": {
+      width: 200,
+      minWidth: 200,
+      paddingLeft: 12,
+      paddingRight: 12,
+    },
+  },
+
+  "@media (max-width: 760px)": {
+    position: "fixed",
+    inset: "0 0 0 auto",
+    zIndex: 90,
+    width: 250,
+    maxWidth: "84vw",
+    height: "100dvh",
+    visibility: $open ? "visible" : "hidden",
+    transform: $open ? "translateX(0)" : "translateX(100%)",
+    transition: $open
+      ? "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s"
+      : "transform 230ms ease-in, visibility 0s linear 230ms",
+    boxShadow: $open ? "-4px 0 18px rgba(0, 0, 0, 0.16)" : "none",
+
+    "& > aside": {
+      width: "100%",
+      minWidth: 0,
+      height: "100dvh",
+    },
+  },
+}));
 
 export const PageLayout = styled.div({
   display: "flex",
@@ -11,21 +110,35 @@ export const PageLayout = styled.div({
 
   "@media (max-width: 760px)": {
     flexDirection: "column",
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "clip",
   },
 });
 
 export const PageMain = styled.main({
+  width: "100%",
   flex: 1,
   minWidth: 0,
   padding: "72px clamp(26px, 5vw, 86px) 64px",
 
   "@media (max-width: 760px)": {
-    padding: "32px 18px 48px",
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+    padding: "26px 16px 96px",
+    margin: 0,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    padding: "40px clamp(20px, 3.2vw, 38px) 50px",
   },
 });
 
 export const MainInner = styled.div({
   width: "100%",
+  minWidth: 0,
   maxWidth: 1210,
   margin: "0 auto",
 });
@@ -34,6 +147,9 @@ export const PageHeader = styled.header({
   marginBottom: 36,
 
   "@media (max-width: 760px)": {
+    marginBottom: 20,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
     marginBottom: 24,
   },
 });
@@ -52,16 +168,22 @@ export const PageTitle = styled.h1<{ $green: boolean }>(({ $green }) => ({
   "@media (max-width: 760px)": {
     fontSize: 30,
   },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 34,
+  },
 }));
 
 export const PageDescription = styled.p({
-  marginTop: 7,
+  marginTop: 4,
   color: muted,
   fontSize: 24,
   fontWeight: 500,
 
   "@media (max-width: 760px)": {
-    fontSize: 16,
+    fontSize: 15,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 18,
   },
 });
 
@@ -75,7 +197,12 @@ export const ProfileCard = styled.section({
 
   "@media (max-width: 760px)": {
     minHeight: 0,
-    padding: "22px 18px",
+    borderRadius: 12,
+    padding: "18px 16px 20px",
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minHeight: 0,
+    padding: "22px 22px 24px",
   },
 });
 
@@ -86,6 +213,9 @@ export const CardTitle = styled.h2({
   letterSpacing: "-0.03em",
 
   "@media (max-width: 760px)": {
+    fontSize: 20,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
     fontSize: 22,
   },
 });
@@ -97,8 +227,14 @@ export const ProfileContent = styled.div({
   marginTop: 36,
 
   "@media (max-width: 920px)": {
+    minHeight: 0,
+    marginTop: 20,
     gridTemplateColumns: "1fr",
-    gap: 32,
+    gap: 22,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    marginTop: 22,
+    minHeight: 0,
   },
 });
 
@@ -110,22 +246,63 @@ export const ImageColumn = styled.div({
   borderRight: "1px solid #d7e0ee",
 
   "@media (max-width: 920px)": {
-    padding: "0 0 28px",
+    padding: "0 0 22px",
     borderRight: 0,
     borderBottom: "1px solid #d7e0ee",
+  },
+});
+
+export const AvatarControlRow = styled.div({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  width: "100%",
+
+  "@media (max-width: 760px)": {
+    display: "grid",
+    gridTemplateColumns: "104px minmax(0, 1fr)",
+    alignItems: "center",
+    columnGap: 14,
+  },
+
+  "@media (max-width: 350px)": {
+    gridTemplateColumns: "92px minmax(0, 1fr)",
+    columnGap: 10,
+  },
+});
+
+export const ImageControls = styled.div({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  width: "100%",
+
+  "@media (max-width: 760px)": {
+    minWidth: 0,
+    alignItems: "stretch",
   },
 });
 
 export const ProfileImage = styled.img({
   width: 190,
   height: 190,
-  marginBottom: 12,
+  marginBottom: 10,
   borderRadius: "50%",
   objectFit: "cover",
 
   "@media (max-width: 760px)": {
-    width: 150,
-    height: 150,
+    width: 104,
+    height: 104,
+    marginBottom: 0,
+  },
+
+  "@media (max-width: 350px)": {
+    width: 92,
+    height: 92,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    width: 152,
+    height: 152,
   },
 });
 
@@ -138,8 +315,9 @@ const imageButtonBase = {
   fontWeight: 700,
 
   "@media (max-width: 760px)": {
-    fontSize: 15,
-    minHeight: 44,
+    fontSize: 13,
+    minHeight: 39,
+    padding: "0 5px",
   },
 };
 
@@ -159,11 +337,15 @@ export const ImageChangeButton = styled.button({
     borderColor: "#149c89",
     color: green,
   },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minHeight: 42,
+    fontSize: 15,
+  },
 });
 
 export const DefaultImageButton = styled.button({
   ...imageButtonBase,
-  marginTop: 12,
+  marginTop: 10,
   border: "2px solid #d5deeb",
   backgroundColor: "#ffffff",
   color: navy,
@@ -174,6 +356,10 @@ export const DefaultImageButton = styled.button({
     borderColor: "#149c89",
     color: green,
   },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minHeight: 42,
+    fontSize: 15,
+  },
 });
 
 export const ImageHelp = styled.p({
@@ -183,6 +369,12 @@ export const ImageHelp = styled.p({
   textAlign: "center",
 
   "@media (max-width: 760px)": {
+    fontSize: 11,
+    marginTop: 8,
+    whiteSpace: "normal",
+    lineHeight: 1.4,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
     fontSize: 13,
   },
 });
@@ -202,6 +394,7 @@ export const InputColumn = styled.div({
 
   "@media (max-width: 920px)": {
     padding: 0,
+    justifyContent: "flex-start",
   },
 });
 
@@ -214,6 +407,9 @@ export const FieldLabel = styled.label({
 
   "@media (max-width: 760px)": {
     fontSize: 17,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 18,
   },
 });
 
@@ -235,6 +431,9 @@ export const InputBox = styled.div({
     height: 51,
     padding: "0 12px",
   },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    height: 52,
+  },
 });
 
 export const NameInput = styled.input({
@@ -249,6 +448,9 @@ export const NameInput = styled.input({
   "@media (max-width: 760px)": {
     fontSize: 17,
   },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 18,
+  },
 });
 
 export const CharacterCount = styled.span({
@@ -260,6 +462,9 @@ export const CharacterCount = styled.span({
   "@media (max-width: 760px)": {
     fontSize: 13,
   },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 14,
+  },
 });
 
 export const InputHelp = styled.p({
@@ -268,6 +473,9 @@ export const InputHelp = styled.p({
   fontSize: 18,
 
   "@media (max-width: 760px)": {
+    fontSize: 14,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
     fontSize: 14,
   },
 });
@@ -285,8 +493,11 @@ export const ActionRow = styled.div({
   marginTop: 19,
 
   "@media (max-width: 760px)": {
-    marginTop: 30,
+    marginTop: 20,
     gap: 9,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    marginTop: 12,
   },
 });
 
@@ -317,6 +528,11 @@ export const CancelButton = styled.button({
   "@media (max-width: 760px)": {
     minWidth: 96,
   },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minHeight: 48,
+    minWidth: 112,
+    fontSize: 16,
+  },
 });
 
 export const SaveButton = styled.button({
@@ -330,7 +546,15 @@ export const SaveButton = styled.button({
   },
 
   "@media (max-width: 760px)": {
-    minWidth: 134,
+    minWidth: 124,
+    minHeight: 42,
+    padding: "0 12px",
+    fontSize: 15,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minHeight: 48,
+    minWidth: 148,
+    fontSize: 16,
   },
 });
 
@@ -357,6 +581,7 @@ export const AvatarModal = styled.div({
 
   "@media (max-width: 600px)": {
     padding: 18,
+    maxHeight: "80dvh",
   },
 });
 
@@ -471,7 +696,7 @@ export const SaveToast = styled.div({
   pointerEvents: "none",
 
   "@media (max-width: 760px)": {
-    top: 16,
+    top: 78,
     minWidth: 190,
     fontSize: 14,
     padding: "12px 20px",
@@ -493,6 +718,12 @@ export const SecurityContent = styled.div({
   display: "flex",
   flexDirection: "column",
   gap: 26,
+  "@media (max-width: 760px)": {
+    gap: 14,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    gap: 18,
+  },
 });
 
 export const SecurityCard = styled.section({
@@ -503,7 +734,12 @@ export const SecurityCard = styled.section({
   backgroundColor: "#ffffff",
 
   "@media (max-width: 760px)": {
-    padding: "20px 18px 24px",
+    padding: "16px 14px 18px",
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    padding: "18px 24px 22px",
   },
 });
 
@@ -515,7 +751,10 @@ export const SecurityCardHeader = styled.div({
   gap: 20,
 
   "@media (max-width: 760px)": {
-    minHeight: 48,
+    minHeight: 42,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minHeight: 50,
   },
 });
 
@@ -527,6 +766,9 @@ export const SecurityCardTitle = styled.h2({
   lineHeight: 1.35,
 
   "@media (max-width: 760px)": {
+    fontSize: 18,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
     fontSize: 22,
   },
 });
@@ -548,10 +790,17 @@ export const SecurityActionButton = styled.button({
   },
 
   "@media (max-width: 760px)": {
-    minWidth: 90,
+    minWidth: 72,
+    minHeight: 38,
+    padding: "0 12px",
+    fontSize: 15,
+    borderRadius: 7,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minWidth: 108,
     minHeight: 48,
-    padding: "0 15px",
-    fontSize: 17,
+    fontSize: 18,
+    padding: "0 16px",
   },
 });
 
@@ -562,29 +811,41 @@ export const SecurityInfoList = styled.div({
   marginTop: 17,
 
   "@media (max-width: 760px)": {
-    gap: 14,
-    marginTop: 22,
+    gap: 0,
+    marginTop: 10,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    gap: 8,
+    marginTop: 12,
   },
 });
 
-export const SecurityInfoRow = styled.div({
-  display: "grid",
-  gridTemplateColumns: "minmax(160px, 24%) minmax(0, 1fr)",
-  alignItems: "center",
-  gap: 20,
-  minHeight: 58,
+export const SecurityInfoRow = styled.div<{ $editing: boolean }>(
+  ({ $editing }) => ({
+    display: "grid",
+    gridTemplateColumns: "minmax(160px, 24%) minmax(0, 1fr)",
+    alignItems: "center",
+    gap: 20,
+    minHeight: 58,
 
-  "@media (max-width: 760px)": {
-    minHeight: 48,
-    gridTemplateColumns: "120px minmax(0, 1fr)",
-    gap: 10,
-  },
+    "@media (max-width: 760px)": {
+      minHeight: 48,
+      gridTemplateColumns: $editing ? "1fr" : "112px minmax(0, 1fr)",
+      gap: $editing ? 5 : 8,
+      padding: $editing ? "10px 0" : "6px 0",
+      borderBottom: "1px solid #e8eef6",
+    },
 
-  "@media (max-width: 420px)": {
-    gridTemplateColumns: "1fr",
-    gap: 4,
-  },
-});
+    "@media (max-width: 420px)": {
+      gridTemplateColumns: $editing ? "1fr" : "105px minmax(0, 1fr)",
+      gap: $editing ? 5 : 6,
+    },
+    "@media (min-width: 761px) and (max-width: 1199px)": {
+      minHeight: 50,
+      gap: 14,
+    },
+  }),
+);
 
 export const SecurityInfoLabel = styled.label({
   color: "#4e638b",
@@ -592,7 +853,10 @@ export const SecurityInfoLabel = styled.label({
   fontWeight: 700,
 
   "@media (max-width: 760px)": {
-    fontSize: 16,
+    fontSize: 15,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 17,
   },
 });
 
@@ -609,9 +873,14 @@ export const SecurityInfoValue = styled.span({
   overflowWrap: "anywhere",
 
   "@media (max-width: 760px)": {
-    minHeight: 48,
-    padding: "0 12px",
-    fontSize: 16,
+    minHeight: 38,
+    padding: 0,
+    fontSize: 15,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 17,
+    minHeight: 50,
+    padding: "0 14px",
   },
 });
 
@@ -639,8 +908,16 @@ export const SecuritySimpleCard = styled.section({
   backgroundColor: "#ffffff",
 
   "@media (max-width: 760px)": {
-    padding: "20px 18px",
+    padding: "18px 14px",
     gap: 12,
+    minHeight: 108,
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minHeight: 112,
+    padding: "18px 24px",
+    gap: 14,
   },
 });
 
@@ -649,14 +926,18 @@ export const SecuritySimpleText = styled.div({
 });
 
 export const SecurityCardDescription = styled.p({
-  marginTop: 13,
+  marginTop: 8,
   color: muted,
   fontSize: 21,
   fontWeight: 500,
   lineHeight: 1.5,
 
   "@media (max-width: 760px)": {
-    fontSize: 15,
+    fontSize: 14,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 17,
+    marginTop: 7,
   },
 });
 
@@ -678,10 +959,16 @@ export const WithdrawButton = styled.button({
   },
 
   "@media (max-width: 760px)": {
-    minWidth: 100,
+    minWidth: 88,
+    minHeight: 38,
+    padding: "0 10px",
+    fontSize: 15,
+    borderRadius: 7,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minWidth: 140,
     minHeight: 48,
-    padding: "0 12px",
-    fontSize: 16,
+    fontSize: 18,
   },
 });
 
@@ -702,9 +989,16 @@ export const SecurityInput = styled.input({
   },
 
   "@media (max-width: 760px)": {
-    height: 48,
+    height: 38,
     padding: "0 10px",
-    fontSize: 16,
+    fontSize: 14,
+    borderWidth: 1,
+    borderRadius: 6,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    height: 50,
+    fontSize: 17,
+    padding: "0 14px",
   },
 });
 
@@ -718,6 +1012,9 @@ export const PasswordDescription = styled.p({
   "@media (max-width: 760px)": {
     fontSize: 15,
   },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 17,
+  },
 });
 
 export const PasswordForm = styled.form({
@@ -727,8 +1024,12 @@ export const PasswordForm = styled.form({
   marginTop: 32,
 
   "@media (max-width: 760px)": {
+    gap: 16,
+    marginTop: 22,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    marginTop: 22,
     gap: 14,
-    marginTop: 24,
   },
 });
 
@@ -740,14 +1041,14 @@ export const PasswordRow = styled.div({
   minHeight: 58,
 
   "@media (max-width: 760px)": {
-    minHeight: 48,
-    gridTemplateColumns: "120px minmax(0, 1fr)",
-    gap: 10,
+    minHeight: 0,
+    gridTemplateColumns: "1fr",
+    gap: 7,
   },
 
-  "@media (max-width: 420px)": {
-    gridTemplateColumns: "1fr",
-    gap: 4,
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minHeight: 50,
+    gap: 14,
   },
 });
 
@@ -758,6 +1059,9 @@ export const PasswordLabel = styled.label({
 
   "@media (max-width: 760px)": {
     fontSize: 16,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 17,
   },
 });
 
@@ -777,8 +1081,12 @@ export const PasswordInputWrapper = styled.div({
   },
 
   "@media (max-width: 760px)": {
-    height: 48,
+    height: 44,
     padding: "0 10px 0 12px",
+    borderWidth: 1,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    height: 50,
   },
 });
 
@@ -799,6 +1107,9 @@ export const PasswordInput = styled.input({
 
   "@media (max-width: 760px)": {
     fontSize: 15,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    fontSize: 17,
   },
 });
 
@@ -835,6 +1146,7 @@ export const PasswordActionRow = styled.div({
 
   "@media (max-width: 760px)": {
     gap: 10,
+    marginTop: 8,
   },
 });
 
@@ -861,6 +1173,11 @@ export const PasswordCancelButton = styled.button({
     minHeight: 47,
     fontSize: 15,
   },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minWidth: 110,
+    minHeight: 48,
+    fontSize: 16,
+  },
 });
 
 export const PasswordSubmitButton = styled.button({
@@ -884,6 +1201,11 @@ export const PasswordSubmitButton = styled.button({
     minWidth: 134,
     minHeight: 47,
     fontSize: 15,
+  },
+  "@media (min-width: 761px) and (max-width: 1199px)": {
+    minWidth: 140,
+    minHeight: 48,
+    fontSize: 16,
   },
 });
 
@@ -957,5 +1279,96 @@ export const WithdrawNoButton = styled.button({
   "&:hover": {
     backgroundColor: "#006c5b",
     borderColor: "#006c5b",
+  },
+});
+
+const greenBlinkFrames = {
+  "0%, 100%": {
+    borderColor: "#159e90",
+    boxShadow: "0 0 0 0 rgba(21, 158, 144, 0)",
+  },
+  "25%, 72%": {
+    borderColor: "#00a58c",
+    boxShadow: "0 0 0 4px rgba(21, 158, 144, 0.19)",
+  },
+  "48%": {
+    borderColor: "#159e90",
+    boxShadow: "0 0 0 0 rgba(21, 158, 144, 0)",
+  },
+};
+
+const greenBlinkFirst = keyframes(greenBlinkFrames);
+const greenBlinkSecond = keyframes({
+  ...greenBlinkFrames,
+  "49%": {
+    borderColor: "#159e90",
+    boxShadow: "0 0 0 0 rgba(21, 158, 144, 0)",
+  },
+});
+
+export const ValidationRow = styled(PasswordRow)<{ $hasError: boolean }>(
+  ({ $hasError }) => ({
+    marginBottom: $hasError ? 44 : 0,
+    transition: "margin-bottom 160ms ease",
+
+    "@media (max-width: 760px)": {
+      marginBottom: $hasError ? 39 : 0,
+    },
+  }),
+);
+
+export const ValidatedInputWrapper = styled(PasswordInputWrapper)<{
+  $hasError: boolean;
+  $attempt: number;
+}>(({ $hasError, $attempt }) => ({
+  position: "relative",
+  borderColor: $hasError ? "#159e90" : undefined,
+  animation: $hasError
+    ? `${$attempt % 2 === 0 ? greenBlinkSecond : greenBlinkFirst} 950ms ease-in-out 1`
+    : "none",
+}));
+
+export const ValidationMessage = styled.div({
+  position: "absolute",
+  top: "calc(100% + 8px)",
+  left: 0,
+  zIndex: 2,
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  width: "max-content",
+  maxWidth: "100%",
+  padding: "9px 12px",
+  border: `1px solid ${green}`,
+  borderRadius: 8,
+  backgroundColor: green,
+  boxShadow: "0 4px 12px rgba(9, 24, 77, 0.12)",
+  color: "#ffffff",
+  fontSize: 14,
+  fontWeight: 500,
+  lineHeight: 1.35,
+  whiteSpace: "normal",
+
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    top: -6,
+    left: 18,
+    width: 10,
+    height: 10,
+    borderTop: `1px solid ${green}`,
+    borderLeft: `1px solid ${green}`,
+    backgroundColor: green,
+    transform: "rotate(45deg)",
+  },
+
+  "& svg": {
+    flexShrink: 0,
+    color: "#ffffff",
+  },
+
+  "@media (max-width: 760px)": {
+    fontSize: 13,
+    padding: "8px 10px",
   },
 });
