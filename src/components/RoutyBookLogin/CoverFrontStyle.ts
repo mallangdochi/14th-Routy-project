@@ -509,31 +509,29 @@ export const SignUpButton = styled(TextButton)`
   font-weight: 800;
 `;
 
-// 여권 클릭 안내 텍스트
-export const Hint = styled.p`
-  position: absolute;
+export const Hint = styled.p({
+  position: "absolute",
 
-  top: calc(50% + var(--page-height) / 2 + 20px);
+  top: "50%",
+  left: "calc(50% + var(--page-width) / 2 + 40px)",
 
-  left: 50%;
+  transform: "translateY(-50%)",
 
-  transform: translateX(-50%);
+  margin: 0,
 
-  margin: 0;
+  color: "#0A414B",
 
-  color: ${teal};
+  fontSize: "40px",
+  fontWeight: 800,
+  lineHeight: 1.5,
 
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.5;
+  whiteSpace: "nowrap",
+  textAlign: "left",
 
-  white-space: nowrap;
-  text-align: center;
+  transition: "opacity 250ms ease",
 
-  transition: opacity 250ms ease;
-
-  &[data-open="true"] {
-    opacity: 0;
-    pointer-events: none;
-  }
-`;
+  "&[data-open='true']": {
+    opacity: 0,
+    pointerEvents: "none",
+  },
+});

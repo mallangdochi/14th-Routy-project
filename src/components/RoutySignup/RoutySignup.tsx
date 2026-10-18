@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import routyLogo from "../../assets/루티2.svg";
+import DatePicker from "../pickers/DatePicker";
 
 import {
   LeftContent,
@@ -71,6 +72,15 @@ interface ProviderProps extends SignupApiProps {
 }
 
 const FORM_ID = "routy-signup-form";
+
+// UTC가 아닌 사용자의 현지 날짜를 최대 선택 날짜로 사용합니다.
+function getLocalToday(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function useSignupState({
   onCheckUsername,
@@ -275,6 +285,17 @@ function useSignupState({
 
     setFormMessage("");
 
+    // DatePicker는 기본 form 소속 input이 아니므로 생년월일을 직접 검증합니다.
+    if (!form.birth) {
+      setFormMessage("생년월일을 선택해주세요.");
+      return;
+    }
+
+    if (form.birth < "1900-01-01" || form.birth > getLocalToday()) {
+      setFormMessage("올바른 생년월일을 선택해주세요.");
+      return;
+    }
+
     if (!usernameChecked) {
       setFormMessage("아이디 중복 확인을 완료해주세요.");
       return;
@@ -354,7 +375,7 @@ export function RoutySignupProvider({ children, ...props }: ProviderProps) {
   );
 }
 
-function useSignup() {
+export function useSignup() {
   const context = useContext(SignupContext);
 
   if (!context) {
@@ -437,15 +458,15 @@ export default function RoutySignup({
               <EnglishLabel>/ BIRTH</EnglishLabel>
             </FieldLabel>
 
-            <Input
-              id="signup-birth"
-              form={FORM_ID}
-              type="date"
-              autoComplete="bday"
+            <DatePicker
+              label=""
+              name="birth"
               value={s.form.birth}
-              onChange={(e) => s.updateField("birth", e.target.value)}
+              onChange={(value) => s.updateField("birth", value)}
+              min="1900-01-01"
+              max={getLocalToday()}
+              placement="bottom"
               disabled={disabled}
-              required
             />
           </Field>
 
