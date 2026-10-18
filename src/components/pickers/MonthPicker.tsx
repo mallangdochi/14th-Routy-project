@@ -1,10 +1,5 @@
 import { useId, useState } from "react";
-import {
-  CalendarDays,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { PickerStyle } from "./PickerStyle";
 import { usePicker, type Placement } from "./usePicker";
 export type MonthPickerProps = {
@@ -30,6 +25,18 @@ export default function MonthPicker({
   name,
 }: MonthPickerProps) {
   const id = useId();
+  const seoulParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+
+  const seoulYear = Number(
+    seoulParts.find((part) => part.type === "year")!.value,
+  );
+  const seoulMonth = seoulParts.find((part) => part.type === "month")!.value;
+
+  const thisMonth = `${seoulYear}-${seoulMonth}`;
   const {
     open,
     mounted,
@@ -42,9 +49,7 @@ export default function MonthPicker({
     handleKeyDown,
   } = usePicker(disabled);
   const currentYear = () =>
-    /^\d{4}-\d{2}$/.test(value)
-      ? Number(value.slice(0, 4))
-      : new Date().getFullYear();
+    /^\d{4}-\d{2}$/.test(value) ? Number(value.slice(0, 4)) : seoulYear;
   const [year, setYear] = useState(currentYear);
   const [view, setView] = useState<"month" | "year">("month");
   const [yearPage, setYearPage] = useState(
@@ -58,8 +63,6 @@ export default function MonthPicker({
       close(true);
     }
   };
-  const today = new Date();
-  const thisMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const toggle = () => {
     if (!open) {
       const y = currentYear();
@@ -77,6 +80,7 @@ export default function MonthPicker({
     <PickerStyle
       ref={rootRef}
       className={className}
+      data-picker="month"
       data-open={open}
       data-present={mounted}
       data-placement={placement}
@@ -136,7 +140,7 @@ export default function MonthPicker({
                 setView(view === "year" ? "month" : "year");
               }}
             >
-              {year}년<ChevronDown aria-hidden="true" />
+              {year}년
             </button>
             <button
               type="button"
@@ -168,7 +172,7 @@ export default function MonthPicker({
                       setView("month");
                     }}
                   >
-                    {y}년
+                    {y}
                   </button>
                 ))}
               </div>
@@ -177,11 +181,16 @@ export default function MonthPicker({
             <div className="picker-options">
               {Array.from({ length: 12 }, (_, m) => {
                 const candidate = `${year}-${String(m + 1).padStart(2, "0")}`;
+                const isCurrentMonth = candidate === thisMonth;
+
                 return (
                   <button
                     key={candidate}
                     type="button"
                     className="picker-option"
+                    data-current-month={isCurrentMonth}
+                    aria-current={isCurrentMonth ? "date" : undefined}
+                    aria-label={`${year}년 ${m + 1}월${isCurrentMonth ? ", 이번 달" : ""}`}
                     aria-pressed={candidate === value}
                     disabled={!allowed(candidate)}
                     onClick={() => choose(candidate)}
