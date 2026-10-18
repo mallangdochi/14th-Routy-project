@@ -5,13 +5,15 @@ import { Routes, Route } from "react-router";
 // import MobileHeader from "./components/mobileBanner/MobileHeader";
 
 import RoutyBookLogin from "./components/RoutyBookLogin/RoutyBookLogin";
-import MyTripsPage from "./pages/mainPage/MyTripsPages";
+import SchedulePage from "./pages/travelSchedulePage/SchedulePage";
+// import MyTripsPage from "./pages/mainPage/MyTripsPages";
 // import CreateTripPage from "./pages/newTravelPage/CreateTripPage";
 
 function MainPage() {
   return (
     <>
-      <MyTripsPage />
+      <SchedulePage />
+      {/* <MyTripsPage /> */}
       {/* <CreateTripPage /> */}
       {/* <MobileHeader /> */}
       {/* <Sidebar

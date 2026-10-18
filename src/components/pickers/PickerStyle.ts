@@ -46,13 +46,6 @@ export const PickerStyle = styled.div({
   '& .picker-chevron[data-open="true"]': { transform: "rotate(180deg)" },
   "& .picker-chevron-desktop": { display: "block" },
   "& .picker-chevron-compact": { display: "none" },
-  "@media (max-width: 1023px)": {
-    "& .picker-chevron-desktop": { display: "none" },
-    "& .picker-chevron-compact": { display: "block" },
-  },
-  "@media (prefers-reduced-motion: reduce)": {
-    "& .picker-chevron": { transition: "none" },
-  },
   '&[data-present="true"] .picker-trigger': {
     borderColor: "#D8E3DC",
     backgroundColor: "#f4f7f0",
@@ -213,10 +206,131 @@ export const PickerStyle = styled.div({
     padding: "7px 14px",
     borderRadius: "8px",
   },
-  "@media (min-width: 768px) and (max-width: 1023px)": { fontSize: "15px" },
+  '&[data-picker="month"]': {
+    "& .picker-trigger > span": {
+      whiteSpace: "nowrap",
+      wordBreak: "normal",
+      overflowWrap: "normal",
+    },
+
+    "& .picker-popup": {
+      padding: "14px",
+    },
+
+    "& .picker-header": {
+      display: "grid",
+      gridTemplateColumns: "32px minmax(0, 1fr) 32px",
+      alignItems: "center",
+      gap: "8px",
+    },
+
+    "& .picker-header > .picker-nav": {
+      display: "grid",
+      placeItems: "center",
+      width: "32px",
+      minWidth: 0,
+      height: "40px",
+      minHeight: "40px",
+      padding: 0,
+      border: 0,
+      borderRadius: "8px",
+    },
+
+    "& .picker-header > .picker-heading": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      justifySelf: "center",
+      gap: "4px",
+      width: "auto",
+      minWidth: 0,
+      minHeight: "40px",
+      padding: "6px 4px",
+      border: 0,
+      whiteSpace: "nowrap",
+      wordBreak: "normal",
+      overflowWrap: "normal",
+
+      "& > svg": {
+        width: "14px",
+        height: "14px",
+        flexShrink: 0,
+      },
+    },
+
+    "& .picker-options": {
+      display: "grid",
+      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+      gap: "8px",
+      width: "100%",
+      justifyItems: "stretch",
+      alignItems: "stretch",
+    },
+
+    "& .picker-options > .picker-option": {
+      display: "grid",
+      placeItems: "center",
+      width: "100%",
+      minWidth: 0,
+      minHeight: "48px",
+      padding: "8px 4px",
+      border: 0,
+      textAlign: "center",
+      whiteSpace: "nowrap",
+      wordBreak: "normal",
+      overflowWrap: "normal",
+    },
+
+    "& .picker-range": {
+      whiteSpace: "nowrap",
+      wordBreak: "normal",
+      overflowWrap: "normal",
+    },
+
+    "& .picker-footer": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      flexWrap: "nowrap",
+      gap: "8px",
+
+      "& > .picker-text-button": {
+        width: "auto",
+        minWidth: 0,
+        flexShrink: 0,
+        padding: "7px 5px",
+        border: 0,
+        whiteSpace: "nowrap",
+        wordBreak: "normal",
+        overflowWrap: "normal",
+      },
+
+      "& > span": {
+        whiteSpace: "nowrap",
+        wordBreak: "normal",
+        overflowWrap: "normal",
+      },
+    },
+    '& .picker-option[data-current-month="true"]': {
+      boxShadow: "inset 0 0 0 1.5px #77A18C",
+      fontWeight: 700,
+    },
+
+    '& .picker-option[data-current-month="true"][aria-pressed="true"]': {
+      boxShadow: "inset 0 0 0 2px #24564B, inset 0 0 0 3px #FFFFFF",
+    },
+  },
+  "@media (max-width: 1023px)": {
+    fontSize: "15px",
+    "& .picker-chevron-desktop": { display: "none" },
+    "& .picker-chevron-compact": { display: "block" },
+  },
   "@media (max-width: 767px)": {
     fontSize: "14px",
     "& .picker-time-fields input": { fontSize: "16px" },
+  },
+  "@media (prefers-reduced-motion: reduce)": {
+    "& .picker-chevron": { transition: "none" },
   },
 });
 

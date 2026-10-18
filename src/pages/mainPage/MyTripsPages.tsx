@@ -1,5 +1,3 @@
-import MobileFooter from "../../components/mobileBanner/MobileFooter";
-
 import { MyTripsPageStyle } from "./MyTripsPageStyle";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 
@@ -10,6 +8,7 @@ import { trips, type TripStatus } from "../../data/trips";
 import TripCard from "../../components/main/TripCard";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import EmptyTravel from "../../components/emptyUI/travel/EmptyTravel";
+import MobileNav from "../../components/mobileBanner/MobileFooter";
 
 type FilterType = "ALL" | TripStatus;
 type ViewType = "grid" | "list";
@@ -319,7 +318,7 @@ export default function MyTripsPage() {
       </main>
 
       <div className="page-mobile-footer">
-        <MobileFooter />
+        <MobileNav />
       </div>
     </MyTripsPageStyle>
   );
