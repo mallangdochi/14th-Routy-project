@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
@@ -24,7 +24,6 @@ import {
   Settings,
   UserRound,
 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router";
 
 type MenuId = "myTrip" | "search" | "saved" | "notification" | "settings";
 
@@ -32,7 +31,7 @@ const MENU_PATHS: Record<MenuId, string> = {
   myTrip: "/",
   search: "/search",
   saved: "/saved",
-  notification: "/notifications",
+  notification: "/mypage/settings#notifications",
   settings: "/mypage/settings",
 };
 
@@ -80,28 +79,28 @@ const MainSidebar = () => {
   const dropdownId = useId();
   const tooltipId = useId();
   const [dropdownPosition, setDropdownPosition] = useState<CSSProperties>({});
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-
-  const activeMenu: MenuId | undefined =
-    pathname === "/" ||
-    pathname.startsWith("/trips/") ||
-    pathname === "/schedule"
-      ? "myTrip"
-      : (Object.keys(MENU_PATHS) as MenuId[]).find((id) => {
-          const path = MENU_PATHS[id];
-
-          return (
-            path !== "/" &&
-            (pathname === path || pathname.startsWith(`${path}/`))
-          );
-        });
   const [tooltip, setTooltip] = useState<{
     label: string;
     left: number;
     top: number;
   } | null>(null);
 
+  const { pathname, hash } = useLocation();
+  const activeMenu: MenuId | undefined =
+    pathname === "/mypage/settings" && hash === "#notifications"
+      ? "notification"
+      : pathname === "/" ||
+          pathname.startsWith("/trips/") ||
+          pathname === "/schedule"
+        ? "myTrip"
+        : (Object.keys(MENU_PATHS) as MenuId[]).find((id) => {
+            const path = MENU_PATHS[id];
+            return (
+              path !== "/" &&
+              !path.includes("#") &&
+              (pathname === path || pathname.startsWith(`${path}/`))
+            );
+          });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 
@@ -194,7 +193,6 @@ const MainSidebar = () => {
     };
   };
 
-<<<<<<< Updated upstream
   useEffect(() => {
     if (!isLogoutOpen) return;
 
@@ -209,10 +207,7 @@ const MainSidebar = () => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isLogoutOpen]);
 
-  const navigateToPage = (path: string) => {
-=======
   const handleNavigate = (path: string) => {
->>>>>>> Stashed changes
     setIsProfileOpen(false);
     setTooltip(null);
     navigate(path);
@@ -227,14 +222,14 @@ const MainSidebar = () => {
     >
       <S.DropdownItem
         type="button"
-        onClick={() => navigateToPage("/mypage/profile")}
+        onClick={() => handleNavigate("/mypage/profile")}
       >
         <UserRound size={20} strokeWidth={1.3} aria-hidden="true" />
         <span>프로필 수정</span>
       </S.DropdownItem>
       <S.DropdownItem
         type="button"
-        onClick={() => navigateToPage("/mypage/security")}
+        onClick={() => handleNavigate("/mypage/security")}
       >
         <Settings size={20} strokeWidth={1.3} aria-hidden="true" />
         <span>계정 설정</span>
@@ -376,18 +371,7 @@ const MainSidebar = () => {
                   type="button"
                   $active={isActive}
                   {...tooltipProps(item.label)}
-<<<<<<< Updated upstream
-                  onClick={() => {
-                    setActiveMenu(item.id);
-                    navigateToPage(
-                      item.id === "notification"
-                        ? "/mypage/settings#notifications"
-                        : "/mypage/settings",
-                    );
-                  }}
-=======
                   onClick={() => handleNavigate(MENU_PATHS[item.id])}
->>>>>>> Stashed changes
                 >
                   <S.MenuIcon data-menu-icon="">
                     <MenuIcon id={item.id} />

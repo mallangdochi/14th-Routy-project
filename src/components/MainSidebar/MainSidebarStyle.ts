@@ -5,12 +5,8 @@ export const SidebarShell = styled.div({
   position: "relative",
   display: "flex",
   flexShrink: 0,
-<<<<<<< Updated upstream
   height: "100%",
   minHeight: "100vh",
-=======
-  height: "100vh",
->>>>>>> Stashed changes
 });
 
 export const SidebarContainer = styled.aside({

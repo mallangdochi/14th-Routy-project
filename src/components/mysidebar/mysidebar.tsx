@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 import routyLogo from "../../assets/routy-logo.svg";
-import routyMascot from "../../assets/routy-mascot.png";
+import routyMascot from "../../assets/profile.webp";
 
 import {
   SidebarContainer,
