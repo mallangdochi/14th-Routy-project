@@ -1,39 +1,34 @@
-import { Routes, Route } from "react-router";
-
-// import Loader from "./components/loader/Loader";
-// import MobileNav from "./components/mobileBanner/MobileFooter";
-// import MobileHeader from "./components/mobileBanner/MobileHeader";
-
+import { Routes, Route, Navigate, useNavigate } from "react-router";
 import RoutyBookLogin from "./components/RoutyBookLogin/RoutyBookLogin";
 import SchedulePage from "./pages/travelSchedulePage/SchedulePage";
-// import MyTripsPage from "./pages/mainPage/MyTripsPages";
-// import CreateTripPage from "./pages/newTravelPage/CreateTripPage";
+import MyTripsPage from "./pages/mainPage/MyTripsPages";
+import CreateTripPage from "./pages/newTravelPage/CreateTripPage";
+import MyPage from "./page/mypage/mypage";
 
-function MainPage() {
-  return (
-    <>
-      <SchedulePage />
-      {/* <MyTripsPage /> */}
-      {/* <CreateTripPage /> */}
-      {/* <MobileHeader /> */}
-      {/* <Sidebar
-      onNavigate={(page: string) => console.log("선택한 메뉴:", page)}
-      onBack={() => console.log("여행으로 돌아가기")}
-      onLogout={() => console.log("로그아웃")}
-    /> */}
-      {/* <MainSidebar /> */}
-      {/* <Loader /> */}
-      {/* <MobileNav /> */}
-    </>
-  );
+function CreateTripRoute() {
+  const navigate = useNavigate();
+
+  return <CreateTripPage onCancel={() => navigate(-1)} />;
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<MainPage />} />
+      <Route path="/" element={<MyTripsPage />} />
+      <Route path="/trips/new" element={<CreateTripRoute />} />
+      <Route path="/schedule" element={<SchedulePage />} />
 
-      {/* 두 주소가 같은 여권 컴포넌트를 공유 */}
+      <Route
+        path="/mypage"
+        element={<Navigate to="/mypage/profile" replace />}
+      />
+      <Route path="/mypage/profile" element={<MyPage />} />
+      <Route path="/mypage/security" element={<MyPage />} />
+      <Route path="/mypage/security/edit" element={<MyPage />} />
+      <Route path="/mypage/security/password" element={<MyPage />} />
+      <Route path="/mypage/settings" element={<MyPage />} />
+      <Route path="/mypage/support" element={<MyPage />} />
+
       <Route element={<RoutyBookLogin />}>
         <Route path="/login" element={null} />
         <Route path="/signup" element={null} />

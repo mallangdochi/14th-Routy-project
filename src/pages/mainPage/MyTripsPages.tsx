@@ -9,6 +9,7 @@ import TripCard from "../../components/main/TripCard";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import EmptyTravel from "../../components/emptyUI/travel/EmptyTravel";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
+import { useNavigate } from "react-router";
 
 type FilterType = "ALL" | TripStatus;
 type ViewType = "grid" | "list";
@@ -33,6 +34,8 @@ export default function MyTripsPage() {
   const [view, setView] = useState<ViewType>("grid");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortFocusIndex, setSortFocusIndex] = useState(0);
+
+  const navigate = useNavigate();
 
   const sortWrapperRef = useRef<HTMLDivElement>(null);
   const sortTriggerRef = useRef<HTMLButtonElement>(null);
@@ -93,7 +96,9 @@ export default function MyTripsPage() {
     return tripData.filter((trip) => trip.status === value).length;
   };
 
-  const handleCreateTrip = () => {};
+  const handleCreateTrip = () => {
+    navigate("/trips/new");
+  };
 
   const handleOpenTrip = (id: string) => {
     console.log("여행 선택:", id);
@@ -126,7 +131,11 @@ export default function MyTripsPage() {
             <div className="trips-header-top">
               <h1>내 여행 일정</h1>
 
-              <button type="button" className="schedule-button">
+              <button
+                type="button"
+                className="schedule-button"
+                onClick={() => navigate("/schedule")}
+              >
                 나의 일정표
               </button>
             </div>

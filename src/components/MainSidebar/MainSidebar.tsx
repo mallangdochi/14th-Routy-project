@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
@@ -18,7 +19,6 @@ import {
   ChevronDown,
   ChevronRight,
   LogOut,
-
   Plus,
   Search,
   Settings,
@@ -26,6 +26,14 @@ import {
 } from "lucide-react";
 
 type MenuId = "myTrip" | "search" | "saved" | "notification" | "settings";
+
+const MENU_PATHS: Record<MenuId, string> = {
+  myTrip: "/",
+  search: "/search",
+  saved: "/saved",
+  notification: "/mypage/settings#notifications",
+  settings: "/mypage/settings",
+};
 
 interface MenuItem {
   id: MenuId;
@@ -49,31 +57,22 @@ interface MenuIconProps {
 
 const MenuIcon = ({ id }: MenuIconProps) => {
   const icons: Record<MenuId, ReactNode> = {
-    myTrip: (
-      <Briefcase size={23} strokeWidth={1.8} aria-hidden="true" />
-    ),
+    myTrip: <Briefcase size={23} strokeWidth={1.8} aria-hidden="true" />,
 
-    search: (
-      <Search size={23} aria-hidden="true" />
-    ),
+    search: <Search size={23} aria-hidden="true" />,
 
-    saved: (
-      <Bookmark size={23} strokeWidth={1.5} aria-hidden="true" />
-    ),
+    saved: <Bookmark size={23} strokeWidth={1.5} aria-hidden="true" />,
 
-    notification: (
-      <Bell size={23} strokeWidth={1.5} aria-hidden="true" />
-    ),
+    notification: <Bell size={23} strokeWidth={1.5} aria-hidden="true" />,
 
-    settings: (
-      <Settings size={23} strokeWidth={1.5} aria-hidden="true" />
-    ),
+    settings: <Settings size={23} strokeWidth={1.5} aria-hidden="true" />,
   };
 
   return icons[id];
 };
 
 const MainSidebar = () => {
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -86,8 +85,24 @@ const MainSidebar = () => {
     top: number;
   } | null>(null);
 
-  const [activeMenu, setActiveMenu] = useState<MenuId>("myTrip");
+  const { pathname, hash } = useLocation();
+  const activeMenu: MenuId | undefined =
+    pathname === "/mypage/settings" && hash === "#notifications"
+      ? "notification"
+      : pathname === "/" ||
+          pathname.startsWith("/trips/") ||
+          pathname === "/schedule"
+        ? "myTrip"
+        : (Object.keys(MENU_PATHS) as MenuId[]).find((id) => {
+            const path = MENU_PATHS[id];
+            return (
+              path !== "/" &&
+              !path.includes("#") &&
+              (pathname === path || pathname.startsWith(`${path}/`))
+            );
+          });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 
   useLayoutEffect(() => {
     if (!isCollapsed || !isProfileOpen) return;
@@ -178,6 +193,26 @@ const MainSidebar = () => {
     };
   };
 
+  useEffect(() => {
+    if (!isLogoutOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsLogoutOpen(false);
+        profileButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isLogoutOpen]);
+
+  const handleNavigate = (path: string) => {
+    setIsProfileOpen(false);
+    setTooltip(null);
+    navigate(path);
+  };
+
   const profileDropdown = (
     <S.ProfileDropdown
       ref={dropdownRef}
@@ -185,36 +220,48 @@ const MainSidebar = () => {
       data-open={isProfileOpen}
       style={isCollapsed ? dropdownPosition : undefined}
     >
-      <S.DropdownItem type="button">
+      <S.DropdownItem
+        type="button"
+        onClick={() => handleNavigate("/mypage/profile")}
+      >
         <UserRound size={20} strokeWidth={1.3} aria-hidden="true" />
         <span>프로필 수정</span>
       </S.DropdownItem>
-      <S.DropdownItem type="button">
+      <S.DropdownItem
+        type="button"
+        onClick={() => handleNavigate("/mypage/security")}
+      >
         <Settings size={20} strokeWidth={1.3} aria-hidden="true" />
         <span>계정 설정</span>
       </S.DropdownItem>
       <S.DropdownDivider />
-      <S.DropdownItem type="button">
+      <S.DropdownItem
+        type="button"
+        onClick={() => {
+          setIsProfileOpen(false);
+          setTooltip(null);
+          setIsLogoutOpen(true);
+        }}
+      >
         <LogOut size={20} strokeWidth={1.5} aria-hidden="true" />
         <span>로그아웃</span>
       </S.DropdownItem>
     </S.ProfileDropdown>
   );
 
-  const handleCreateTrip = (): void => {
-    console.log("새 여행 만들기");
+  const handleCreateTrip = () => {
+    navigate("/trips/new");
   };
 
   return (
     <S.SidebarShell>
       <S.SidebarContainer data-collapsed={isCollapsed ? "true" : "false"}>
         <S.HeaderStyle data-sidebar-header="">
-
           <S.LogoWrapper
+            to="/"
             data-sidebar-logo=""
-            aria-hidden={isCollapsed || undefined}
+            aria-label="Routy 메인페이지"
           >
-
             {!isCollapsed ? (
               <svg
                 width="100%"
@@ -248,7 +295,6 @@ const MainSidebar = () => {
               <img src={smallRouty} alt="로고 축소 버전" />
             )}
           </S.LogoWrapper>
-
         </S.HeaderStyle>
 
         <S.ProfileWrapper>
@@ -270,7 +316,6 @@ const MainSidebar = () => {
             <S.ProfileName data-profile-name="">홍길동님</S.ProfileName>
 
             <S.ProfileArrow data-profile-arrow="" $isOpen={isProfileOpen}>
-
               <ChevronDown size={23} strokeWidth={1.5} aria-hidden="true" />
             </S.ProfileArrow>
           </S.ProfileButton>
@@ -279,7 +324,6 @@ const MainSidebar = () => {
             (isCollapsed
               ? createPortal(profileDropdown, document.body)
               : profileDropdown)}
-
         </S.ProfileWrapper>
 
         <S.CreateTripButton
@@ -288,7 +332,6 @@ const MainSidebar = () => {
           {...tooltipProps("새 여행 만들기")}
           onClick={handleCreateTrip}
         >
-
           <Plus size={20} strokeWidth={2} />
           <span data-create-label="">새 여행 만들기</span>
         </S.CreateTripButton>
@@ -304,7 +347,7 @@ const MainSidebar = () => {
                 type="button"
                 $active={isActive}
                 {...tooltipProps(item.label)}
-                onClick={() => setActiveMenu(item.id)}
+                onClick={() => handleNavigate(MENU_PATHS[item.id])}
               >
                 <S.MenuIcon data-menu-icon="">
                   <MenuIcon id={item.id} />
@@ -328,7 +371,7 @@ const MainSidebar = () => {
                   type="button"
                   $active={isActive}
                   {...tooltipProps(item.label)}
-                  onClick={() => setActiveMenu(item.id)}
+                  onClick={() => handleNavigate(MENU_PATHS[item.id])}
                 >
                   <S.MenuIcon data-menu-icon="">
                     <MenuIcon id={item.id} />
@@ -372,6 +415,46 @@ const MainSidebar = () => {
       >
         <ChevronRight size={24} strokeWidth={2} aria-hidden="true" />
       </S.CollapseButton>
+      {isLogoutOpen &&
+        createPortal(
+          <S.LogoutBackdrop>
+            <S.LogoutDialog
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="main-sidebar-logout-title"
+              aria-describedby="main-sidebar-logout-description"
+            >
+              <S.LogoutDialogTitle id="main-sidebar-logout-title">
+                로그아웃하시겠습니까?
+              </S.LogoutDialogTitle>
+              <S.LogoutDialogDescription id="main-sidebar-logout-description">
+                로그아웃하면 홈 화면으로 이동합니다.
+              </S.LogoutDialogDescription>
+              <S.LogoutDialogActions>
+                <S.LogoutCancelButton
+                  type="button"
+                  autoFocus
+                  onClick={() => {
+                    setIsLogoutOpen(false);
+                    profileButtonRef.current?.focus();
+                  }}
+                >
+                  취소
+                </S.LogoutCancelButton>
+                <S.LogoutConfirmButton
+                  type="button"
+                  onClick={() => {
+                    setIsLogoutOpen(false);
+                    navigate("/");
+                  }}
+                >
+                  로그아웃
+                </S.LogoutConfirmButton>
+              </S.LogoutDialogActions>
+            </S.LogoutDialog>
+          </S.LogoutBackdrop>,
+          document.body,
+        )}
     </S.SidebarShell>
   );
 };

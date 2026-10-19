@@ -1,12 +1,12 @@
 import styled from "@emotion/styled";
 import { dropdownAnimation } from "../../styles/animation";
+import { Link } from "react-router";
 export const SidebarShell = styled.div({
   position: "relative",
   display: "flex",
   flexShrink: 0,
   height: "100%",
   minHeight: "100vh",
-
 });
 
 export const SidebarContainer = styled.aside({
@@ -18,7 +18,6 @@ export const SidebarContainer = styled.aside({
   minWidth: "200px",
 
   height: "100%",
-  minHeight: "100vh",
 
   padding: "16px 13px 15px",
   backgroundColor: "#FFFFFF",
@@ -31,13 +30,10 @@ export const SidebarContainer = styled.aside({
     minWidth: "104px",
 
     "& [data-sidebar-header]": {
-
       justifyContent: "center",
       gap: "2px",
-
     },
     "& [data-sidebar-logo]": {
-
       width: "auto",
 
       flex: "0 0 56px",
@@ -45,9 +41,7 @@ export const SidebarContainer = styled.aside({
       height: "40px",
 
       "& img": {
-
         objectFit: "contain",
-
       },
     },
 
@@ -109,7 +103,7 @@ export const HeaderStyle = styled.div({
   padding: "30px 0 20px",
 });
 
-export const LogoWrapper = styled.div({
+export const LogoWrapper = styled(Link)({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -184,7 +178,6 @@ export const ProfileDropdown = styled.div({
   backgroundColor: "#FFFFFF",
   boxShadow: "0 5px 18px rgba(0, 0, 0, 0.12)",
   zIndex: 10,
-
 });
 
 export const DropdownItem = styled.button({
@@ -432,4 +425,91 @@ export const Tooltip = styled.div({
   fontWeight: 500,
   overflowWrap: "anywhere",
   pointerEvents: "none",
+});
+
+export const LogoutBackdrop = styled.div({
+  position: "fixed",
+  inset: 0,
+  zIndex: 1500,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 20,
+  backgroundColor: "rgba(8, 24, 40, 0.55)",
+});
+
+export const LogoutDialog = styled.div({
+  width: "100%",
+  maxWidth: 480,
+  padding: "36px 32px 30px",
+  borderRadius: 16,
+  backgroundColor: "#ffffff",
+  boxShadow: "0 16px 48px rgba(0, 0, 0, 0.16)",
+  "@media (max-width: 600px)": {
+    padding: "28px 20px 24px",
+  },
+});
+
+export const LogoutDialogTitle = styled.h2({
+  color: "#09184d",
+  fontSize: 24,
+  fontWeight: 700,
+  lineHeight: 1.5,
+  textAlign: "center",
+  "@media (max-width: 600px)": {
+    fontSize: 20,
+  },
+});
+
+export const LogoutDialogDescription = styled.p({
+  marginTop: 12,
+  color: "#60769e",
+  fontSize: 16,
+  lineHeight: 1.6,
+  textAlign: "center",
+});
+
+export const LogoutDialogActions = styled.div({
+  display: "flex",
+  justifyContent: "center",
+  gap: 12,
+  marginTop: 32,
+});
+
+const logoutButtonBase = {
+  flex: 1,
+  minHeight: 52,
+  borderRadius: 9,
+  fontSize: 17,
+  fontWeight: 700,
+  transition: "background-color 0.2s, border-color 0.2s",
+};
+
+export const LogoutCancelButton = styled.button({
+  ...logoutButtonBase,
+  border: "2px solid #005044",
+  backgroundColor: "#005044",
+  color: "#ffffff",
+  "&:hover": {
+    backgroundColor: "#006c5b",
+    borderColor: "#006c5b",
+  },
+  "&:focus-visible": {
+    outline: "2px solid #005044",
+    outlineOffset: 3,
+  },
+});
+
+export const LogoutConfirmButton = styled.button({
+  ...logoutButtonBase,
+  border: "2px solid #ef4444",
+  backgroundColor: "#ffffff",
+  color: "#dc2626",
+  "&:hover": {
+    backgroundColor: "#fff1f1",
+  },
+  "&:focus-visible": {
+    outline: "2px solid #dc2626",
+    outlineOffset: 3,
+  },
 });

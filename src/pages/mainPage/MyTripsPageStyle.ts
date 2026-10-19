@@ -7,7 +7,7 @@ export const MyTripsPageStyle = styled.div({
   display: "flex",
   alignItems: "stretch",
   width: "100%",
-  minHeight: "100vh",
+  height: "100dvh",
   backgroundColor: "#FEFBF5",
 
   "& .page-sidebar": {
@@ -20,10 +20,10 @@ export const MyTripsPageStyle = styled.div({
   "& .page-content": {
     display: "flex",
     flexDirection: "column",
-    // flex: 1,
     flex: "1 1 0",
     minWidth: 0,
     minHeight: "100vh",
+    overflowY: "auto",
     backgroundColor: "#fff",
   },
 
