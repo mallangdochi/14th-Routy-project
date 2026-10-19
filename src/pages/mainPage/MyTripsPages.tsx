@@ -10,7 +10,7 @@ import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import EmptyTravel from "../../components/emptyUI/travel/EmptyTravel";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
 import { useNavigate } from "react-router";
-import Breadcrumb from "../../components/MainSidebar/mainHeader/BreadCrumb";
+import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
 
 type FilterType = "ALL" | TripStatus;
 type ViewType = "grid" | "list";
