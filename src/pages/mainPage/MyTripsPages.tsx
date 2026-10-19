@@ -10,6 +10,7 @@ import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import EmptyTravel from "../../components/emptyUI/travel/EmptyTravel";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
 import { useNavigate } from "react-router";
+import Breadcrumb from "../../components/MainSidebar/mainHeader/BreadCrumb";
 
 type FilterType = "ALL" | TripStatus;
 type ViewType = "grid" | "list";
@@ -122,10 +123,9 @@ export default function MyTripsPage() {
       </div>
       <main className="page-content">
         <div className="trips-page-inner">
-          <nav className="trips-breadcrumb" aria-label="현재 위치">
-            <House size={18} aria-hidden="true" />
-            <span aria-current="page">내 여행</span>
-          </nav>
+          <div className="trips-breadcrumb" aria-label="현재 위치">
+            <Breadcrumb items={[{ label: "내 여행", Icon: House }]} />
+          </div>
 
           <header className="trips-header">
             <div className="trips-header-top">

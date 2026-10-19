@@ -20,6 +20,7 @@ import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 import { Link } from "react-router";
+import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
 
 type SchedulePageProps = {
   schedules?: TravelSchedule[];
@@ -153,12 +154,14 @@ export default function SchedulePage({
         className="page-content"
         aria-labelledby={titleId}
       >
-        <nav className="trips-breadcrumb" aria-label="현재 위치">
-          <House size={18} aria-hidden="true" />
-          <span>내 여행</span>
-          <ChevronRight size={18} aria-hidden="true" />
-          <span aria-current="page">일정</span>
-        </nav>
+        <div className="trips-breadcrumb" aria-label="현재 위치">
+          <Breadcrumb
+            items={[
+              { label: "내 여행", to: "/", Icon: House },
+              { label: "일정" },
+            ]}
+          />
+        </div>
 
         <header className="schedule-header">
           <div className="heading-row">
