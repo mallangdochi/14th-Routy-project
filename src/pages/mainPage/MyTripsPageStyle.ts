@@ -1,5 +1,4 @@
 import styled from "@emotion/styled";
-import { dropdownAnimation } from "../../styles/animation";
 
 export const MyTripsPageStyle = styled.div({
   "--page-font-size": "16px",
@@ -136,72 +135,6 @@ export const MyTripsPageStyle = styled.div({
     paddingBottom: "6px",
   },
 
-  "& .sort-wrapper": {
-    position: "relative",
-    flexShrink: 0,
-  },
-
-  "& .sort-trigger": {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "10px",
-    padding: "8px",
-    borderRadius: "8px",
-    color: "#40596c",
-    fontSize: "var(--page-font-size)",
-    whiteSpace: "nowrap",
-  },
-
-  "& .sort-trigger svg": {
-    width: "16px",
-    height: "16px",
-    flexShrink: 0,
-  },
-
-  "& .sort-trigger svg.is-open": {
-    transform: "rotate(180deg)",
-  },
-
-  "& .sort-dropdown": {
-    ...dropdownAnimation,
-
-    position: "absolute",
-    top: "100%",
-    right: 0,
-    zIndex: 30,
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-    minWidth: "170px",
-    marginTop: "6px",
-    padding: "8px",
-    border: "1px solid #e5e9ed",
-    borderRadius: "12px",
-    backgroundColor: "#fff",
-    boxShadow: "0 6px 18px rgba(20, 45, 55, 0.12)",
-  },
-
-  "& .sort-dropdown button": {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: "8px",
-    color: "#20394e",
-    fontSize: "var(--page-font-size)",
-    textAlign: "left",
-    whiteSpace: "nowrap",
-  },
-
-  "& .sort-dropdown button.is-selected": {
-    backgroundColor: "#eaf7f4",
-    color: "#005358",
-    fontWeight: 700,
-  },
-
-  "& .sort-wrapper button:focus-visible": {
-    outline: "2px solid #005358",
-    outlineOffset: "-2px",
-  },
   "& .view-switch": {
     display: "flex",
     gap: "3px",
@@ -318,10 +251,6 @@ export const MyTripsPageStyle = styled.div({
   },
 
   "@media (hover: hover) and (pointer: fine)": {
-    "& .sort-dropdown button:hover": {
-      backgroundColor: "#eaf7f4",
-      color: "#005358",
-    },
     "& .schedule-button:hover": {
       backgroundColor: "#00666b",
     },
@@ -389,10 +318,6 @@ export const MyTripsPageStyle = styled.div({
   "@media (max-width: 767px)": {
     "--page-font-size": "14px",
 
-    "& .sort-dropdown": {
-      left: 0,
-      right: "auto",
-    },
     "& .trips-breadcrumb": {
       display: "none",
     },
