@@ -19,7 +19,7 @@ import Settings, {
 } from "../../components/settings/settings";
 import Sidebar from "../../components/mysidebar/mysidebar";
 import Support from "../../components/support/support";
-import profileAvatar from "../../assets/routy-mascot.png";
+import profileAvatar from "../../assets/profile.webp";
 import routyLogo from "../../assets/routy-logo.svg";
 import avatarP1 from "../../assets/profileAvatars/P1.webp";
 import avatarP2 from "../../assets/profileAvatars/P2.webp";
@@ -666,6 +666,7 @@ export default function MyPage() {
   const [account, setAccount] = useState<AccountData>(initialAccount);
   const [toastVersion, setToastVersion] = useState(0);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(
     () =>
@@ -675,6 +676,17 @@ export default function MyPage() {
 
   const [savedSettings, setSavedSettings] =
     useState<SettingsData>(initialSettings);
+
+  useEffect(() => {
+    if (!isLogoutOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsLogoutOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isLogoutOpen]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 760px)");
@@ -842,7 +854,7 @@ export default function MyPage() {
           }}
           onLogout={() => {
             setIsMobileMenuOpen(false);
-            navigate("/");
+            setIsLogoutOpen(true);
           }}
         />
       </S.SidebarShell>
@@ -866,6 +878,42 @@ export default function MyPage() {
 
       {toastVersion > 0 && (
         <S.SaveToast role="status">저장되었습니다.</S.SaveToast>
+      )}
+
+      {isLogoutOpen && (
+        <S.AvatarModalBackdrop>
+          <S.WithdrawConfirmDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-title"
+            aria-describedby="logout-description"
+          >
+            <S.WithdrawConfirmTitle id="logout-title">
+              로그아웃하시겠습니까?
+            </S.WithdrawConfirmTitle>
+            <S.WithdrawConfirmDescription id="logout-description">
+              로그아웃하면 홈 화면으로 이동합니다.
+            </S.WithdrawConfirmDescription>
+            <S.WithdrawConfirmActions>
+              <S.WithdrawNoButton
+                type="button"
+                autoFocus
+                onClick={() => setIsLogoutOpen(false)}
+              >
+                취소
+              </S.WithdrawNoButton>
+              <S.WithdrawYesButton
+                type="button"
+                onClick={() => {
+                  setIsLogoutOpen(false);
+                  navigate("/");
+                }}
+              >
+                로그아웃
+              </S.WithdrawYesButton>
+            </S.WithdrawConfirmActions>
+          </S.WithdrawConfirmDialog>
+        </S.AvatarModalBackdrop>
       )}
 
       {isWithdrawOpen && (
