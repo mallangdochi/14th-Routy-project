@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import { createPortal } from "react-dom";
 import {
   Bell,
@@ -66,6 +67,23 @@ function removeTemporaryData() {
 }
 
 export default function Settings({ savedSettings, onSave }: SettingsProps) {
+  const { hash } = useLocation();
+
+  useEffect(() => {
+    if (hash !== "#notifications") return;
+
+    const section = document.getElementById("notifications");
+    if (!section) return;
+
+    const stickyHeaderOffset = window.matchMedia("(max-width: 760px)").matches
+      ? 84
+      : 20;
+    const targetTop =
+      section.getBoundingClientRect().top + window.scrollY - stickyHeaderOffset;
+
+    window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+  }, [hash]);
+
   const [draft, setDraft] = useState<SettingsData>(savedSettings);
   const [notificationPermission, setNotificationPermission] =
     useState<BrowserNotificationPermission>(getBrowserNotificationPermission);
@@ -152,7 +170,7 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
           </S.SettingsHeading>
         </S.SettingsPageHeader>
 
-        <S.SettingsCard>
+        <S.SettingsCard id="notifications">
           <S.SettingsCardTitle>알림 설정</S.SettingsCardTitle>
 
           <S.SettingRow>
