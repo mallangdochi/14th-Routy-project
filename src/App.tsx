@@ -4,6 +4,7 @@ import SchedulePage from "./pages/travelSchedulePage/SchedulePage";
 import MyTripsPage from "./pages/mainPage/MyTripsPages";
 import CreateTripPage from "./pages/newTravelPage/CreateTripPage";
 import MyPage from "./page/mypage/mypage";
+import SavedPage from "./pages/savedPage/SavedPage";
 
 function CreateTripRoute() {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ export default function App() {
       <Route path="/" element={<MyTripsPage />} />
       <Route path="/trips/new" element={<CreateTripRoute />} />
       <Route path="/schedule" element={<SchedulePage />} />
+      <Route path="/saved" element={<SavedPage />} />
 
       <Route
         path="/mypage"

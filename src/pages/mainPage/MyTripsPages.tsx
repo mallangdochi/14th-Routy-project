@@ -1,8 +1,8 @@
 import { MyTripsPageStyle } from "./MyTripsPageStyle";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 
-import { useEffect, useRef, useState } from "react";
-import { Grid2X2, List, Plus, ChevronDown, House } from "lucide-react";
+import { useState } from "react";
+import { Grid2X2, List, Plus, House } from "lucide-react";
 
 import { trips, type TripStatus } from "../../data/trips";
 import TripCard from "../../components/main/TripCard";
@@ -11,6 +11,7 @@ import EmptyTravel from "../../components/emptyUI/travel/EmptyTravel";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
 import { useNavigate } from "react-router";
 import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
+import Dropdown from "../../components/dropdown/Dropdown";
 
 type FilterType = "ALL" | TripStatus;
 type ViewType = "grid" | "list";
@@ -33,45 +34,7 @@ export default function MyTripsPage() {
   const [filter, setFilter] = useState<FilterType>("ALL");
   const [sort, setSort] = useState<SortType>("recent");
   const [view, setView] = useState<ViewType>("grid");
-  const [isSortOpen, setIsSortOpen] = useState(false);
-  const [sortFocusIndex, setSortFocusIndex] = useState(0);
-
   const navigate = useNavigate();
-
-  const sortWrapperRef = useRef<HTMLDivElement>(null);
-  const sortTriggerRef = useRef<HTMLButtonElement>(null);
-  const sortOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
-  const selectedSortIndex = sortOptions.findIndex(
-    (option) => option.value === sort,
-  );
-
-  useEffect(() => {
-    if (!isSortOpen) return;
-
-    sortOptionRefs.current[sortFocusIndex]?.focus();
-  }, [isSortOpen, sortFocusIndex]);
-
-  useEffect(() => {
-    if (!isSortOpen) return;
-
-    const handleOutsideClick = (event: PointerEvent) => {
-      if (!sortWrapperRef.current?.contains(event.target as Node)) {
-        setIsSortOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handleOutsideClick);
-
-    return () => {
-      document.removeEventListener("pointerdown", handleOutsideClick);
-    };
-  }, [isSortOpen]);
-
-  const openSortMenu = () => {
-    setSortFocusIndex(Math.max(0, selectedSortIndex));
-    setIsSortOpen(true);
-  };
 
   const previewEmpty = false;
 
@@ -163,104 +126,12 @@ export default function MyTripsPage() {
             </div>
 
             <div className="trips-controls">
-              <div
-                ref={sortWrapperRef}
-                className="sort-wrapper"
-                onBlur={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) {
-                    setIsSortOpen(false);
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape" && isSortOpen) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setIsSortOpen(false);
-                    sortTriggerRef.current?.focus();
-                    return;
-                  }
-
-                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                    event.preventDefault();
-
-                    if (!isSortOpen) {
-                      openSortMenu();
-                      return;
-                    }
-
-                    const direction = event.key === "ArrowDown" ? 1 : -1;
-
-                    setSortFocusIndex(
-                      (index) =>
-                        (index + direction + sortOptions.length) %
-                        sortOptions.length,
-                    );
-                  }
-
-                  if (
-                    isSortOpen &&
-                    (event.key === "Home" || event.key === "End")
-                  ) {
-                    event.preventDefault();
-                    setSortFocusIndex(
-                      event.key === "Home" ? 0 : sortOptions.length - 1,
-                    );
-                  }
-                }}
-              >
-                <button
-                  ref={sortTriggerRef}
-                  type="button"
-                  className="sort-trigger"
-                  aria-label={`여행 정렬: ${sortOptions[selectedSortIndex]?.label}`}
-                  aria-haspopup="menu"
-                  aria-expanded={isSortOpen}
-                  onClick={() => {
-                    if (isSortOpen) {
-                      setIsSortOpen(false);
-                    } else {
-                      openSortMenu();
-                    }
-                  }}
-                >
-                  {sortOptions[selectedSortIndex]?.label}
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={isSortOpen ? "is-open" : ""}
-                  />
-                </button>
-
-                <div
-                  className="sort-dropdown"
-                  role="menu"
-                  data-open={isSortOpen}
-                  aria-hidden={!isSortOpen}
-                  aria-label="여행 정렬"
-                >
-                  {sortOptions.map((option, index) => (
-                    <button
-                      key={option.value}
-                      ref={(element) => {
-                        sortOptionRefs.current[index] = element;
-                      }}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={sort === option.value}
-                      tabIndex={isSortOpen && sortFocusIndex === index ? 0 : -1}
-                      className={sort === option.value ? "is-selected" : ""}
-                      onFocus={() => setSortFocusIndex(index)}
-                      onClick={() => {
-                        setSort(option.value);
-                        setIsSortOpen(false);
-                        sortTriggerRef.current?.focus();
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+              <Dropdown
+                label="여행 정렬"
+                value={sort}
+                options={sortOptions}
+                onChange={setSort}
+              />
               <div className="view-switch" role="group" aria-label="보기 방식">
                 <button
                   type="button"
