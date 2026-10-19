@@ -37,6 +37,7 @@ import DateRangePicker from "../../components/pickers/DateRangePicker";
 import TimePicker from "../../components/pickers/TimePicker";
 import RegionSelectModal from "../../components/modal/travel-region-selector/RegionSelectModal";
 import { REGIONS, type TravelRegion } from "../../data/regions";
+import { Link } from "react-router";
 const styleOptions = [
   { value: "food", label: "맛집", Icon: Utensils },
   { value: "nature", label: "자연", Icon: Mountain },
@@ -664,7 +665,7 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
   return (
     <CreateTripPageStyle data-step={step}>
       <div className="routy-brand-bar">
-        <a href="/" aria-label="Routy 홈">
+        <Link to="/" aria-label="Routy 홈">
           <svg
             width="100%"
             height="100%"
@@ -693,7 +694,7 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
               fill="#EB654B"
             />
           </svg>
-        </a>
+        </Link>
       </div>
 
       <main className="routy-trip-main">

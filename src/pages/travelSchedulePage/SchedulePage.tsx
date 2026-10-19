@@ -19,6 +19,7 @@ import {
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
+import { Link } from "react-router";
 
 type SchedulePageProps = {
   schedules?: TravelSchedule[];
@@ -170,10 +171,10 @@ export default function SchedulePage({
               </p>
             </div>
 
-            <a className="create-trip" href={createTripHref}>
+            <Link className="create-trip" to={createTripHref}>
               <Plus aria-hidden="true" />
               <span>새 여행 만들기</span>
-            </a>
+            </Link>
           </div>
 
           <div className="calendar-toolbar">

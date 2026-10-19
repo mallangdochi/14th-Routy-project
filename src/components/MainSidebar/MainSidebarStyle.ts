@@ -1,11 +1,16 @@
 import styled from "@emotion/styled";
 import { dropdownAnimation } from "../../styles/animation";
+import { Link } from "react-router";
 export const SidebarShell = styled.div({
   position: "relative",
   display: "flex",
   flexShrink: 0,
+<<<<<<< Updated upstream
   height: "100%",
   minHeight: "100vh",
+=======
+  height: "100vh",
+>>>>>>> Stashed changes
 });
 
 export const SidebarContainer = styled.aside({
@@ -17,7 +22,6 @@ export const SidebarContainer = styled.aside({
   minWidth: "200px",
 
   height: "100%",
-  minHeight: "100vh",
 
   padding: "16px 13px 15px",
   backgroundColor: "#FFFFFF",
@@ -103,7 +107,7 @@ export const HeaderStyle = styled.div({
   padding: "30px 0 20px",
 });
 
-export const LogoWrapper = styled.div({
+export const LogoWrapper = styled(Link)({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",

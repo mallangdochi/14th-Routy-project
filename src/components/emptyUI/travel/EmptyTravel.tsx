@@ -6,8 +6,11 @@ import {
   EmptyTravelStyle,
   ImgStyle,
 } from "./EmptyTravelStyle";
+import { useNavigate } from "react-router";
 
 export default function EmptyTravel() {
+  const navigate = useNavigate();
+
   return (
     <EmptyTravelStyle>
       <ImgStyle>
@@ -20,7 +23,7 @@ export default function EmptyTravel() {
           <p>잊지 못할 특별한 순간들을 만들어보세요.</p>
         </div>
       </DescStyle>
-      <ButtonStyle>
+      <ButtonStyle onClick={() => navigate("/trips/new")}>
         <Plus size={20} strokeWidth={2} aria-hidden="true" />
         <span>새 여행 만들기</span>
       </ButtonStyle>

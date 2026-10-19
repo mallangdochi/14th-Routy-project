@@ -4,7 +4,8 @@ export const SchedulePageLayout = styled.div({
   alignItems: "stretch",
   width: "100%",
   minWidth: 0,
-  minHeight: "100dvh",
+  height: "100dvh",
+  overflow: "hidden",
   backgroundColor: "#FEFEFD",
 
   "& > .schedule-sidebar": {
@@ -59,6 +60,7 @@ export const SchedulePageStyle = styled.section({
   color: "#15213B",
   backgroundColor: "#FEFEFD",
   fontSize: "var(--body-size)",
+  overflowY: "auto",
   "& a:focus-visible, & button:focus-visible": {
     outline: "2px solid #0D5053",
     outlineOffset: "2px",
@@ -239,31 +241,7 @@ export const SchedulePageStyle = styled.section({
     color: "#FFF",
   },
   "& .day-button:hover": { backgroundColor: "rgba(13,80,83,.04)" },
-  // "& [data-color='pink']": {
-  //   "--trip-bg": "#FDE2EC",
-  //   "--trip-ink": "#BD225B",
-  //   "--trip-accent": "#EE75A4",
-  // },
-  // "& [data-color='purple']": {
-  //   "--trip-bg": "#EDE4FF",
-  //   "--trip-ink": "#6632BA",
-  //   "--trip-accent": "#9B6AF0",
-  // },
-  // "& [data-color='mint']": {
-  //   "--trip-bg": "#DFF6ED",
-  //   "--trip-ink": "#18765C",
-  //   "--trip-accent": "#64C9A9",
-  // },
-  // "& [data-color='blue']": {
-  //   "--trip-bg": "#DFEDFF",
-  //   "--trip-ink": "#155BBF",
-  //   "--trip-accent": "#71ABED",
-  // },
-  // "& [data-color='orange']": {
-  //   "--trip-bg": "#FFEAD5",
-  //   "--trip-ink": "#A84D0A",
-  //   "--trip-accent": "#EEAA68",
-  // },
+
   "& .calendar-event": {
     zIndex: 1,
     minWidth: 0,

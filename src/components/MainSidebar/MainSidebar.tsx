@@ -24,8 +24,17 @@ import {
   Settings,
   UserRound,
 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router";
 
 type MenuId = "myTrip" | "search" | "saved" | "notification" | "settings";
+
+const MENU_PATHS: Record<MenuId, string> = {
+  myTrip: "/",
+  search: "/search",
+  saved: "/saved",
+  notification: "/notifications",
+  settings: "/mypage/settings",
+};
 
 interface MenuItem {
   id: MenuId;
@@ -71,13 +80,28 @@ const MainSidebar = () => {
   const dropdownId = useId();
   const tooltipId = useId();
   const [dropdownPosition, setDropdownPosition] = useState<CSSProperties>({});
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const activeMenu: MenuId | undefined =
+    pathname === "/" ||
+    pathname.startsWith("/trips/") ||
+    pathname === "/schedule"
+      ? "myTrip"
+      : (Object.keys(MENU_PATHS) as MenuId[]).find((id) => {
+          const path = MENU_PATHS[id];
+
+          return (
+            path !== "/" &&
+            (pathname === path || pathname.startsWith(`${path}/`))
+          );
+        });
   const [tooltip, setTooltip] = useState<{
     label: string;
     left: number;
     top: number;
   } | null>(null);
 
-  const [activeMenu, setActiveMenu] = useState<MenuId>("myTrip");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 
@@ -170,6 +194,7 @@ const MainSidebar = () => {
     };
   };
 
+<<<<<<< Updated upstream
   useEffect(() => {
     if (!isLogoutOpen) return;
 
@@ -185,6 +210,9 @@ const MainSidebar = () => {
   }, [isLogoutOpen]);
 
   const navigateToPage = (path: string) => {
+=======
+  const handleNavigate = (path: string) => {
+>>>>>>> Stashed changes
     setIsProfileOpen(false);
     setTooltip(null);
     navigate(path);
@@ -226,8 +254,8 @@ const MainSidebar = () => {
     </S.ProfileDropdown>
   );
 
-  const handleCreateTrip = (): void => {
-    console.log("새 여행 만들기");
+  const handleCreateTrip = () => {
+    navigate("/trips/new");
   };
 
   return (
@@ -235,8 +263,9 @@ const MainSidebar = () => {
       <S.SidebarContainer data-collapsed={isCollapsed ? "true" : "false"}>
         <S.HeaderStyle data-sidebar-header="">
           <S.LogoWrapper
+            to="/"
             data-sidebar-logo=""
-            aria-hidden={isCollapsed || undefined}
+            aria-label="Routy 메인페이지"
           >
             {!isCollapsed ? (
               <svg
@@ -323,7 +352,7 @@ const MainSidebar = () => {
                 type="button"
                 $active={isActive}
                 {...tooltipProps(item.label)}
-                onClick={() => setActiveMenu(item.id)}
+                onClick={() => handleNavigate(MENU_PATHS[item.id])}
               >
                 <S.MenuIcon data-menu-icon="">
                   <MenuIcon id={item.id} />
@@ -347,6 +376,7 @@ const MainSidebar = () => {
                   type="button"
                   $active={isActive}
                   {...tooltipProps(item.label)}
+<<<<<<< Updated upstream
                   onClick={() => {
                     setActiveMenu(item.id);
                     navigateToPage(
@@ -355,6 +385,9 @@ const MainSidebar = () => {
                         : "/mypage/settings",
                     );
                   }}
+=======
+                  onClick={() => handleNavigate(MENU_PATHS[item.id])}
+>>>>>>> Stashed changes
                 >
                   <S.MenuIcon data-menu-icon="">
                     <MenuIcon id={item.id} />
