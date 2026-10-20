@@ -103,6 +103,33 @@ const MainSidebar = () => {
           });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const locationKey = `${pathname}${hash}`;
+  const [menuSelection, setMenuSelection] = useState<{
+    menu: MenuId;
+    locationKey: string;
+  } | null>(null);
+  const navigationTimerRef = useRef<number | null>(null);
+  const displayedMenu =
+    menuSelection?.locationKey === locationKey
+      ? menuSelection.menu
+      : activeMenu;
+  const selectedMainIndex = MENU_ITEMS.findIndex(
+    (item) => item.id === displayedMenu,
+  );
+  const mainMenuMotionStyle: CSSProperties = {
+    transform: `translateY(${
+      Math.max(selectedMainIndex, 0) * (isCollapsed ? 64 : 40)
+    }px)`,
+    opacity: selectedMainIndex >= 0 ? 1 : 0,
+  };
+
+  useEffect(() => {
+    return () => {
+      if (navigationTimerRef.current !== null) {
+        window.clearTimeout(navigationTimerRef.current);
+      }
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!isCollapsed || !isProfileOpen) return;
@@ -211,6 +238,30 @@ const MainSidebar = () => {
     setIsProfileOpen(false);
     setTooltip(null);
     navigate(path);
+  };
+
+  const handleMenuNavigate = (menu: MenuId) => {
+    setIsProfileOpen(false);
+    setTooltip(null);
+
+    if (menu === displayedMenu) return;
+
+    if (navigationTimerRef.current !== null) {
+      window.clearTimeout(navigationTimerRef.current);
+      navigationTimerRef.current = null;
+    }
+
+    setMenuSelection({ menu, locationKey });
+
+    if (menu === "search") return;
+
+    const path = MENU_PATHS[menu];
+    if (path === `${pathname}${hash}` || path === pathname) return;
+
+    navigationTimerRef.current = window.setTimeout(() => {
+      navigationTimerRef.current = null;
+      navigate(path);
+    }, S.MENU_SELECTION_DURATION_MS + 40);
   };
 
   const profileDropdown = (
@@ -337,8 +388,20 @@ const MainSidebar = () => {
         </S.CreateTripButton>
 
         <S.MainNavigation data-main-navigation="">
+          <S.ActiveMenuHighlight
+            aria-hidden="true"
+            style={{
+              ...mainMenuMotionStyle,
+              height: isCollapsed ? 52 : 35,
+            }}
+          />
+          <S.ActiveMenuRail
+            data-active-menu-rail=""
+            aria-hidden="true"
+            style={mainMenuMotionStyle}
+          />
           {MENU_ITEMS.map((item) => {
-            const isActive = activeMenu === item.id;
+            const isActive = displayedMenu === item.id;
 
             return (
               <S.MenuButton
@@ -346,8 +409,10 @@ const MainSidebar = () => {
                 key={item.id}
                 type="button"
                 $active={isActive}
+                $sharedHighlight
+                aria-current={isActive ? "page" : undefined}
                 {...tooltipProps(item.label)}
-                onClick={() => handleNavigate(MENU_PATHS[item.id])}
+                onClick={() => handleMenuNavigate(item.id)}
               >
                 <S.MenuIcon data-menu-icon="">
                   <MenuIcon id={item.id} />
@@ -362,7 +427,7 @@ const MainSidebar = () => {
         <S.BottomSection>
           <S.BottomNavigation data-bottom-navigation="">
             {BOTTOM_ITEMS.map((item) => {
-              const isActive = activeMenu === item.id;
+              const isActive = displayedMenu === item.id;
 
               return (
                 <S.MenuButton
@@ -371,7 +436,7 @@ const MainSidebar = () => {
                   type="button"
                   $active={isActive}
                   {...tooltipProps(item.label)}
-                  onClick={() => handleNavigate(MENU_PATHS[item.id])}
+                  onClick={() => handleMenuNavigate(item.id)}
                 >
                   <S.MenuIcon data-menu-icon="">
                     <MenuIcon id={item.id} />

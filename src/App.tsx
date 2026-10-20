@@ -1,10 +1,12 @@
 import { Routes, Route, Navigate, useNavigate } from "react-router";
+
 import RoutyBookLogin from "./components/RoutyBookLogin/RoutyBookLogin";
 import SchedulePage from "./pages/travelSchedulePage/SchedulePage";
 import MyTripsPage from "./pages/mainPage/MyTripsPages";
 import CreateTripPage from "./pages/newTravelPage/CreateTripPage";
 import MyPage from "./page/mypage/mypage";
 import SavedPage from "./pages/savedPage/SavedPage";
+import PlaceDetailPage from "./pages/placeDetailPage/PlaceDetailPage";
 
 function CreateTripRoute() {
   const navigate = useNavigate();
@@ -19,6 +21,7 @@ export default function App() {
       <Route path="/trips/new" element={<CreateTripRoute />} />
       <Route path="/schedule" element={<SchedulePage />} />
       <Route path="/saved" element={<SavedPage />} />
+      <Route path="/place/detail" element={<PlaceDetailPage />} />
 
       <Route
         path="/mypage"
