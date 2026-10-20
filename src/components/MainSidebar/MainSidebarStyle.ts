@@ -1,6 +1,9 @@
 import styled from "@emotion/styled";
 import { dropdownAnimation } from "../../styles/animation";
 import { Link } from "react-router";
+
+export const MENU_SELECTION_DURATION_MS = 180;
+const menuSelectionTransition = `${MENU_SELECTION_DURATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
 export const SidebarShell = styled.div({
   position: "relative",
   display: "flex",
@@ -88,6 +91,7 @@ export const SidebarContainer = styled.aside({
       height: "28px",
     },
 
+    "& [data-active-menu-rail]": { top: "4px", height: "44px" },
     "& [data-main-navigation]": { gap: "12px" },
     "& [data-bottom-navigation]": { gap: "12px", marginBottom: 0 },
   },
@@ -236,68 +240,102 @@ export const CreateTripButton = styled.button({
 });
 
 export const MainNavigation = styled.nav({
+  position: "relative",
   display: "flex",
   flexDirection: "column",
   width: "100%",
   gap: "5px",
+  isolation: "isolate",
+});
+
+export const ActiveMenuHighlight = styled.span({
+  position: "absolute",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "35px",
+  borderRadius: "9px",
+  backgroundColor: "#ECF8F5",
+  zIndex: 0,
+  pointerEvents: "none",
+  willChange: "transform",
+  transition: `transform ${menuSelectionTransition}, opacity 0.12s ease`,
+});
+
+export const ActiveMenuRail = styled.span({
+  position: "absolute",
+  top: "2px",
+  left: "-9px",
+  width: "3px",
+  height: "29px",
+  borderRadius: "3px",
+  backgroundColor: "#005259",
+  zIndex: 2,
+  pointerEvents: "none",
+  willChange: "transform",
+  transition: `transform ${menuSelectionTransition}, opacity 0.12s ease`,
 });
 
 interface MenuButtonProps {
   $active: boolean;
+  $sharedHighlight?: boolean;
 }
 
-export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
-  position: "relative",
-  display: "flex",
-  alignItems: "center",
-  width: "100%",
-  height: "35px",
-  padding: "0 13px",
-  gap: "12px",
-  borderRadius: "9px",
-
-  color: $active ? "#005259" : "#333333",
-  fontSize: "16px",
-  fontWeight: $active ? 700 : 400,
-  textAlign: "left",
-  isolation: "isolate",
-
-  transition: "color 0.25s ease",
-
-  "&::after": {
-    content: '""',
-    position: "absolute",
-    inset: 0,
+export const MenuButton = styled.button<MenuButtonProps>(
+  ({ $active, $sharedHighlight }) => ({
+    position: "relative",
+    zIndex: 1,
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    height: "35px",
+    padding: "0 13px",
+    gap: "12px",
     borderRadius: "9px",
-    backgroundColor: "#ECF8F5",
-    zIndex: -1,
 
-    clipPath: $active
-      ? "inset(0 0 0 0 round 9px)"
-      : "inset(0 0 100% 0 round 9px)",
+    color: $active ? "#005259" : "#333333",
+    fontSize: "16px",
+    fontWeight: $active ? 700 : 400,
+    textAlign: "left",
+    isolation: "isolate",
 
-    transition: "clip-path 0.24s cubic-bezier(0.22, 1, 0.36, 1)",
-  },
+    transition: "color 0.25s ease",
 
-  "&::before": {
-    content: '""',
-    position: "absolute",
-    left: "-9px",
-    top: "2px",
-    width: "3px",
-    height: "29px",
-    borderRadius: "3px",
-    backgroundColor: "#005259",
+    "&::after": {
+      display: $sharedHighlight ? "none" : "block",
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      borderRadius: "9px",
+      backgroundColor: "#ECF8F5",
+      zIndex: -1,
 
-    clipPath: $active ? "inset(0 0 0 0)" : "inset(0 0 100% 0)",
+      clipPath: $active
+        ? "inset(0 0 0 0 round 9px)"
+        : "inset(0 0 100% 0 round 9px)",
 
-    transition: "clip-path 0.24s cubic-bezier(0.22, 1, 0.36, 1)",
-  },
+      transition: "clip-path 0.24s cubic-bezier(0.22, 1, 0.36, 1)",
+    },
 
-  "&:hover": {
-    color: "#005259",
-  },
-}));
+    "&::before": {
+      display: $sharedHighlight ? "none" : "block",
+      content: '""',
+      position: "absolute",
+      left: "-9px",
+      top: "2px",
+      width: "3px",
+      height: "29px",
+      borderRadius: "3px",
+      backgroundColor: "#005259",
+      clipPath: $active ? "inset(0 0 0 0)" : "inset(50% 0 50% 0)",
+      transition: `clip-path ${menuSelectionTransition}`,
+    },
+
+    "&:hover": {
+      color: "#005259",
+    },
+  }),
+);
 
 export const MenuIcon = styled.span({
   display: "flex",
@@ -364,6 +402,7 @@ export const CollapseButton = styled.button({
   filter: "drop-shadow(-3px 5px 4px rgba(13, 62, 65, 0.2))",
 
   "&::before": {
+    display: "block",
     content: '""',
     position: "absolute",
     inset: 0,
