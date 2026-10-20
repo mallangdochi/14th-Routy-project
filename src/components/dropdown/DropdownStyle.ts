@@ -23,7 +23,13 @@ export const DropdownStyle = styled.div({
     flexShrink: 0,
   },
 
-  "& .sort-trigger svg.is-open": {
+  "& .sort-trigger svg.lucide-chevron-down": {
+    transform: "rotate(0deg)",
+    transformOrigin: "center",
+    transition: "transform 240ms ease",
+  },
+
+  '& .sort-trigger[aria-expanded="true"] svg.lucide-chevron-down': {
     transform: "rotate(180deg)",
   },
 
@@ -80,15 +86,25 @@ export const DropdownStyle = styled.div({
       color: "#005358",
     },
   },
+
   "@media (max-width: 1023px)": {
     fontSize: "var(--page-font-size, 15px)",
-    "& .sort-trigger, & .sort-dropdown button": { fontSize: "inherit" },
+    "& .sort-trigger, & .sort-dropdown button": {
+      fontSize: "inherit",
+    },
   },
+
   "@media (max-width: 767px)": {
     fontSize: "var(--page-font-size, 14px)",
     "& .sort-dropdown": {
       left: 0,
       right: "auto",
+    },
+  },
+
+  "@media (prefers-reduced-motion: reduce)": {
+    "& .sort-trigger svg.lucide-chevron-down": {
+      transition: "none",
     },
   },
 });

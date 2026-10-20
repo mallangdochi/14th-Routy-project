@@ -101,7 +101,6 @@ export const modalAnimation: CSSObject = {
   },
 };
 
-//메뉴바 애니메이션
 // 메뉴바 애니메이션
 export const menuAnimation: Record<"indicator" | "button", CSSObject> = {
   indicator: {
