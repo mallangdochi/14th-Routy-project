@@ -20,6 +20,7 @@ export const SavedPageStyle = styled.div({
   "& .page-content": {
     display: "flex",
     flexDirection: "column",
+    margin: "0 auto",
     flex: "1 1 0",
     minWidth: 0,
     minHeight: "100vh",
@@ -27,35 +28,25 @@ export const SavedPageStyle = styled.div({
     backgroundColor: "#FEFBF5",
     padding: "24px 40px 0",
   },
-  "& .page-header": {
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    gap: 15,
-
-    "& h1": { fontSize: 44, color: "#0D3E41" },
-  },
 
   "& .page-mobile-header, & .page-mobile-footer": {
     display: "none",
   },
+
   "@media (max-width: 767px)": {
     "--page-font-size": "14px",
-    "& .page-header": {
-      "& h1": { paddingTop: 20, fontSize: 28 },
-    },
+
     "& .page-sidebar": {
       display: "none",
     },
 
-    "& .page-mobile-header": {
+    "& .page-mobile-header, & .page-mobile-footer": {
       display: "block",
     },
 
-    "& .page-mobile-footer": {
-      display: "block",
+    "& .page-content": {
+      padding: "24px 20px",
     },
-    "& .page-content": { padding: "24px 20px" },
   },
 });
 
@@ -65,11 +56,24 @@ export const PageInner = styled.div({
   justifyContent: "center",
   alignItems: "center",
   flex: 1,
+  margin: "0 auto",
   width: "100%",
   maxWidth: "1300px",
   minWidth: 0,
-  padding: "24px 40px 0",
   fontSize: "var(--page-font-size)",
+
+  "& .page-header": {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: 15,
+    paddingBottom: 24,
+
+    "& h1": {
+      fontSize: 44,
+      color: "#0D3E41",
+    },
+  },
 
   "&:has(.saved-places)": {
     justifyContent: "flex-start",
@@ -83,6 +87,85 @@ export const PageInner = styled.div({
     gap: 16,
     width: "100%",
     paddingBottom: 32,
+  },
+
+  "& .saved-filters": {
+    display: "flex",
+    position: "relative",
+    flexWrap: "nowrap",
+    alignItems: "stretch",
+    gap: 0,
+    width: "100%",
+    borderBottom: "1px solid #E2E6E9",
+
+    "& .saved-filter-indicator": {
+      ...menuAnimation.indicator,
+      display: "block",
+      position: "absolute",
+      top: "auto",
+      bottom: "-1px",
+      left: 0,
+      width: "var(--indicator-width, 0px)",
+      height: 2,
+      borderRadius: 0,
+      backgroundColor: "#005358",
+      opacity: 1,
+      visibility: "visible",
+      zIndex: 1,
+      transform: "translateX(var(--indicator-left, 0px))",
+      pointerEvents: "none",
+    },
+
+    "& button": {
+      ...menuAnimation.button,
+      flex: "0 0 auto",
+      minWidth: 0,
+      minHeight: 44,
+      padding: "10px 25px",
+      border: 0,
+      borderRadius: 0,
+      backgroundColor: "transparent",
+      color: "#718596",
+      fontFamily: "inherit",
+      fontSize: "inherit",
+      fontWeight: 400,
+      lineHeight: 1.5,
+      whiteSpace: "nowrap",
+      cursor: "pointer",
+
+      "&:hover": {
+        backgroundColor: "transparent",
+        color: "#005358",
+      },
+
+      '&[aria-pressed="true"]': {
+        backgroundColor: "transparent",
+        color: "#005358",
+        fontWeight: 700,
+      },
+
+      "&:focus-visible": {
+        outline: "2px solid #527F79",
+        outlineOffset: "-4px",
+      },
+    },
+  },
+
+  "& .saved-toolbar": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  "& .saved-toolbar > div": {
+    marginLeft: "auto",
+
+    "& .sort-dropdown": {
+      left: "auto",
+      right: 0,
+    },
   },
 
   "& .saved-count": {
@@ -245,76 +328,6 @@ export const PageInner = styled.div({
     },
   },
 
-  "& .saved-filters": {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 10,
-
-    "& .saved-filter-indicator": {
-      display: "none",
-    },
-
-    "& button": {
-      width: "auto",
-      minWidth: 84,
-      minHeight: 44,
-      padding: "8px 26px",
-      fontSize: 16,
-      border: "1px solid #E2E6E9",
-      borderRadius: 20,
-      backgroundColor: "#F0F2F4",
-      color: "#40545D",
-      fontWeight: 500,
-      lineHeight: 1.5,
-      whiteSpace: "nowrap",
-      cursor: "pointer",
-      transition:
-        "background-color 240ms ease, color 240ms ease, border-color 240ms ease",
-
-      "&:hover": {
-        backgroundColor: "#E5ECE8",
-      },
-
-      '&[aria-pressed="true"]': {
-        borderColor: "#0D3E41",
-        backgroundColor: "#0D3E41",
-        color: "#FFFFFF",
-      },
-
-      "&:focus-visible": {
-        outline: "3px solid #527F79",
-        outlineOffset: 3,
-      },
-    },
-  },
-
-  "& .saved-toolbar": {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-
-  "& .saved-toolbar > div": {
-    marginLeft: "auto",
-
-    "& .sort-dropdown": {
-      left: "auto",
-      right: 0,
-    },
-  },
-
-  "& .saved-empty": {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    flex: 1,
-    padding: "40px 0",
-    color: "#596D75",
-    textAlign: "center",
-  },
   "& .saved-map-button": {
     border: "1px solid #D9E2E3",
     backgroundColor: "#FFFFFF",
@@ -339,9 +352,18 @@ export const PageInner = styled.div({
     outline: "3px solid #527F79",
     outlineOffset: 3,
   },
-  "& .saved-mobile-category": {
-    display: "none",
+
+  "& .saved-empty": {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+    padding: "40px 0",
+    color: "#596D75",
+    textAlign: "center",
   },
+
   "@media (max-width: 1023px)": {
     "--page-font-size": "15px",
     padding: "24px 0 0",
@@ -369,6 +391,20 @@ export const PageInner = styled.div({
     "--page-font-size": "14px",
     padding: 0,
 
+    "& .page-header": {
+      paddingBottom: 0,
+
+      "& h1": {
+        paddingTop: 20,
+        fontSize: 28,
+      },
+    },
+    "& .saved-filters button": {
+      flex: "1 1 0",
+      minWidth: 0,
+      padding: "10px 0",
+      fontSize: "14px",
+    },
     "& .saved-places": {
       gap: 12,
       paddingTop: 20,
@@ -400,11 +436,9 @@ export const PageInner = styled.div({
       gap: 8,
     },
 
-    "& .saved-heading": {
-      "& h2": {
-        paddingTop: 0,
-        fontSize: 18,
-      },
+    "& .saved-heading h2": {
+      paddingTop: 0,
+      fontSize: 18,
     },
 
     "& .saved-bookmark": {
@@ -427,102 +461,8 @@ export const PageInner = styled.div({
         padding: "8px 10px",
       },
     },
-
-    // "& .saved-filters": {
-    //   display: "flex",
-    //   flexWrap: "nowrap",
-    //   alignItems: "stretch",
-    //   gap: 0,
-    //   width: "100%",
-    //   borderBottom: "1px solid #E2E6E9",
-
-    //   "& button": {
-    //     display: "flex",
-    //     alignItems: "center",
-    //     justifyContent: "center",
-    //     flex: "1 1 0",
-    //     minWidth: 0,
-    //     minHeight: 44,
-    //     padding: "10px 0",
-    //     marginBottom: "-1px",
-    //     border: 0,
-    //     borderBottom: "2px solid transparent",
-    //     borderRadius: 0,
-    //     backgroundColor: "transparent",
-    //     color: "#718596",
-    //     fontSize: 16,
-    //     fontWeight: 400,
-    //     lineHeight: 1.5,
-    //     whiteSpace: "nowrap",
-
-    //     "&:hover": {
-    //       backgroundColor: "transparent",
-    //       color: "#005358",
-    //     },
-
-    //     '&[aria-pressed="true"]': {
-    //       borderColor: "transparent",
-    //       borderBottomColor: "#005358",
-    //       backgroundColor: "transparent",
-    //       color: "#005358",
-    //       fontWeight: 700,
-    //     },
-
-    //     "&:focus-visible": {
-    //       outline: "2px solid #527F79",
-    //       outlineOffset: "-4px",
-    //     },
-    //   },
-    // },
-
-    "& .saved-filters": {
-      flexWrap: "nowrap",
-      alignItems: "stretch",
-      gap: 0,
-      width: "100%",
-      borderBottom: "1px solid #E2E6E9",
-
-      "& .saved-filter-indicator": {
-        ...menuAnimation.indicator,
-        top: "auto",
-        bottom: "-1px",
-        height: "2px",
-        borderRadius: 0,
-        backgroundColor: "#005358",
-        transform: "translateX(var(--indicator-left, 0px))",
-      },
-
-      "& button": {
-        ...menuAnimation.button,
-        flex: "1 1 0",
-        minWidth: 0,
-        minHeight: 44,
-        padding: "10px 0",
-        border: 0,
-        borderRadius: 0,
-        backgroundColor: "transparent",
-        color: "#718596",
-        fontSize: "14px",
-        fontWeight: 400,
-
-        "&:hover": {
-          backgroundColor: "transparent",
-          color: "#005358",
-        },
-
-        '&[aria-pressed="true"]': {
-          backgroundColor: "transparent",
-          color: "#005358",
-          fontWeight: 700,
-        },
-
-        "&:focus-visible": {
-          outline: "2px solid #527F79",
-          outlineOffset: "-4px",
-        },
-      },
-    },
   },
+
   "@media (prefers-reduced-motion: reduce)": {
     "& .saved-bookmark, & .saved-actions button, & .saved-filters button, & .saved-filter-indicator":
       {

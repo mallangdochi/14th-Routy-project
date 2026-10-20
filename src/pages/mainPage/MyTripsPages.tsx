@@ -1,7 +1,7 @@
 import { MyTripsPageStyle } from "./MyTripsPageStyle";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Grid2X2, List, Plus, House } from "lucide-react";
 
 import { trips, type TripStatus } from "../../data/trips";
@@ -35,6 +35,49 @@ export default function MyTripsPage() {
   const [sort, setSort] = useState<SortType>("recent");
   const [view, setView] = useState<ViewType>("grid");
   const navigate = useNavigate();
+
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const container = tabsRef.current;
+    if (!container) return;
+
+    const updateIndicator = () => {
+      const selectedButton = container.querySelector<HTMLButtonElement>(
+        'button[aria-pressed="true"]',
+      );
+
+      if (!selectedButton) return;
+
+      container.style.setProperty(
+        "--indicator-left",
+        `${selectedButton.offsetLeft}px`,
+      );
+      container.style.setProperty(
+        "--indicator-top",
+        `${selectedButton.offsetTop}px`,
+      );
+      container.style.setProperty(
+        "--indicator-width",
+        `${selectedButton.offsetWidth}px`,
+      );
+      container.style.setProperty(
+        "--indicator-height",
+        `${selectedButton.offsetHeight}px`,
+      );
+    };
+
+    updateIndicator();
+
+    const observer = new ResizeObserver(updateIndicator);
+    observer.observe(container);
+
+    container.querySelectorAll("button").forEach((button) => {
+      observer.observe(button);
+    });
+
+    return () => observer.disconnect();
+  }, [filter]);
 
   const previewEmpty = false;
 
@@ -106,7 +149,7 @@ export default function MyTripsPage() {
             <p>설레는 여행을 계획하고, 특별한 추억을 만들어보세요.</p>
           </header>
           <div className="trips-toolbar">
-            <div
+            {/* <div
               className="trips-tabs"
               role="group"
               aria-label="여행 상태 필터"
@@ -123,8 +166,28 @@ export default function MyTripsPage() {
                   <span className="tab-count">{getCount(item.value)}</span>
                 </button>
               ))}
-            </div>
+            </div> */}
+            <div
+              ref={tabsRef}
+              className="trips-tabs"
+              role="group"
+              aria-label="여행 상태 필터"
+            >
+              <span className="trips-tab-indicator" aria-hidden="true" />
 
+              {filters.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  className={filter === item.value ? "active" : ""}
+                  aria-pressed={filter === item.value}
+                  onClick={() => setFilter(item.value)}
+                >
+                  {item.label}
+                  <span className="tab-count">{getCount(item.value)}</span>
+                </button>
+              ))}
+            </div>
             <div className="trips-controls">
               <Dropdown
                 label="여행 정렬"
