@@ -8,8 +8,6 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import {
   Image as ImageIcon,
-  Eye,
-  EyeOff,
   ChevronLeft,
   Menu,
   CircleAlert,
@@ -35,6 +33,60 @@ import * as S from "./myPageStyle";
 
 type PageId = "profile" | "security" | "settings" | "support";
 type PasswordFieldId = "current" | "new" | "confirm";
+
+type PasswordEyeIconProps = {
+  visible: boolean;
+};
+
+function PasswordEyeIcon({ visible }: PasswordEyeIconProps) {
+  if (visible) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="23"
+        height="23"
+        viewBox="0 0 256 256"
+        fill="none"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path
+          d="M16 128C47 82 86 48 128 48S209 82 240 128C209 174 170 208 128 208S47 174 16 128Z"
+          stroke="currentColor"
+          strokeWidth="15"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle
+          cx="128"
+          cy="128"
+          r="48"
+          stroke="currentColor"
+          strokeWidth="15"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="23"
+      height="23"
+      viewBox="0 0 256 256"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="15"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M16 128C66 218 190 218 240 128" />
+      <path d="M36 157L16 182M74 188L66 212M128 201V228M182 188L190 212M220 157L240 182" />
+    </svg>
+  );
+}
 
 type ProfileData = {
   nickname: string;
@@ -559,11 +611,7 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
                   aria-pressed={visible[field.id]}
                   onClick={() => toggleVisibility(field.id)}
                 >
-                  {visible[field.id] ? (
-                    <EyeOff size={21} strokeWidth={1.8} aria-hidden="true" />
-                  ) : (
-                    <Eye size={21} strokeWidth={1.8} aria-hidden="true" />
-                  )}
+                  <PasswordEyeIcon visible={visible[field.id]} />
                 </S.PasswordVisibilityButton>
 
                 {hasError && (
