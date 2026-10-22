@@ -8,6 +8,7 @@ import MyPage from "./page/mypage/mypage";
 import SavedPage from "./pages/savedPage/SavedPage";
 import PlaceDetailPage from "./pages/placeDetailPage/PlaceDetailPage";
 import TripDaysPage from "./pages/travelTimetablePage/TimetablePage";
+import Search from "./components/search/Search";
 
 function CreateTripRoute() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/saved" element={<SavedPage />} />
       <Route path="/place/detail" element={<PlaceDetailPage />} />
       <Route path="/trips/:tripId" element={<TripDaysPage />} />
+      <Route path="/search" element={<Search />} />
 
       <Route
         path="/mypage"
