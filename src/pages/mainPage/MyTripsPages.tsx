@@ -130,7 +130,7 @@ export default function MyTripsPage() {
       <main className="page-content">
         <div className="trips-page-inner">
           <div className="trips-breadcrumb" aria-label="현재 위치">
-            <Breadcrumb items={[{ label: "내 여행", Icon: House }]} />
+            <Breadcrumb items={[{ label: "내 여행", to: "/", Icon: House }]} />
           </div>
 
           <header className="trips-header">

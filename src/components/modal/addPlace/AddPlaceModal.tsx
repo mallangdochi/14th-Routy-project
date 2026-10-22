@@ -55,27 +55,29 @@ function formatDate(value: string, includeYear = false) {
 }
 
 function getTripDays(trip: Trip): TripDay[] {
-  const current = parseDate(trip.startDate);
-  const end = parseDate(trip.endDate);
-  const savedDays = new Map(
-    mockTripDays
-      .filter((item) => item.tripId === trip.id)
-      .map((item) => [item.date, item]),
-  );
-
+  const tripDays = mockTripDays.filter((item) => item.tripId === trip.id);
+  const dates = (
+    tripDays.length
+      ? tripDays.map((item) => item.date)
+      : [trip.startDate, trip.endDate]
+  ).sort();
+  const current = parseDate(dates[0]);
+  const end = parseDate(dates[dates.length - 1]);
+  const savedDays = new Map(tripDays.map((item) => [item.date, item]));
   const days: TripDay[] = [];
 
   while (current <= end) {
     const date = dateKey(current);
     const day = days.length + 1;
+    const savedDay = savedDays.get(date);
 
     days.push({
-      id: `trip-${trip.id}-day-${day}`,
+      ...savedDay,
+      id: savedDay?.id ?? `trip-${trip.id}-date-${date}`,
       tripId: trip.id,
       day,
       date,
-      places: [],
-      ...savedDays.get(date),
+      places: savedDay?.places ?? [],
     });
 
     current.setDate(current.getDate() + 1);
@@ -394,8 +396,9 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
         ) : (
           <>
             <div
-              className="day-options modal-scroll"
+              className={`day-options modal-scroll ${days.length >= 7 ? "is-day-list" : days.length >= 5 ? "is-day-grid" : ""}`}
               role="group"
+              data-day-count={days.length}
               aria-label={`${selectedTrip?.title} 날짜 선택`}
             >
               {days.map((day) => (

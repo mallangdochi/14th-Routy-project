@@ -156,7 +156,7 @@ export default function SchedulePage({
           <Breadcrumb
             items={[
               { label: "내 여행", to: "/", Icon: House },
-              { label: "일정" },
+              { label: "일정", to: "/schedule" },
             ]}
           />
         </div>
