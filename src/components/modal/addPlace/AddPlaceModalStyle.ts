@@ -556,6 +556,46 @@ export const AddPlaceModalStyle = styled("div")({
     },
   },
 
+  "@media (min-width: 768px)": {
+    "& .day-options[data-day-count='1']": {
+      gridTemplateColumns: "minmax(0, 1fr)",
+    },
+
+    "& .day-options[data-day-count='2']": {
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    },
+
+    "& .day-options[data-day-count='3']": {
+      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    },
+
+    "& .day-options[data-day-count='4']": {
+      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    },
+
+    "& .day-options.is-day-grid": {
+      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+      maxHeight: "none",
+    },
+
+    "& .day-options.is-day-list": {
+      gridTemplateColumns: "minmax(0, 1fr)",
+      alignContent: "start",
+      maxHeight: 340,
+    },
+
+    "& .is-day-list .day-info": {
+      flex: 1,
+    },
+
+    "& .is-day-list .day-places": {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      columnGap: 16,
+      rowGap: 3,
+    },
+  },
+
   "@media (max-width: 767px)": {
     "--modal-title-size": "20px",
     "--modal-item-title-size": "18px",
