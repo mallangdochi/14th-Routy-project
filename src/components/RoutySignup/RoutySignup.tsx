@@ -460,7 +460,7 @@ export default function RoutySignup({
               <EnglishLabel>/ BIRTH</EnglishLabel>
             </FieldLabel>
 
-            <DatePicker
+            <DatePicker modal
               label=""
               name="birth"
               value={s.form.birth}

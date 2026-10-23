@@ -10,16 +10,7 @@ import {
 
 import { useLocation, useNavigate } from "react-router";
 
-import {
-  ChevronLeft,
-  CheckCircle2,
-  CircleAlert,
-  Eye,
-  EyeOff,
-  EyeClosed,
-  LockKeyhole,
-  Mail,
-} from "lucide-react";
+import { ChevronLeft, CheckCircle2, CircleAlert, Eye, EyeOff, EyeClosed, LockKeyhole, Mail } from "lucide-react";
 
 import CoverFront from "./CoverFront";
 import DatePicker from "../pickers/DatePicker";
@@ -367,181 +358,181 @@ export default function RoutyBookLogin({
       }}
     >
       <DesktopOnly>
-        <Stage>
-          <Book data-open={isOpen}>
-            {/* 회원가입 오른쪽 페이지 */}
-            <SignupRightPage aria-hidden={!isSignup}>
-              <RoutySignup side="right" active={signupActive} />
-            </SignupRightPage>
+      <Stage>
+        <Book data-open={isOpen}>
+          {/* 회원가입 오른쪽 페이지 */}
+          <SignupRightPage aria-hidden={!isSignup}>
+            <RoutySignup side="right" active={signupActive} />
+          </SignupRightPage>
 
-            {/* 회전하는 로그인 / 회원가입 종이 */}
-            <TurningLeaf
-              data-signup={isSignup}
-              onTransitionEnd={handlePageTransitionEnd}
-            >
-              {/* 종이 앞면: 로그인 */}
-              <LoginFace aria-hidden={isSignup}>
-                <LoginHeading>로그인</LoginHeading>
-
-                <LoginForm onSubmit={handleSubmit}>
-                  {/* 이메일 */}
-                  <InputLabel htmlFor={`${fieldId}-email`}>이메일</InputLabel>
-
-                  <InputBox>
-                    <InputIcon aria-hidden="true">
-                      <Mail />
-                    </InputIcon>
-
-                    <TextInput
-                      id={`${fieldId}-email`}
-                      type="email"
-                      placeholder="이메일을 입력해주세요."
-                      autoComplete="username"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      disabled={loginDisabled || loginLoading}
-                      required
-                    />
-                  </InputBox>
-
-                  {/* 비밀번호 */}
-                  <InputLabel htmlFor={`${fieldId}-password`}>
-                    비밀번호
-                  </InputLabel>
-
-                  <InputBox>
-                    <InputIcon aria-hidden="true">
-                      <LockKeyhole />
-                    </InputIcon>
-
-                    <TextInput
-                      id={`${fieldId}-password`}
-                      type={showPassword ? "text" : "password"}
-                      placeholder="비밀번호를 입력해주세요."
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      disabled={loginDisabled || loginLoading}
-                      required
-                    />
-
-                    <PasswordToggle
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      disabled={loginDisabled}
-                      aria-label={
-                        showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
-                      }
-                    >
-                      {showPassword ? <EyeOff /> : <Eye />}
-                    </PasswordToggle>
-                  </InputBox>
-
-                  {/* 로그인 상태 유지 */}
-                  <RememberLabel>
-                    <input
-                      type="checkbox"
-                      checked={remember}
-                      onChange={(event) => setRemember(event.target.checked)}
-                      disabled={loginDisabled}
-                    />
-                    로그인 상태 유지
-                  </RememberLabel>
-
-                  {/* 로그인 버튼 */}
-                  <SubmitButton
-                    type="submit"
-                    disabled={loginDisabled || loginLoading}
-                  >
-                    {loginLoading ? "로그인 중..." : "로그인"}
-                  </SubmitButton>
-
-                  {loginError && <Feedback role="alert">{loginError}</Feedback>}
-                </LoginForm>
-
-                {/* 계정 관련 메뉴 */}
-                <AccountLinks>
-                  <TextButton
-                    type="button"
-                    onClick={onFindId}
-                    disabled={loginDisabled || !onFindId}
-                  >
-                    아이디 찾기
-                  </TextButton>
-
-                  <span>|</span>
-
-                  <TextButton
-                    type="button"
-                    onClick={onFindPassword}
-                    disabled={loginDisabled || !onFindPassword}
-                  >
-                    비밀번호 찾기
-                  </TextButton>
-
-                  <span>|</span>
-
-                  {/* 화살표 제거 */}
-                  <SignUpButton
-                    type="button"
-                    onClick={() => turnPage(true)}
-                    disabled={loginDisabled}
-                  >
-                    회원가입
-                  </SignUpButton>
-                </AccountLinks>
-              </LoginFace>
-
-              {/* 종이 뒷면: 회원가입 왼쪽 */}
-              <SignupLeftFace aria-hidden={!isSignup}>
-                <RoutySignup
-                  side="left"
-                  active={signupActive}
-                  onBack={() => turnPage(false)}
-                />
-              </SignupLeftFace>
-            </TurningLeaf>
-
-            {/* 기존 Routy 여권 표지 */}
-            <CoverLeaf
-              data-open={isOpen}
-              data-settled={coverPhase === "open"}
-              onTransitionEnd={handleCoverTransitionEnd}
-            >
-              <CoverFrontFace
-                type="button"
-                onClick={handleOpen}
-                disabled={isOpen}
-                aria-label="여권 열기"
-              >
-                <CoverFront />
-              </CoverFrontFace>
-
-              <CoverInsideFace
-                type="button"
-                onClick={handleClose}
-                disabled={coverPhase !== "open" || isSignup || isTurning}
-                aria-label="여권 닫기"
-              >
-                <CoverImage
-                  src={coverInside}
-                  alt="Routy 여행 안내"
-                  draggable={false}
-                />
-              </CoverInsideFace>
-            </CoverLeaf>
-          </Book>
-
-          {/* 여권이 완전히 닫힌 뒤 표시 */}
-          <Hint
-            type="button"
-            data-visible={coverPhase === "closed"}
-            onClick={handleOpen}
-            disabled={coverPhase !== "closed"}
+          {/* 회전하는 로그인 / 회원가입 종이 */}
+          <TurningLeaf
+            data-signup={isSignup}
+            onTransitionEnd={handlePageTransitionEnd}
           >
-            여권을 클릭해주세요!
-          </Hint>
-        </Stage>
+            {/* 종이 앞면: 로그인 */}
+            <LoginFace aria-hidden={isSignup}>
+              <LoginHeading>로그인</LoginHeading>
+
+              <LoginForm onSubmit={handleSubmit}>
+                {/* 이메일 */}
+                <InputLabel htmlFor={`${fieldId}-email`}>이메일</InputLabel>
+
+                <InputBox>
+                  <InputIcon aria-hidden="true">
+                    <Mail />
+                  </InputIcon>
+
+                  <TextInput
+                    id={`${fieldId}-email`}
+                    type="email"
+                    placeholder="이메일을 입력해주세요."
+                    autoComplete="username"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    disabled={loginDisabled || loginLoading}
+                    required
+                  />
+                </InputBox>
+
+                {/* 비밀번호 */}
+                <InputLabel htmlFor={`${fieldId}-password`}>
+                  비밀번호
+                </InputLabel>
+
+                <InputBox>
+                  <InputIcon aria-hidden="true">
+                    <LockKeyhole />
+                  </InputIcon>
+
+                  <TextInput
+                    id={`${fieldId}-password`}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="비밀번호를 입력해주세요."
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    disabled={loginDisabled || loginLoading}
+                    required
+                  />
+
+                  <PasswordToggle
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    disabled={loginDisabled}
+                    aria-label={
+                      showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
+                    }
+                  >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                  </PasswordToggle>
+                </InputBox>
+
+                {/* 로그인 상태 유지 */}
+                <RememberLabel>
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(event) => setRemember(event.target.checked)}
+                    disabled={loginDisabled}
+                  />
+                  로그인 상태 유지
+                </RememberLabel>
+
+                {/* 로그인 버튼 */}
+                <SubmitButton
+                  type="submit"
+                  disabled={loginDisabled || loginLoading}
+                >
+                  {loginLoading ? "로그인 중..." : "로그인"}
+                </SubmitButton>
+
+                {loginError && <Feedback role="alert">{loginError}</Feedback>}
+              </LoginForm>
+
+              {/* 계정 관련 메뉴 */}
+              <AccountLinks>
+                <TextButton
+                  type="button"
+                  onClick={onFindId}
+                  disabled={loginDisabled || !onFindId}
+                >
+                  아이디 찾기
+                </TextButton>
+
+                <span>|</span>
+
+                <TextButton
+                  type="button"
+                  onClick={onFindPassword}
+                  disabled={loginDisabled || !onFindPassword}
+                >
+                  비밀번호 찾기
+                </TextButton>
+
+                <span>|</span>
+
+                {/* 화살표 제거 */}
+                <SignUpButton
+                  type="button"
+                  onClick={() => turnPage(true)}
+                  disabled={loginDisabled}
+                >
+                  회원가입
+                </SignUpButton>
+              </AccountLinks>
+            </LoginFace>
+
+            {/* 종이 뒷면: 회원가입 왼쪽 */}
+            <SignupLeftFace aria-hidden={!isSignup}>
+              <RoutySignup
+                side="left"
+                active={signupActive}
+                onBack={() => turnPage(false)}
+              />
+            </SignupLeftFace>
+          </TurningLeaf>
+
+          {/* 기존 Routy 여권 표지 */}
+          <CoverLeaf
+            data-open={isOpen}
+            data-settled={coverPhase === "open"}
+            onTransitionEnd={handleCoverTransitionEnd}
+          >
+            <CoverFrontFace
+              type="button"
+              onClick={handleOpen}
+              disabled={isOpen}
+              aria-label="여권 열기"
+            >
+              <CoverFront />
+            </CoverFrontFace>
+
+            <CoverInsideFace
+              type="button"
+              onClick={handleClose}
+              disabled={coverPhase !== "open" || isSignup || isTurning}
+              aria-label="여권 닫기"
+            >
+              <CoverImage
+                src={coverInside}
+                alt="Routy 여행 안내"
+                draggable={false}
+              />
+            </CoverInsideFace>
+          </CoverLeaf>
+        </Book>
+
+        {/* 여권이 완전히 닫힌 뒤 표시 */}
+        <Hint
+          type="button"
+          data-visible={coverPhase === "closed"}
+          onClick={handleOpen}
+          disabled={coverPhase !== "closed"}
+        >
+          여권을 클릭해주세요!
+        </Hint>
+      </Stage>
       </DesktopOnly>
 
       <MobileFlow
@@ -567,11 +558,7 @@ type MobileView = "cover" | "login" | "signup";
 type MobileFlowProps = {
   page: MobileView;
   onPageChange: (next: MobileView) => void;
-  onLogin?: (
-    email: string,
-    password: string,
-    remember: boolean,
-  ) => void | Promise<void>;
+  onLogin?: (email: string, password: string, remember: boolean) => void | Promise<void>;
   onFindId?: () => void;
   onFindPassword?: () => void;
   hasPhoneApi: boolean;
@@ -634,9 +621,7 @@ function MobileFlow({
     // 로그인 화면은 여권 확대 애니메이션이 끝난 뒤 표시합니다.
     // transitionend가 생략되는 기기/탭 전환 상황에 대비합니다.
     // 움직임 감소 설정에서는 대기 시간을 짧게 합니다.
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     mobileOpeningTimer.current = window.setTimeout(
       finishMobileOpen,
       reducedMotion ? 60 : 850,
@@ -657,14 +642,11 @@ function MobileFlow({
     }
   }, [page]);
 
-  useEffect(
-    () => () => {
-      if (mobileOpeningTimer.current !== null) {
-        window.clearTimeout(mobileOpeningTimer.current);
-      }
-    },
-    [],
-  );
+  useEffect(() => () => {
+    if (mobileOpeningTimer.current !== null) {
+      window.clearTimeout(mobileOpeningTimer.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (page === "signup") {
@@ -775,11 +757,7 @@ function MobileFlow({
       {page !== "cover" && (
         <>
           <MobileHeader>
-            <MobileBack
-              type="button"
-              onClick={handleBack}
-              aria-label="이전 화면"
-            >
+            <MobileBack type="button" onClick={handleBack} aria-label="이전 화면">
               <ChevronLeft size={26} strokeWidth={2} />
             </MobileBack>
             {page === "signup" ? (
@@ -807,9 +785,7 @@ function MobileFlow({
                   />
                 </MobileField>
                 <MobileField>
-                  <MobileLabel htmlFor="mobile-login-password">
-                    비밀번호
-                  </MobileLabel>
+                  <MobileLabel htmlFor="mobile-login-password">비밀번호</MobileLabel>
                   <MobilePasswordBox>
                     <MobileInput
                       id="mobile-login-password"
@@ -822,18 +798,10 @@ function MobileFlow({
                     />
                     <MobileEyeButton
                       type="button"
-                      aria-label={
-                        loginPasswordVisible
-                          ? "비밀번호 숨기기"
-                          : "비밀번호 보기"
-                      }
+                      aria-label={loginPasswordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
                       onClick={() => setLoginPasswordVisible((value) => !value)}
                     >
-                      {loginPasswordVisible ? (
-                        <EyeClosed size={24} />
-                      ) : (
-                        <Eye size={24} />
-                      )}
+                      {loginPasswordVisible ? <EyeClosed size={24} /> : <Eye size={24} />}
                     </MobileEyeButton>
                   </MobilePasswordBox>
                 </MobileField>
@@ -845,52 +813,36 @@ function MobileFlow({
                   />
                   로그인 상태 유지
                 </MobileCheck>
-                {loginError && (
-                  <MobileStatus role="alert">{loginError}</MobileStatus>
-                )}
+                {loginError && <MobileStatus role="alert">{loginError}</MobileStatus>}
                 <MobilePrimary type="submit" disabled={loginBusy}>
                   {loginBusy ? "로그인 중..." : "로그인"}
                 </MobilePrimary>
               </MobileForm>
               <MobileLinks>
-                <MobileTextButton
-                  type="button"
-                  disabled={!onFindId}
-                  onClick={onFindId}
-                >
+                <MobileTextButton type="button" disabled={!onFindId} onClick={onFindId}>
                   아이디 찾기
                 </MobileTextButton>
                 <span>|</span>
-                <MobileTextButton
-                  type="button"
-                  disabled={!onFindPassword}
-                  onClick={onFindPassword}
-                >
+                <MobileTextButton type="button" disabled={!onFindPassword} onClick={onFindPassword}>
                   비밀번호 찾기
                 </MobileTextButton>
                 <span>|</span>
-                <MobileTextButton
-                  type="button"
-                  onClick={() => onPageChange("signup")}
-                >
+                <MobileTextButton type="button" onClick={() => onPageChange("signup")}>
                   회원가입
                 </MobileTextButton>
               </MobileLinks>
             </MobileContent>
           ) : (
             <>
-              <MobileProgress
-                aria-label={`회원가입 ${step + 1} / ${STEP_TITLES.length} 단계`}
-              >
+              <MobileProgress aria-label={`회원가입 ${step + 1} / ${STEP_TITLES.length} 단계`}>
                 {STEP_TITLES.map((name, index) => (
-                  <MobileProgressPart key={name} data-active={index <= step} />
+                  <MobileProgressPart
+                    key={name}
+                    data-active={index <= step}
+                  />
                 ))}
               </MobileProgress>
-              <MobileForm
-                data-signup="true"
-                onSubmit={handleSignupNext}
-                noValidate
-              >
+              <MobileForm data-signup="true" onSubmit={handleSignupNext} noValidate>
                 <MobileContent data-step="true">
                   <MobileTitle>{STEP_TITLES[step]}</MobileTitle>
 
@@ -903,21 +855,15 @@ function MobileFlow({
                         placeholder="이메일을 입력해주세요."
                         autoComplete="email"
                         value={signup.form.email}
-                        onChange={(event) =>
-                          signup.updateField("email", event.target.value)
-                        }
+                        onChange={(event) => signup.updateField("email", event.target.value)}
                       />
-                      <MobileHelp>
-                        이후 로그인과 여행 정보 안내에 사용됩니다.
-                      </MobileHelp>
+                      <MobileHelp>이후 로그인과 여행 정보 안내에 사용됩니다.</MobileHelp>
                     </MobileField>
                   )}
 
                   {step === 1 && (
                     <MobileField>
-                      <MobileLabel htmlFor="mobile-phone">
-                        휴대전화번호 인증
-                      </MobileLabel>
+                      <MobileLabel htmlFor="mobile-phone">휴대전화번호 인증</MobileLabel>
                       <MobileInputRow>
                         <MobileInput
                           id="mobile-phone"
@@ -926,9 +872,7 @@ function MobileFlow({
                           placeholder="010-1234-5678"
                           autoComplete="tel"
                           value={signup.form.phone}
-                          onChange={(event) =>
-                            signup.updateField("phone", event.target.value)
-                          }
+                          onChange={(event) => signup.updateField("phone", event.target.value)}
                         />
                         <MobileMiniButton
                           type="button"
@@ -945,41 +889,25 @@ function MobileFlow({
                           aria-label="휴대전화 인증번호"
                           placeholder="인증번호 입력"
                           value={signup.verificationCode}
-                          onChange={(event) =>
-                            signup.setVerificationCode(event.target.value)
-                          }
+                          onChange={(event) => signup.setVerificationCode(event.target.value)}
                           disabled={!signup.codeSent || signup.phoneVerified}
                         />
                         <MobileMiniButton
                           type="button"
-                          disabled={
-                            !signup.codeSent ||
-                            signup.busy ||
-                            signup.phoneVerified
-                          }
+                          disabled={!signup.codeSent || signup.busy || signup.phoneVerified}
                           onClick={() => void signup.verifyCode()}
                         >
                           확인
                         </MobileMiniButton>
                       </MobileInputRow>
                       {signup.phoneMessage && (
-                        <MobileStatus
-                          data-valid={signup.phoneVerified}
-                          role="status"
-                        >
-                          {signup.phoneVerified ? (
-                            <CheckCircle2 size={17} />
-                          ) : (
-                            <CircleAlert size={17} />
-                          )}
+                        <MobileStatus data-valid={signup.phoneVerified} role="status">
+                          {signup.phoneVerified ? <CheckCircle2 size={17} /> : <CircleAlert size={17} />}
                           {signup.phoneMessage}
                         </MobileStatus>
                       )}
                       {!hasPhoneApi && (
-                        <MobileHelp>
-                          인증 API 미연결: 화면은 다음 단계까지 확인할 수 있지만
-                          실제 가입은 인증 연결 후 가능합니다.
-                        </MobileHelp>
+                        <MobileHelp>인증 API 미연결: 화면은 다음 단계까지 확인할 수 있지만 실제 가입은 인증 연결 후 가능합니다.</MobileHelp>
                       )}
                     </MobileField>
                   )}
@@ -987,7 +915,7 @@ function MobileFlow({
                   {step === 2 && (
                     <MobileField>
                       <MobileLabel>생년월일</MobileLabel>
-                      <DatePicker
+                      <DatePicker modal
                         label=""
                         name="birth"
                         value={signup.form.birth}
@@ -1009,24 +937,18 @@ function MobileFlow({
                           autoComplete="family-name"
                           placeholder="성을 입력해주세요."
                           value={signup.form.lastName}
-                          onChange={(event) =>
-                            signup.updateField("lastName", event.target.value)
-                          }
+                          onChange={(event) => signup.updateField("lastName", event.target.value)}
                         />
                       </MobileField>
                       <MobileField>
-                        <MobileLabel htmlFor="mobile-first-name">
-                          이름
-                        </MobileLabel>
+                        <MobileLabel htmlFor="mobile-first-name">이름</MobileLabel>
                         <MobileInput
                           id="mobile-first-name"
                           type="text"
                           autoComplete="given-name"
                           placeholder="이름을 입력해주세요."
                           value={signup.form.firstName}
-                          onChange={(event) =>
-                            signup.updateField("firstName", event.target.value)
-                          }
+                          onChange={(event) => signup.updateField("firstName", event.target.value)}
                         />
                       </MobileField>
                     </>
@@ -1035,9 +957,7 @@ function MobileFlow({
                   {step === 4 && (
                     <>
                       <MobileField>
-                        <MobileLabel htmlFor="mobile-username">
-                          아이디
-                        </MobileLabel>
+                        <MobileLabel htmlFor="mobile-username">아이디</MobileLabel>
                         <MobileInputRow>
                           <MobileInput
                             id="mobile-username"
@@ -1045,9 +965,7 @@ function MobileFlow({
                             autoComplete="username"
                             placeholder="아이디 4자 이상"
                             value={signup.form.username}
-                            onChange={(event) =>
-                              signup.updateField("username", event.target.value)
-                            }
+                            onChange={(event) => signup.updateField("username", event.target.value)}
                           />
                           <MobileMiniButton
                             type="button"
@@ -1058,23 +976,16 @@ function MobileFlow({
                           </MobileMiniButton>
                         </MobileInputRow>
                         {signup.usernameMessage && (
-                          <MobileStatus
-                            data-valid={signup.usernameChecked}
-                            role="status"
-                          >
+                          <MobileStatus data-valid={signup.usernameChecked} role="status">
                             {signup.usernameMessage}
                           </MobileStatus>
                         )}
                         {!hasUsernameApi && (
-                          <MobileHelp>
-                            중복 확인 API가 없어 화면 진행만 가능합니다.
-                          </MobileHelp>
+                          <MobileHelp>중복 확인 API가 없어 화면 진행만 가능합니다.</MobileHelp>
                         )}
                       </MobileField>
                       <MobileField>
-                        <MobileLabel htmlFor="mobile-signup-password">
-                          비밀번호
-                        </MobileLabel>
+                        <MobileLabel htmlFor="mobile-signup-password">비밀번호</MobileLabel>
                         <MobilePasswordBox>
                           <MobileInput
                             id="mobile-signup-password"
@@ -1082,30 +993,16 @@ function MobileFlow({
                             autoComplete="new-password"
                             placeholder="영문·숫자·특수문자 포함 8자 이상"
                             value={signup.form.password}
-                            onChange={(event) =>
-                              signup.updateField("password", event.target.value)
-                            }
+                            onChange={(event) => signup.updateField("password", event.target.value)}
                             onBlur={() => setMobilePasswordTouched(true)}
-                            aria-invalid={
-                              mobilePasswordTouched && !signup.passwordValid
-                            }
+                            aria-invalid={mobilePasswordTouched && !signup.passwordValid}
                           />
                           <MobileEyeButton
                             type="button"
-                            aria-label={
-                              signup.showPassword
-                                ? "비밀번호 숨기기"
-                                : "비밀번호 보기"
-                            }
-                            onClick={() =>
-                              signup.setShowPassword(!signup.showPassword)
-                            }
+                            aria-label={signup.showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                            onClick={() => signup.setShowPassword(!signup.showPassword)}
                           >
-                            {signup.showPassword ? (
-                              <EyeClosed size={24} />
-                            ) : (
-                              <Eye size={24} />
-                            )}
+                            {signup.showPassword ? <EyeClosed size={24} /> : <Eye size={24} />}
                           </MobileEyeButton>
                         </MobilePasswordBox>
                         {mobilePasswordTouched && !signup.passwordValid && (
@@ -1118,9 +1015,7 @@ function MobileFlow({
                         )}
                       </MobileField>
                       <MobileField>
-                        <MobileLabel htmlFor="mobile-confirm-password">
-                          비밀번호 확인
-                        </MobileLabel>
+                        <MobileLabel htmlFor="mobile-confirm-password">비밀번호 확인</MobileLabel>
                         <MobilePasswordBox>
                           <MobileInput
                             id="mobile-confirm-password"
@@ -1128,30 +1023,16 @@ function MobileFlow({
                             autoComplete="new-password"
                             placeholder="비밀번호를 다시 입력해주세요."
                             value={signup.confirmPassword}
-                            onChange={(event) =>
-                              signup.setConfirmPassword(event.target.value)
-                            }
+                            onChange={(event) => signup.setConfirmPassword(event.target.value)}
                             onBlur={() => setMobileConfirmTouched(true)}
-                            aria-invalid={
-                              mobileConfirmTouched && !signup.passwordMatched
-                            }
+                            aria-invalid={mobileConfirmTouched && !signup.passwordMatched}
                           />
                           <MobileEyeButton
                             type="button"
-                            aria-label={
-                              signup.showConfirm
-                                ? "비밀번호 확인 숨기기"
-                                : "비밀번호 확인 보기"
-                            }
-                            onClick={() =>
-                              signup.setShowConfirm(!signup.showConfirm)
-                            }
+                            aria-label={signup.showConfirm ? "비밀번호 확인 숨기기" : "비밀번호 확인 보기"}
+                            onClick={() => signup.setShowConfirm(!signup.showConfirm)}
                           >
-                            {signup.showConfirm ? (
-                              <EyeClosed size={24} />
-                            ) : (
-                              <Eye size={24} />
-                            )}
+                            {signup.showConfirm ? <EyeClosed size={24} /> : <Eye size={24} />}
                           </MobileEyeButton>
                         </MobilePasswordBox>
                         {mobileConfirmTouched && !signup.passwordMatched && (
@@ -1172,9 +1053,7 @@ function MobileFlow({
                         <input
                           type="checkbox"
                           checked={signup.allAgreed}
-                          onChange={(event) =>
-                            signup.agreeAll(event.target.checked)
-                          }
+                          onChange={(event) => signup.agreeAll(event.target.checked)}
                         />
                         전체 약관 동의
                       </MobileCheck>
@@ -1182,12 +1061,7 @@ function MobileFlow({
                         <input
                           type="checkbox"
                           checked={signup.form.agreeTerms}
-                          onChange={(event) =>
-                            signup.updateField(
-                              "agreeTerms",
-                              event.target.checked,
-                            )
-                          }
+                          onChange={(event) => signup.updateField("agreeTerms", event.target.checked)}
                         />
                         [필수] 이용약관에 동의합니다.
                       </MobileCheck>
@@ -1195,12 +1069,7 @@ function MobileFlow({
                         <input
                           type="checkbox"
                           checked={signup.form.agreePrivacy}
-                          onChange={(event) =>
-                            signup.updateField(
-                              "agreePrivacy",
-                              event.target.checked,
-                            )
-                          }
+                          onChange={(event) => signup.updateField("agreePrivacy", event.target.checked)}
                         />
                         [필수] 개인정보 수집 및 이용에 동의합니다.
                       </MobileCheck>
@@ -1208,12 +1077,7 @@ function MobileFlow({
                         <input
                           type="checkbox"
                           checked={signup.form.agreeMarketing}
-                          onChange={(event) =>
-                            signup.updateField(
-                              "agreeMarketing",
-                              event.target.checked,
-                            )
-                          }
+                          onChange={(event) => signup.updateField("agreeMarketing", event.target.checked)}
                         />
                         [선택] 마케팅 정보 수신
                       </MobileCheck>
@@ -1221,29 +1085,16 @@ function MobileFlow({
                         <input
                           type="checkbox"
                           checked={signup.form.agreeLocation}
-                          onChange={(event) =>
-                            signup.updateField(
-                              "agreeLocation",
-                              event.target.checked,
-                            )
-                          }
+                          onChange={(event) => signup.updateField("agreeLocation", event.target.checked)}
                         />
                         [선택] 위치 기반 서비스 이용
                       </MobileCheck>
-                      {signup.formMessage && (
-                        <MobileStatus role="alert">
-                          {signup.formMessage}
-                        </MobileStatus>
-                      )}
-                      <MobileHelp>
-                        실제 가입 처리는 서버 API 연결 후 가능합니다.
-                      </MobileHelp>
+                      {signup.formMessage && <MobileStatus role="alert">{signup.formMessage}</MobileStatus>}
+                      <MobileHelp>실제 가입 처리는 서버 API 연결 후 가능합니다.</MobileHelp>
                     </MobileField>
                   )}
 
-                  {stepError && (
-                    <MobileStatus role="alert">{stepError}</MobileStatus>
-                  )}
+                  {stepError && <MobileStatus role="alert">{stepError}</MobileStatus>}
                 </MobileContent>
                 <MobileAction>
                   <MobilePrimary type="submit" disabled={signup.busy}>
