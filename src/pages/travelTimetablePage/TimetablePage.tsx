@@ -13,6 +13,8 @@ import {
   Plus,
 } from "lucide-react";
 
+import TimetableShareModal from "../../components/modal/TimetableShareModal/TimeTableShareModal";
+
 import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
@@ -95,10 +97,10 @@ export default function TripDaysPage() {
   const [view, setView] = useState<"table" | "list">("table");
   const [visibleDayIndex, setVisibleDayIndex] = useState(0);
   const [visibleDayCount, setVisibleDayCount] = useState(5);
-  const [shareMessage, setShareMessage] = useState("");
   const scheduleRef = useRef<HTMLDivElement>(null);
   const slideFrameRef = useRef(0);
   const slideTargetRef = useRef<number | null>(null);
+  const [isTimetableShareOpen, setIsTimetableShareOpen] = useState(false);
 
   const [scrollState, setScrollState] = useState({
     overflowing: false,
@@ -376,25 +378,6 @@ export default function TripDaysPage() {
     return `${date.getMonth() + 1}.${date.getDate()} (${weekday})`;
   };
 
-  const shareSchedule = async () => {
-    const url = window.location.href;
-    setShareMessage("");
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "Routy 여행 일정", url });
-        return;
-      } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      setShareMessage("공유 링크를 복사했어요.");
-    } catch {
-      setShareMessage("주소창의 링크를 복사해 공유해주세요.");
-    }
-  };
-
   return (
     <TripDaysPageStyle>
       <aside className="page-sidebar">
@@ -437,8 +420,8 @@ export default function TripDaysPage() {
               <button
                 type="button"
                 className="share-button"
-                aria-label="여행 일정 공유"
-                onClick={shareSchedule}
+                aria-label="여행 시간표 공유"
+                onClick={() => setIsTimetableShareOpen(true)}
               >
                 <Share2 aria-hidden="true" />
               </button>
@@ -469,10 +452,6 @@ export default function TripDaysPage() {
               </button>
             </div>
           </header>
-
-          <p className="share-feedback" role="status">
-            {shareMessage}
-          </p>
 
           <section className="summary-grid" aria-label="여행 일정 요약">
             <div className="summary-card summary-days">
@@ -742,6 +721,11 @@ export default function TripDaysPage() {
       <div className="page-mobile-nav">
         <MobileNav />
       </div>
+      <TimetableShareModal
+        isOpen={isTimetableShareOpen}
+        onClose={() => setIsTimetableShareOpen(false)}
+        days={days}
+      />
     </TripDaysPageStyle>
   );
 }
