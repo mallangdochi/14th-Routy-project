@@ -22,10 +22,6 @@ export default function App() {
       <Route path="/" element={<MyTripsPage />} />
       <Route path="/trips/new" element={<CreateTripRoute />} />
       <Route path="/schedule" element={<SchedulePage />} />
-      <Route path="/saved" element={<SavedPage />} />
-      <Route path="/place/detail" element={<PlaceDetailPage />} />
-      <Route path="/trips/:tripId" element={<TripDaysPage />} />
-      <Route path="/search" element={<Search />} />
 
       <Route
         path="/mypage"
@@ -37,7 +33,6 @@ export default function App() {
       <Route path="/mypage/security/password" element={<MyPage />} />
       <Route path="/mypage/settings" element={<MyPage />} />
       <Route path="/mypage/support" element={<MyPage />} />
-
       <Route element={<RoutyBookLogin />}>
         <Route path="/login" element={null} />
         <Route path="/signup" element={null} />

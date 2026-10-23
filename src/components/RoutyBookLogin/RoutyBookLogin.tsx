@@ -16,13 +16,14 @@ import {
   CircleAlert,
   Eye,
   EyeOff,
+  EyeClosed,
   LockKeyhole,
   Mail,
 } from "lucide-react";
 
 import CoverFront from "./CoverFront";
 import DatePicker from "../pickers/DatePicker";
-import routyLogoMobile from "../../assets/루티2.svg";
+import routyLogoMobile from "../../assets/루티1.svg";
 
 import coverInside from "../../assets/routy-cover-inside.svg";
 
@@ -604,6 +605,8 @@ function MobileFlow({
   const [loginPasswordVisible, setLoginPasswordVisible] = useState(false);
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [mobilePasswordTouched, setMobilePasswordTouched] = useState(false);
+  const [mobileConfirmTouched, setMobileConfirmTouched] = useState(false);
 
   // 모바일 표지: 터치하면 닫힌 여권이 확대되며 사라지고 로그인 화면이 나타납니다.
   const [mobileOpening, setMobileOpening] = useState(false);
@@ -667,6 +670,8 @@ function MobileFlow({
     if (page === "signup") {
       setStep(0);
       setStepError("");
+      setMobilePasswordTouched(false);
+      setMobileConfirmTouched(false);
     }
   }, [page]);
 
@@ -825,9 +830,9 @@ function MobileFlow({
                       onClick={() => setLoginPasswordVisible((value) => !value)}
                     >
                       {loginPasswordVisible ? (
-                        <EyeOff size={20} />
+                        <EyeClosed size={24} />
                       ) : (
-                        <Eye size={20} />
+                        <Eye size={24} />
                       )}
                     </MobileEyeButton>
                   </MobilePasswordBox>
@@ -1080,21 +1085,37 @@ function MobileFlow({
                             onChange={(event) =>
                               signup.updateField("password", event.target.value)
                             }
+                            onBlur={() => setMobilePasswordTouched(true)}
+                            aria-invalid={
+                              mobilePasswordTouched && !signup.passwordValid
+                            }
                           />
                           <MobileEyeButton
                             type="button"
-                            aria-label="비밀번호 보기"
+                            aria-label={
+                              signup.showPassword
+                                ? "비밀번호 숨기기"
+                                : "비밀번호 보기"
+                            }
                             onClick={() =>
                               signup.setShowPassword(!signup.showPassword)
                             }
                           >
                             {signup.showPassword ? (
-                              <EyeOff size={20} />
+                              <EyeClosed size={24} />
                             ) : (
-                              <Eye size={20} />
+                              <Eye size={24} />
                             )}
                           </MobileEyeButton>
                         </MobilePasswordBox>
+                        {mobilePasswordTouched && !signup.passwordValid && (
+                          <MobileStatus role="alert">
+                            <CircleAlert size={18} aria-hidden="true" />
+                            {signup.form.password.length === 0
+                              ? "비밀번호를 입력해주세요."
+                              : "영문, 숫자, 특수문자를 포함해 8자 이상 입력해주세요."}
+                          </MobileStatus>
+                        )}
                       </MobileField>
                       <MobileField>
                         <MobileLabel htmlFor="mobile-confirm-password">
@@ -1110,21 +1131,37 @@ function MobileFlow({
                             onChange={(event) =>
                               signup.setConfirmPassword(event.target.value)
                             }
+                            onBlur={() => setMobileConfirmTouched(true)}
+                            aria-invalid={
+                              mobileConfirmTouched && !signup.passwordMatched
+                            }
                           />
                           <MobileEyeButton
                             type="button"
-                            aria-label="비밀번호 확인 보기"
+                            aria-label={
+                              signup.showConfirm
+                                ? "비밀번호 확인 숨기기"
+                                : "비밀번호 확인 보기"
+                            }
                             onClick={() =>
                               signup.setShowConfirm(!signup.showConfirm)
                             }
                           >
                             {signup.showConfirm ? (
-                              <EyeOff size={20} />
+                              <EyeClosed size={24} />
                             ) : (
-                              <Eye size={20} />
+                              <Eye size={24} />
                             )}
                           </MobileEyeButton>
                         </MobilePasswordBox>
+                        {mobileConfirmTouched && !signup.passwordMatched && (
+                          <MobileStatus role="alert">
+                            <CircleAlert size={18} aria-hidden="true" />
+                            {signup.confirmPassword.length === 0
+                              ? "비밀번호를 다시 입력해주세요."
+                              : "비밀번호가 일치하지 않습니다."}
+                          </MobileStatus>
+                        )}
                       </MobileField>
                     </>
                   )}

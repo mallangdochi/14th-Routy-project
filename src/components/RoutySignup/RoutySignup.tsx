@@ -11,10 +11,10 @@ import {
   CheckCircle2,
   CircleAlert,
   Eye,
-  EyeOff,
+  EyeClosed,
 } from "lucide-react";
 
-import routyLogo from "../../assets/루티2.svg";
+import routyLogo from "../../assets/루티1.svg";
 import DatePicker from "../pickers/DatePicker";
 
 import {
@@ -397,6 +397,8 @@ export default function RoutySignup({
   onBack,
 }: RoutySignupProps) {
   const s = useSignup();
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
 
   const disabled = !active || s.busy;
 
@@ -618,8 +620,10 @@ export default function RoutySignup({
               autoComplete="new-password"
               value={s.form.password}
               onChange={(e) => s.updateField("password", e.target.value)}
+              onBlur={() => setPasswordTouched(true)}
               minLength={8}
               disabled={disabled}
+              aria-invalid={passwordTouched && !s.passwordValid}
               required
             />
 
@@ -627,16 +631,20 @@ export default function RoutySignup({
               type="button"
               onClick={() => s.setShowPassword(!s.showPassword)}
               disabled={disabled}
-              aria-label="비밀번호 보기"
+              aria-label={s.showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
             >
-              {s.showPassword ? <EyeOff /> : <Eye />}
+              {s.showPassword ? <Eye size={20} /> : <EyeClosed size={20} />}
             </EyeButton>
           </PasswordInput>
 
-          <StatusText data-valid={s.passwordValid}>
-            {s.passwordValid ? <CheckCircle2 /> : <CircleAlert />}
-            영문, 숫자, 특수문자 포함 8자 이상
-          </StatusText>
+          {passwordTouched && !s.passwordValid && (
+            <StatusText data-valid={false} role="alert">
+              <CircleAlert />
+              {s.form.password.length === 0
+                ? "비밀번호를 입력해주세요."
+                : "영문, 숫자, 특수문자를 포함해 8자 이상 입력해주세요."}
+            </StatusText>
+          )}
         </Field>
 
         <Field>
@@ -653,7 +661,9 @@ export default function RoutySignup({
               autoComplete="new-password"
               value={s.confirmPassword}
               onChange={(e) => s.setConfirmPassword(e.target.value)}
+              onBlur={() => setConfirmTouched(true)}
               disabled={disabled}
+              aria-invalid={confirmTouched && !s.passwordMatched}
               required
             />
 
@@ -661,18 +671,23 @@ export default function RoutySignup({
               type="button"
               onClick={() => s.setShowConfirm(!s.showConfirm)}
               disabled={disabled}
-              aria-label="비밀번호 확인 보기"
+              aria-label={
+                s.showConfirm ? "비밀번호 확인 숨기기" : "비밀번호 확인 보기"
+              }
+              aria-pressed={s.showConfirm}
             >
-              {s.showConfirm ? <EyeOff /> : <Eye />}
+              {s.showConfirm ? <EyeClosed /> : <Eye />}
             </EyeButton>
           </PasswordInput>
 
-          <StatusText data-valid={s.passwordMatched}>
-            {s.passwordMatched ? <CheckCircle2 /> : <CircleAlert />}
-            {s.passwordMatched
-              ? "비밀번호가 일치합니다."
-              : "비밀번호 일치 여부를 확인해주세요."}
-          </StatusText>
+          {confirmTouched && !s.passwordMatched && (
+            <StatusText data-valid={false} role="alert">
+              <CircleAlert />
+              {s.confirmPassword.length === 0
+                ? "비밀번호를 다시 입력해주세요."
+                : "비밀번호가 일치하지 않습니다."}
+            </StatusText>
+          )}
         </Field>
 
         <TermsSection>
