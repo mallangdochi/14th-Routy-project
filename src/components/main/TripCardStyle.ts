@@ -1,6 +1,7 @@
 import styled from "@emotion/styled";
 
 export const TripCardStyle = styled.article({
+  cursor: "pointer",
   "--trip-font-size": "16px",
   fontSize: "var(--trip-font-size)",
   minWidth: 0,
@@ -221,7 +222,6 @@ export const TripCardStyle = styled.article({
     "&:hover": {
       boxShadow: "0 6px 18px rgba(20,45,55,0.1)",
     },
-
   },
 
   "@media (min-width: 768px) and (max-width: 1023px)": {

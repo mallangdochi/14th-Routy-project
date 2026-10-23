@@ -30,6 +30,9 @@ import {
   LayoutGrid,
 } from "lucide-react";
 
+import { useParams } from "react-router";
+import { trips } from "../../data/trips";
+
 import MainSidebar from "../MainSidebar/MainSidebar";
 import * as S from "./ScheduleStyle";
 import ShareModal from "./ShareModal";
@@ -316,6 +319,19 @@ function ScheduleStopCard({
 }
 // 메인 컴포넌트
 export default function Schedule() {
+  const { tripId } = useParams<{ tripId: string }>();
+
+  const selectedTrip = trips.find((trip) => trip.id === tripId);
+  const tripDateText = (() => {
+    if (!selectedTrip) return "";
+
+    const start = new Date(`${selectedTrip.startDate}T00:00:00`);
+    const end = new Date(`${selectedTrip.endDate}T00:00:00`);
+
+    const nights = Math.round((end.getTime() - start.getTime()) / 86400000);
+
+    return `${selectedTrip.startDate.replaceAll("-", ".")} - ${selectedTrip.endDate.replaceAll("-", ".")} · ${nights}박 ${nights + 1}일`;
+  })();
   const [days, setDays] = useState<Day[]>(INITIAL_DAYS);
   const [activeDayId, setActiveDayId] = useState(1);
   const [activeTab, setActiveTab] = useState<Tab>("schedule");
@@ -640,18 +656,23 @@ export default function Schedule() {
             )}
 
             <S.TripInfo>
-              <S.TripThumbnail src={IMG.nature} alt="제주 여행" />
+              <S.TripThumbnail
+                src={selectedTrip?.image ?? IMG.nature}
+                alt={selectedTrip?.title ?? "여행 이미지"}
+              />
 
               <S.TripDescription>
                 <S.TripTitleRow>
-                  <S.TripTitle>제주, 천천히 걷는 3일</S.TripTitle>
+                  <S.TripTitle>
+                    {selectedTrip?.title ?? "여행 정보 없음"}
+                  </S.TripTitle>
 
                   <S.IconButton type="button" aria-label="여행 제목 편집">
                     <Pencil size={17} />
                   </S.IconButton>
                 </S.TripTitleRow>
 
-                <S.TripDate>2026.10.16 - 10.18 · 2박 3일</S.TripDate>
+                <S.TripDate>{tripDateText}</S.TripDate>
 
                 <S.MemberList>
                   <S.MemberAvatar>👩</S.MemberAvatar>

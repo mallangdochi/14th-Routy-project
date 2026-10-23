@@ -109,6 +109,7 @@ export default function MyTripsPage() {
 
   const handleOpenTrip = (id: string) => {
     console.log("여행 선택:", id);
+    navigate(`/trip-schedule/${id}`);
   };
 
   const handleEditTrip = (id: string) => {

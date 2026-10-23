@@ -50,7 +50,10 @@ export default function TripCard({
   onDelete,
 }: TripCardProps) {
   return (
-    <TripCardStyle className={`trip-card view-${view}`}>
+    <TripCardStyle
+      className={`trip-card view-${view}`}
+      onClick={() => onOpen?.(trip.id)}
+    >
       <button
         type="button"
         className="trip-image-button"
