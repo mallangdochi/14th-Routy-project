@@ -40,6 +40,9 @@ import ShareModal from "./ShareModal";
 import MobileHeader from "../mobileBanner/MobileHeader";
 import MobileNav from "../mobileBanner/MobileFooter";
 import Breadcrumb from "../MainSidebar/mainHeader/Breadcrumb";
+import Checklist from "../checklist/Checklist";
+import { mockChecklist, type ChecklistGroup } from "../../data/checklist";
+import EmptyChecklist from "../emptyUI/checklist/Checklist";
 // 데이터 타입
 type Category = "맛집" | "카페" | "관광지" | "숙소" | "쇼핑" | "교통";
 
@@ -335,6 +338,16 @@ export default function Schedule() {
   const [days, setDays] = useState<Day[]>(INITIAL_DAYS);
   const [activeDayId, setActiveDayId] = useState(1);
   const [activeTab, setActiveTab] = useState<Tab>("schedule");
+  const [checklistGroups, setChecklistGroups] = useState<ChecklistGroup[]>(() =>
+    mockChecklist.map((group) => ({
+      ...group,
+      items: group.items.map((item) => ({ ...item })),
+    })),
+  );
+
+  const hasChecklistItems = checklistGroups.some(
+    (group) => group.items.length > 0,
+  );
 
   const [stopsByDay, setStopsByDay] = useState<Record<number, Stop[]>>({
     1: INITIAL_STOPS,
@@ -1161,6 +1174,15 @@ export default function Schedule() {
                 </S.MapZoomControls>
               </S.MapPanel>
             </S.ContentGrid>
+          ) : activeTab === "checklist" ? (
+            hasChecklistItems ? (
+              <Checklist
+                groups={checklistGroups}
+                onChange={setChecklistGroups}
+              />
+            ) : (
+              <EmptyChecklist />
+            )
           ) : (
             <S.EmptyPanel>
               {activeTab === "budget" ? (

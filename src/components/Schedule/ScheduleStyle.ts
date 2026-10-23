@@ -42,7 +42,8 @@ export const MainContent = styled.main({
   "@media (max-width: 767px)": {
     width: "100%",
     minWidth: 0,
-    paddingBottom: "calc(120px + env(safe-area-inset-bottom))",
+    minHeight: 0,
+    paddingBottom: 0,
   },
 });
 // 콘텐츠 내부 여백
@@ -52,6 +53,15 @@ export const Container = styled.div({
   margin: "0 auto",
   padding: "24px 24px 40px",
   minWidth: 0,
+
+  display: "flex",
+  flexDirection: "column",
+  minHeight: "100dvh",
+
+  "& > header": {
+    flexShrink: 0,
+    marginBottom: 12,
+  },
 
   "@media (min-width: 1024px) and (max-width: 1199px)": {
     padding: "12px 10px 24px",
@@ -64,7 +74,8 @@ export const Container = styled.div({
   "@media (max-width: 767px)": {
     width: "100%",
     minWidth: 0,
-    padding: "8px 12px 24px",
+    minHeight: 0,
+    padding: "8px 12px calc(90px + env(safe-area-inset-bottom))",
   },
 });
 // 여행 정보 헤더
@@ -516,7 +527,7 @@ export const DayTabs = styled.div({
   alignItems: "stretch",
   gap: "10px",
   width: "100%",
-  padding: "12px 0",
+  padding: "0 0 12px",
   overflowX: "auto",
 
   "&::-webkit-scrollbar": {
