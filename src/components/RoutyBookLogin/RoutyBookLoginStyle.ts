@@ -914,9 +914,18 @@ export const MobileShell = styled.main({
     backgroundColor: "#FBFAF6",
     color: teal,
     fontFamily: '"Pretendard", "Noto Sans KR", sans-serif',
-    fontSize: "16px",
+    fontSize: "18px",
     // 모바일 전체 하위 요소도 padding과 border를 너비에 포함
     "& *, & *::before, & *::after": { boxSizing: "border-box" },
+    "& .picker-trigger": {
+      minHeight: "58px",
+      fontSize: "18px",
+    },
+    "& .picker-popup": { fontSize: "16px" },
+    "& .picker-day, & .picker-week, & .picker-option, & .picker-heading, & .picker-footer, & .picker-text-button, & .picker-confirm":
+      {
+        fontSize: "16px",
+      },
   },
 });
 
@@ -942,8 +951,7 @@ export const MobileLogo = styled.img({
   maxWidth: "calc(100vw - 116px)",
   objectFit: "contain",
   "@media (max-width: 359px)": { width: "114px", height: "52px" },
-  filter:
-    "brightness(0) saturate(100%) invert(19%) sepia(30%) saturate(1100%) hue-rotate(145deg) brightness(80%)",
+  filter: "none",
 });
 
 export const MobileBack = styled.button({
@@ -1034,9 +1042,9 @@ export const MobileCoverOverlay = styled.section({
   },
 });
 
-// 모바일에서 닫힌 여권이 약 5.2배까지 확대됩니다.
-// 앞부분은 선명하게 확대하고, 뒤쪽 260ms 동안 자연스럽게 페이드아웃합니다.
-// 뒤의 로그인 페이지는 표지 전환이 끝난 다음 렌더링되므로 겹쳐 보이지 않습니다.
+// 여권 확대가 시작되면 표지 내부 SVG와 테두리는 처음 0.3초 안에 빠르게 투명해집니다.
+// 청록색 여권 바탕은 마지막에 페이드아웃합니다.
+// 로그인 화면은 전환이 끝난 다음 렌더링되므로 서로 비치지 않습니다.
 export const MobileCoverButton = styled.button({
   appearance: "none",
   position: "absolute",
@@ -1062,8 +1070,15 @@ export const MobileCoverButton = styled.button({
   backfaceVisibility: "hidden",
   cursor: "pointer",
   "&[data-opening='true']": {
-    // 화면을 완전히 채울 만큼 크게 확대합니다.
     transform: "scale(5.2)",
+    opacity: 0,
+  },
+  "& > *": {
+    opacity: 1,
+    transition: "opacity 300ms ease-in",
+    pointerEvents: "none",
+  },
+  "&[data-opening='true'] > *": {
     opacity: 0,
   },
   "&:focus-visible": { outline: "3px solid #F5C71D", outlineOffset: "5px" },
@@ -1074,12 +1089,12 @@ export const MobileCoverButton = styled.button({
 });
 
 export const MobileTitle = styled.h1({
-  margin: "0 0 20px",
+  margin: "0 0 24px",
   color: teal,
-  fontSize: "28px",
+  fontSize: "32px",
   fontWeight: 800,
   lineHeight: 1.4,
-  "@media (max-width: 359px)": { fontSize: "26px" },
+  "@media (max-width: 359px)": { fontSize: "28px" },
   "&[data-login='true']": { textAlign: "center", margin: "28px 0 32px" },
 });
 
@@ -1112,7 +1127,7 @@ export const MobileForm = styled.form({
 export const MobileField = styled.div({
   display: "flex",
   flexDirection: "column",
-  gap: "12px",
+  gap: "13px",
   width: "100%",
   minWidth: 0,
   boxSizing: "border-box",
@@ -1120,7 +1135,7 @@ export const MobileField = styled.div({
 
 export const MobileLabel = styled.label({
   color: teal,
-  fontSize: "18px",
+  fontSize: "20px",
   fontWeight: 800,
   lineHeight: 1.45,
 });
@@ -1132,8 +1147,8 @@ export const MobileInput = styled.input({
   minWidth: 0,
   maxWidth: "100%",
   boxSizing: "border-box",
-  height: "54px",
-  minHeight: "54px",
+  height: "58px",
+  minHeight: "58px",
   padding: "0 14px",
   border: "1px solid #DCE5E6",
   borderRadius: "6px",
@@ -1141,8 +1156,8 @@ export const MobileInput = styled.input({
   backgroundColor: "#FFFFFF",
   color: teal,
   fontFamily: "inherit",
-  fontSize: "17px",
-  "&::placeholder": { color: "#A1AAAC", fontSize: "16px" },
+  fontSize: "19px",
+  "&::placeholder": { color: "#A1AAAC", fontSize: "17px" },
   "&:focus": { borderColor: teal, boxShadow: "0 0 0 2px rgba(10,65,75,0.08)" },
   "&:disabled": { backgroundColor: "#EFF1F0", cursor: "not-allowed" },
 });
@@ -1162,15 +1177,15 @@ export const MobileInputRow = styled.div({
 
 export const MobileMiniButton = styled.button({
   flexShrink: 0,
-  minWidth: "72px",
-  minHeight: "54px",
+  minWidth: "88px",
+  minHeight: "58px",
   padding: "0 12px",
   border: "none",
   borderRadius: "6px",
   backgroundColor: teal,
   color: "white",
   fontFamily: "inherit",
-  fontSize: "16px",
+  fontSize: "17px",
   fontWeight: 700,
   cursor: "pointer",
   "&:disabled": { opacity: 0.55, cursor: "not-allowed" },
@@ -1182,19 +1197,19 @@ export const MobilePasswordBox = styled.div({
   minWidth: 0,
   maxWidth: "100%",
   boxSizing: "border-box",
-  input: { width: "100%", boxSizing: "border-box", paddingRight: "44px" },
+  input: { width: "100%", boxSizing: "border-box", paddingRight: "54px" },
 });
 
 export const MobileEyeButton = styled.button({
   position: "absolute",
   top: "50%",
-  right: "8px",
+  right: "9px",
   transform: "translateY(-50%)",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  width: "40px",
-  height: "40px",
+  width: "44px",
+  height: "44px",
   border: "none",
   backgroundColor: "transparent",
   color: "#778D90",
@@ -1204,7 +1219,7 @@ export const MobileEyeButton = styled.button({
 export const MobileHelp = styled.p({
   margin: 0,
   color: "#718588",
-  fontSize: "16px",
+  fontSize: "18px",
   lineHeight: 1.55,
 });
 
@@ -1214,7 +1229,7 @@ export const MobileStatus = styled.p({
   gap: "6px",
   margin: 0,
   color: "#C55252",
-  fontSize: "16px",
+  fontSize: "17px",
   lineHeight: 1.5,
   "&[data-valid='true']": { color: "#2B9876" },
 });
@@ -1224,7 +1239,7 @@ export const MobileCheck = styled.label({
   alignItems: "flex-start",
   gap: "10px",
   color: teal,
-  fontSize: "16px",
+  fontSize: "18px",
   lineHeight: 1.5,
   cursor: "pointer",
   input: {
@@ -1251,17 +1266,20 @@ export const MobilePrimary = styled.button({
   width: "100%",
   maxWidth: "100%",
   boxSizing: "border-box",
-  minHeight: "56px",
+  minHeight: "58px",
   padding: "12px 20px",
   border: "none",
   borderRadius: "6px",
   backgroundColor: teal,
   color: "#FFFFFF",
   fontFamily: "inherit",
-  fontSize: "18px",
+  fontSize: "19px",
   fontWeight: 800,
   cursor: "pointer",
   "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
+  "@media (max-width: 767px)": {
+    transform: "translateY(-20px)",
+  },
 });
 
 export const MobileLinks = styled.nav({
