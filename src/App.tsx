@@ -8,6 +8,7 @@ import MyPage from "./page/mypage/mypage";
 import SavedPage from "./pages/savedPage/SavedPage";
 import PlaceDetailPage from "./pages/placeDetailPage/PlaceDetailPage";
 import TripDaysPage from "./pages/travelTimetablePage/TimetablePage";
+import Search from "./components/search/Search";
 
 function CreateTripRoute() {
   const navigate = useNavigate();
