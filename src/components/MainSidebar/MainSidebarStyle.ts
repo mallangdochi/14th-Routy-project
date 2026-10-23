@@ -107,15 +107,31 @@ export const HeaderStyle = styled.div({
   padding: "30px 0 20px",
 });
 
+// export const LogoWrapper = styled(Link)({
+//   display: "flex",
+//   alignItems: "center",
+//   justifyContent: "center",
+//   flex: "1 1 0",
+//   minWidth: 0,
+//   height: "40px",
+//   marginBottom: "12px",
+//   order: -1,
+// });
 export const LogoWrapper = styled(Link)({
   display: "flex",
   alignItems: "center",
-  justifyContent: "center",
+  justifyContent: "flex-start",
   flex: "1 1 0",
   minWidth: 0,
   height: "40px",
+  paddingLeft: "9px",
   marginBottom: "12px",
-  order: -1,
+
+  "& svg": {
+    width: "auto",
+    height: "100%",
+    flexShrink: 0,
+  },
 });
 
 export const ProfileWrapper = styled.div({
