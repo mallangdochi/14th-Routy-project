@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, SyntheticEvent } from "react";
 import styled from "@emotion/styled";
+import { keyframes } from "@emotion/react";
 import { createPortal } from "react-dom";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { PickerStyle } from "./PickerStyle";
@@ -8,6 +9,11 @@ import { usePicker, type Placement } from "./usePicker";
 
 const teal = "#0A414B";
 const paper = "#FFFEFA";
+
+const sheetSlideUp = keyframes({
+  from: { transform: "translateY(100%)", opacity: 0.95 },
+  to: { transform: "translateY(0)", opacity: 1 },
+});
 
 const ModalDialog = styled.dialog({
   position: "fixed",
@@ -27,7 +33,37 @@ const ModalDialog = styled.dialog({
   boxSizing: "border-box",
   "&::backdrop": { backgroundColor: "rgba(10, 35, 39, 0.52)" },
   "&, & *": { boxSizing: "border-box" },
-  "@media (max-width: 767px)": { padding: "18px 16px" },
+  "@media (max-width: 767px)": {
+    top: "auto",
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: "100%",
+    maxWidth: "100%",
+    maxHeight: "min(82dvh, 720px)",
+    margin: 0,
+    padding: "12px 20px calc(20px + env(safe-area-inset-bottom, 0px))",
+    borderRadius: "22px 22px 0 0",
+    boxShadow: "0 -10px 32px rgba(0, 0, 0, 0.16)",
+    animation: `${sheetSlideUp} 260ms ease-out both`,
+    overscrollBehavior: "contain",
+  },
+  "@media (max-width: 767px) and (prefers-reduced-motion: reduce)": {
+    animation: "none",
+  },
+});
+
+const BottomSheetHandle = styled.div({
+  display: "none",
+  "@media (max-width: 767px)": {
+    display: "block",
+    width: "48px",
+    height: "5px",
+    margin: "0 auto 18px",
+    borderRadius: "999px",
+    backgroundColor: "#B9C7C9",
+    touchAction: "pan-y",
+  },
 });
 
 const ModalTop = styled.div({
@@ -672,6 +708,7 @@ function ModalDatePicker({
                 setOpen(false);
             }}
           >
+            <BottomSheetHandle aria-hidden="true" />
             <ModalTop>
               <strong>{label || "생년월일 선택"}</strong>
               <ModalClose
