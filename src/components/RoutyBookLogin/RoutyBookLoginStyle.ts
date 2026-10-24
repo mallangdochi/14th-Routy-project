@@ -946,7 +946,7 @@ export const MobileHeader = styled.header({
 });
 
 export const MobileLogo = styled.img({
-  width: "132px",
+  width: "100px",
   height: "60px",
   maxWidth: "calc(100vw - 116px)",
   objectFit: "contain",

@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
 
+import routyLogo from "../../assets/루티2.svg";
 import routyMascot from "../../assets/ROUTY2.svg";
 import topTextSvg from "../../assets/routy-top-text.svg";
 
@@ -47,75 +48,82 @@ const CoverContent = styled.span({
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  justifyContent: "space-around",
-
+  justifyContent: "space-between",
   width: "100%",
   height: "100%",
-
   padding: "10% 4% 12%",
   boxSizing: "border-box",
 });
 
 // =============================
-// 상단 SVG
-// 노란색 표시: 크게 변경
+// 상단 문구 SVG
 // =============================
 
 const TopTextImage = styled.img({
   display: "block",
-
-  width: "78%",
-  maxWidth: "520px",
-  maxHeight: "34%",
+  width: "34%",
+  maxWidth: "220px",
   height: "auto",
-
+  marginTop: "2%",
   objectFit: "contain",
-
+  transform: "rotate(-8deg)",
   userSelect: "none",
   pointerEvents: "none",
 });
 
 // =============================
-// 중앙 마스코트 SVG
-// 파란색 표시: 살짝 축소
+// Routy 로고 SVG
+// =============================
+
+const LogoImage = styled.img({
+  display: "block",
+  width: "78%",
+  maxHeight: "23%",
+  objectFit: "contain",
+  userSelect: "none",
+  pointerEvents: "none",
+});
+
+// =============================
+// 마스코트 SVG
 // =============================
 
 const MascotImage = styled.img({
   display: "block",
-
-  width: "58%",
-  maxHeight: "43%",
-  height: "auto",
-
+  width: "65%",
+  maxHeight: "48%",
   objectFit: "contain",
-
   userSelect: "none",
   pointerEvents: "none",
 });
 
 // =============================
-// 하단 영문 문구
-// 노란색 표시: 크게 변경
+// 하단 영문 텍스트
 // =============================
 
 const BottomText = styled.span({
   display: "block",
-
   color: yellowColor,
-
   fontFamily: '"Pretendard", "Noto Sans KR", sans-serif',
-
-  fontSize: "clamp(16px, 2.1vw, 25px)",
-  fontWeight: 600,
-  lineHeight: 1.5,
+  fontSize: "clamp(15px, 1.1vw, 18px)",
+  fontWeight: 500,
+  lineHeight: 1.25,
   letterSpacing: "-0.3px",
-
   textAlign: "center",
-  whiteSpace: "nowrap",
+  whiteSpace: "normal",
+  width: "100%",
+  maxWidth: "100%",
+  padding: "0 2px",
+  boxSizing: "border-box",
+  overflowWrap: "normal",
+});
+
+const BottomLine = styled.span({
+  display: "block",
 });
 
 // =============================
-// 여권 표지 컴포넌트
+// 표지 컴포넌트
 // =============================
 
 export default function CoverFront() {
@@ -123,18 +131,24 @@ export default function CoverFront() {
     <CoverContainer>
       <CoverBorder>
         <CoverContent>
-          {/* 상단 SVG */}
+          {/* 상단 문구 SVG */}
           <TopTextImage
             src={topTextSvg}
-            alt="좋은 여행의 시작 Routy"
+            alt="좋은 여행의 시작"
             draggable={false}
           />
 
-          {/* 중앙 마스코트 */}
+          {/* Routy 로고 */}
+          <LogoImage src={routyLogo} alt="Routy" draggable={false} />
+
+          {/* Routy 마스코트 */}
           <MascotImage src={routyMascot} alt="" draggable={false} />
 
-          {/* 하단 영문 문구 */}
-          <BottomText>Travel stories for every traveler</BottomText>
+          {/* 하단 문구 */}
+          <BottomText>
+            Travel stories for
+            <BottomLine>every traveler</BottomLine>
+          </BottomText>
         </CoverContent>
       </CoverBorder>
     </CoverContainer>
