@@ -253,8 +253,6 @@ const MainSidebar = () => {
 
     setMenuSelection({ menu, locationKey });
 
-    if (menu === "search") return;
-
     const path = MENU_PATHS[menu];
     if (path === `${pathname}${hash}` || path === pathname) return;
 
