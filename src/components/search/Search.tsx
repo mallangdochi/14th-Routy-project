@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 
 import Dropdown from "../dropdown/Dropdown";
-
 import AddPlaceModal, {
   type AddPlaceResult,
 } from "../modal/addPlace/AddPlaceModal";
@@ -122,8 +121,10 @@ export default function Search() {
   };
 
   const handleAddPlace = (result: AddPlaceResult) => {
-    // 검색 페이지 내 추가 완료 표시용 상태. 실제 일정 저장은 앱의 데이터 계층과 별도 연결 필요.
-    setAddedPlaces((previous) => ({ ...previous, [result.place.id]: result }));
+    setAddedPlaces((previous) => ({
+      ...previous,
+      [result.place.id]: result,
+    }));
   };
 
   useLayoutEffect(() => {
@@ -150,7 +151,9 @@ export default function Search() {
     observer.observe(button);
 
     window.addEventListener("resize", updateIndicator);
-    list.addEventListener("scroll", updateIndicator, { passive: true });
+    list.addEventListener("scroll", updateIndicator, {
+      passive: true,
+    });
 
     return () => {
       observer.disconnect();
@@ -164,6 +167,7 @@ export default function Search() {
       <S.MobileHeaderArea>
         <MobileHeader />
       </S.MobileHeaderArea>
+
       <S.SidebarArea>
         <MainSidebar />
       </S.SidebarArea>
@@ -183,6 +187,7 @@ export default function Search() {
 
           <S.SearchForm onSubmit={handleSearch} role="search">
             <SearchIcon size={21} strokeWidth={2} aria-hidden="true" />
+
             <S.SearchInput
               type="search"
               aria-label="여행지 검색"
@@ -193,6 +198,7 @@ export default function Search() {
                 setSubmittedKeyword(event.target.value.trim());
               }}
             />
+
             {keyword && (
               <S.ClearButton
                 type="button"
@@ -320,7 +326,9 @@ export default function Search() {
                   <S.EmptyIcon>
                     <S.MascotImage src={SearchMascot} alt="Routy 마스코트" />
                   </S.EmptyIcon>
+
                   <S.EmptyTitle>검색 결과가 없어요</S.EmptyTitle>
+
                   <S.EmptyDescription>
                     다른 검색어나 카테고리로 다시 검색해보세요.
                   </S.EmptyDescription>
@@ -332,7 +340,9 @@ export default function Search() {
               <S.EmptyIcon>
                 <S.MascotImage src={SearchMascot} alt="Routy 마스코트" />
               </S.EmptyIcon>
+
               <S.EmptyTitle>어디로 떠나고 싶으세요?</S.EmptyTitle>
+
               <S.EmptyDescription>
                 도시, 관광지, 음식점, 카페를 검색해보세요.
               </S.EmptyDescription>
@@ -340,15 +350,18 @@ export default function Search() {
           )}
         </S.Container>
       </S.MainContent>
+
       <S.MobileNavArea>
         <MobileNav />
       </S.MobileNavArea>
+
       {mapPlace && (
         <KakaoSavedPlaceModal
           place={mapPlace}
           onClose={() => setMapPlace(null)}
         />
       )}
+
       {selectedPlace && (
         <AddPlaceModal
           open={true}

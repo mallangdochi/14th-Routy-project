@@ -30,13 +30,12 @@ import {
   LayoutGrid,
 } from "lucide-react";
 
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { trips } from "../../data/trips";
-
 import MainSidebar from "../MainSidebar/MainSidebar";
 import * as S from "./ScheduleStyle";
+import KakaoMap from "../kakaoMap/KakaoMap";
 import KakaoTravelMap, { type KakaoPlace } from "../../map/KakaoTravelMap";
-
 import ShareModal from "./ShareModal";
 import MobileHeader from "../mobileBanner/MobileHeader";
 import MobileNav from "../mobileBanner/MobileFooter";
@@ -44,10 +43,7 @@ import Breadcrumb from "../MainSidebar/mainHeader/Breadcrumb";
 import Checklist from "../checklist/Checklist";
 import { mockChecklist, type ChecklistGroup } from "../../data/checklist";
 import EmptyChecklist from "../emptyUI/checklist/Checklist";
-
-// ===========================
-// 타입
-// ===========================
+import TravelBudgetTab from "../travelBudget/TravelBudgetTab";
 
 type Category = "맛집" | "카페" | "관광지" | "숙소" | "쇼핑" | "교통";
 
@@ -75,10 +71,6 @@ type Day = {
 type Tab = "schedule" | "map" | "budget" | "checklist";
 type Filter = "전체" | Category;
 
-// ===========================
-// 이미지
-// ===========================
-
 const IMG = {
   airport: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400",
   beach: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400",
@@ -87,10 +79,6 @@ const IMG = {
   nature: "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?w=400",
   hotel: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400",
 };
-
-// ===========================
-// 카테고리 및 탭
-// ===========================
 
 const CATEGORY_ICONS = {
   맛집: Utensils,
@@ -119,19 +107,27 @@ const MAIN_TABS: {
   label: string;
   icon: React.ElementType;
 }[] = [
-  { key: "schedule", label: "일정", icon: CalendarDays },
-  { key: "map", label: "지도", icon: MapPin },
-  { key: "budget", label: "예산", icon: Wallet },
+  {
+    key: "schedule",
+    label: "일정",
+    icon: CalendarDays,
+  },
+  {
+    key: "map",
+    label: "지도",
+    icon: MapPin,
+  },
+  {
+    key: "budget",
+    label: "예산",
+    icon: Wallet,
+  },
   {
     key: "checklist",
     label: "체크리스트",
     icon: ClipboardCheck,
   },
 ];
-
-// ===========================
-// 샘플 일정
-// ===========================
 
 const INITIAL_DAYS: Day[] = [
   {
@@ -218,10 +214,6 @@ const INITIAL_STOPS: Stop[] = [
   },
 ];
 
-// ===========================
-// 일정 유틸
-// ===========================
-
 const createEmptyStop = (): Stop => ({
   id: Date.now(),
   title: "",
@@ -250,10 +242,6 @@ const moveStop = (
     time: times[index],
   }));
 };
-
-// ===========================
-// 일정 카드
-// ===========================
 
 type StopCardProps = {
   stop: Stop;
@@ -373,12 +361,9 @@ function ScheduleStopCard({
   );
 }
 
-// ===========================
-// 메인 Schedule
-// ===========================
-
 export default function Schedule() {
   const { tripId } = useParams<{ tripId: string }>();
+  const [searchParams] = useSearchParams();
 
   const navigate = useNavigate();
 
@@ -403,7 +388,11 @@ export default function Schedule() {
 
   const [days, setDays] = useState<Day[]>(INITIAL_DAYS);
   const [activeDayId, setActiveDayId] = useState(1);
-  const [activeTab, setActiveTab] = useState<Tab>("schedule");
+
+  // 통계 화면에서 돌아오면 예산 탭을 다시 엽니다.
+  const [activeTab, setActiveTab] = useState<Tab>(() =>
+    searchParams.get("tab") === "budget" ? "budget" : "schedule",
+  );
 
   const [checklistGroups, setChecklistGroups] = useState<ChecklistGroup[]>(() =>
     mockChecklist.map((group) => ({
@@ -440,19 +429,18 @@ export default function Schedule() {
 
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
+
   const draggingIdRef = useRef<number | null>(null);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newStop, setNewStop] = useState<Stop>(createEmptyStop());
   const [editingStop, setEditingStop] = useState<Stop | null>(null);
 
-  // 지도 관련 상태
   const [activeFilter, setActiveFilter] = useState<Filter>("전체");
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const [showRoute, setShowRoute] = useState(true);
   const [mapZoom, setMapZoom] = useState(1);
-
   const [showShareModal, setShowShareModal] = useState(false);
 
   const activeDay = days.find((day) => day.id === activeDayId) ?? days[0];
@@ -463,9 +451,15 @@ export default function Schedule() {
     (stop) => activeFilter === "전체" || stop.category === activeFilter,
   );
 
-  // ===========================
-  // 일정 데이터 업데이트
-  // ===========================
+  const kakaoMapStops = React.useMemo(
+    () =>
+      stops.map((stop) => ({
+        ...stop,
+        latitude: stop.lat,
+        longitude: stop.lng,
+      })),
+    [stops],
+  );
 
   const updateStops = (updater: (previous: Stop[]) => Stop[]) => {
     setStopsByDay((previous) => ({
@@ -523,10 +517,6 @@ export default function Schedule() {
     setShowSaveStatus(true);
   };
 
-  // ===========================
-  // 드래그 순서 변경
-  // ===========================
-
   const handleDragStart = (
     event: React.DragEvent<HTMLButtonElement>,
     id: number,
@@ -552,6 +542,7 @@ export default function Schedule() {
       const rect = card.getBoundingClientRect();
       const offsetX = Math.min(rect.width / 2, 80);
       const offsetY = rect.height / 2;
+
       event.dataTransfer.setDragImage(card, offsetX, offsetY);
     }
   };
@@ -596,10 +587,6 @@ export default function Schedule() {
 
     resetDrag();
   };
-
-  // ===========================
-  // 일정 수정 및 삭제
-  // ===========================
 
   const toggleMenu = (id: number) => {
     setMenuId((previous) => (previous === id ? null : id));
@@ -653,10 +640,7 @@ export default function Schedule() {
     setShowAddForm(false);
   };
 
-  // ===========================
-  // 카카오 지도 장소 추가
-  // ===========================
-
+  // 카카오 지도에서 선택한 장소 추가
   const addPlaceFromKakao = (place: KakaoPlace) => {
     updateStops((previous) => [
       ...previous,
@@ -675,10 +659,6 @@ export default function Schedule() {
       },
     ]);
   };
-
-  // ===========================
-  // 날짜 추가
-  // ===========================
 
   const addDay = () => {
     const lastDay = days[days.length - 1];
@@ -713,10 +693,6 @@ export default function Schedule() {
     resetDrag();
   };
 
-  // ===========================
-  // 화면
-  // ===========================
-
   return (
     <S.Page>
       <S.SidebarArea>
@@ -729,7 +705,6 @@ export default function Schedule() {
 
       <S.MainContent>
         <S.Container>
-          {/* 여행 헤더 */}
           <S.Header>
             <S.BreadcrumbWrapper>
               <Breadcrumb
@@ -739,7 +714,9 @@ export default function Schedule() {
                     to: "/",
                     Icon: House,
                   },
-                  { label: "여행 상세" },
+                  {
+                    label: "여행 상세",
+                  },
                 ]}
               />
             </S.BreadcrumbWrapper>
@@ -829,7 +806,6 @@ export default function Schedule() {
             </S.MainTabs>
           </S.Header>
 
-          {/* 날짜 선택 */}
           {(activeTab === "schedule" || activeTab === "map") && (
             <S.DayTabs>
               {days.map((day) => (
@@ -862,10 +838,8 @@ export default function Schedule() {
             </S.DayTabs>
           )}
 
-          {/* 일정 + 지도 */}
           {activeTab === "schedule" || activeTab === "map" ? (
             <S.ContentGrid>
-              {/* 일정 패널 */}
               <S.SchedulePanel data-tablet-hidden={activeTab === "map"}>
                 <S.ScheduleHeading>
                   <S.ScheduleHeadingLeft>
@@ -938,7 +912,6 @@ export default function Schedule() {
                   </S.EditHint>
                 )}
 
-                {/* 일정 카드 */}
                 <S.StopList>
                   {stops.map((stop, index) => (
                     <ScheduleStopCard
@@ -965,7 +938,6 @@ export default function Schedule() {
                   ))}
                 </S.StopList>
 
-                {/* 장소 추가 */}
                 {!showAddForm && (
                   <S.AddPlaceButton
                     type="button"
@@ -1063,22 +1035,27 @@ export default function Schedule() {
                 )}
               </S.SchedulePanel>
 
-              {/* =======================
-                  실제 카카오 지도
-              ======================= */}
               <S.MapPanel data-tablet-hidden={activeTab === "schedule"}>
                 <S.MapCanvas>
-                  <KakaoTravelMap
-                    region={selectedTrip?.region ?? "제주"}
-                    stops={visibleMapStops}
-                    routeStops={stops}
-                    showRoute={showRoute}
-                    zoom={mapZoom}
-                    onAddPlace={addPlaceFromKakao}
-                  />
+                  {activeTab === "map" ? (
+                    <KakaoTravelMap
+                      region={selectedTrip?.region ?? "제주"}
+                      stops={visibleMapStops}
+                      routeStops={stops}
+                      showRoute={showRoute}
+                      zoom={mapZoom}
+                      onAddPlace={addPlaceFromKakao}
+                    />
+                  ) : (
+                    <KakaoMap
+                      stops={kakaoMapStops}
+                      category={activeFilter}
+                      showRoute={showRoute}
+                      zoom={mapZoom}
+                    />
+                  )}
                 </S.MapCanvas>
 
-                {/* 카테고리 필터 */}
                 <S.MapToolbar>
                   <S.MapFilters>
                     {FILTERS.map((filter) => {
@@ -1098,20 +1075,23 @@ export default function Schedule() {
                     })}
                   </S.MapFilters>
 
-                  {/* 모바일 필터 */}
                   <S.MobileFilterWrapper>
                     <S.MobileFilterTrigger
                       type="button"
                       aria-expanded={isMobileFilterOpen}
                       aria-label="지도 카테고리 선택"
-                      onClick={() => setIsMobileFilterOpen((prev) => !prev)}
+                      onClick={() =>
+                        setIsMobileFilterOpen((previous) => !previous)
+                      }
                     >
                       <LayoutGrid size={16} />
+
                       <span>
                         {activeFilter === "전체"
                           ? "전체 카테고리"
                           : activeFilter}
                       </span>
+
                       <ChevronDown
                         size={16}
                         style={{
@@ -1165,7 +1145,6 @@ export default function Schedule() {
                   </S.RouteToggle>
                 </S.MapToolbar>
 
-                {/* 지도 줌 */}
                 <S.MapZoomControls>
                   <button
                     type="button"
@@ -1206,17 +1185,12 @@ export default function Schedule() {
             ) : (
               <EmptyChecklist />
             )
-          ) : (
-            <S.EmptyPanel>
-              <Wallet size={38} />
-              <h2>여행 예산</h2>
-              <p>해당 화면은 추후 연결 예정입니다.</p>
-            </S.EmptyPanel>
-          )}
+          ) : activeTab === "budget" ? (
+            <TravelBudgetTab />
+          ) : null}
         </S.Container>
       </S.MainContent>
 
-      {/* 저장 완료 토스트 */}
       {showSaveStatus && (
         <S.MobileSaveToast role="status" aria-live="polite">
           <S.MobileSaveToastIcon>
@@ -1230,7 +1204,6 @@ export default function Schedule() {
         <MobileNav />
       </S.MobileNavArea>
 
-      {/* 일정 수정 모달 */}
       {editingStop && (
         <S.EditOverlay onClick={() => setEditingStop(null)}>
           <S.EditModal
