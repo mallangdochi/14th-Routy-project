@@ -4,7 +4,7 @@ import RoutyBookLogin from "./components/RoutyBookLogin/RoutyBookLogin";
 import SchedulePage from "./pages/travelSchedulePage/SchedulePage";
 import MyTripsPage from "./pages/mainPage/MyTripsPages";
 import CreateTripPage from "./pages/newTravelPage/CreateTripPage";
-import MyPage from "./page/mypage/mypage";
+import MyPage from "./pages/mypage/MyPage";
 import SavedPage from "./pages/savedPage/SavedPage";
 import PlaceDetailPage from "./pages/placeDetailPage/PlaceDetailPage";
 import TripDaysPage from "./pages/travelTimetablePage/TimetablePage";

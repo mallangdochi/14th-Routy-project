@@ -3,7 +3,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type FormEvent,
+  type SubmitEvent,
 } from "react";
 import { useNavigate } from "react-router";
 import { ChevronRight, Pencil, Plane, X } from "lucide-react";
@@ -124,7 +124,7 @@ export default function RoutyProfile({
     event.target.value = "";
   };
 
-  const onSubmitProfile = async (event: FormEvent<HTMLFormElement>) => {
+  const onSubmitProfile = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const value = nickname.trim();
 
