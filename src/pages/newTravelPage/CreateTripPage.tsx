@@ -29,7 +29,7 @@ import {
   ShoppingBag,
   Sparkles,
 } from "lucide-react";
-import busanMap from "../../data/busan.webp";
+import KakaoRegionPreview from "../../map/KakaoRegionPreview";
 import where from "../../assets/where.webp";
 import TripPreviewModal from "../../components/modal/travel-preview/TripPreviewModal";
 import { CreateTripPageStyle } from "./createTripPageStyle";
@@ -593,10 +593,7 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
   const renderPreview = (prefix: string) => (
     <>
       <div className="map-preview">
-        <img
-          src={busanMap}
-          alt={region ? `${region} 여행 지역 지도` : "여행 지역 지도"}
-        />
+        <KakaoRegionPreview region={selectedRegion} />
       </div>
 
       <section

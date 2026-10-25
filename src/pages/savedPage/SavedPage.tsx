@@ -9,7 +9,8 @@ import Dropdown from "../../components/dropdown/Dropdown";
 import AddPlaceModal from "../../components/modal/addPlace/AddPlaceModal";
 import type { AddPlaceTarget } from "../../components/modal/addPlace/AddPlaceModal";
 import { PageInner, SavedPageStyle } from "./SavedStyle";
-import { mockSavedPlaces } from "../../data/saved";
+import { mockSavedPlaces, type SavedPlace } from "../../data/saved";
+import KakaoSavedPlaceModal from "../../components/modal/saved-place/KakaoSavedPlaceModal";
 
 type SortOrder = "newest" | "oldest" | "name";
 
@@ -26,6 +27,7 @@ const sortOptions: { value: SortOrder; label: string }[] = [
 export default function SavedPage() {
   const [savedPlaces, setSavedPlaces] = useState(() => [...mockSavedPlaces]);
   const [targetPlace, setTargetPlace] = useState<AddPlaceTarget | null>(null);
+  const [mapPlace, setMapPlace] = useState<SavedPlace | null>(null);
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryFilter>("전체");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
@@ -195,6 +197,7 @@ export default function SavedPage() {
                             type="button"
                             className="saved-map-button"
                             aria-label={`${place.name} 지도 보기`}
+                            onClick={() => setMapPlace(place)}
                           >
                             <Map size={18} aria-hidden="true" />
                             <span>지도 보기</span>
@@ -223,6 +226,13 @@ export default function SavedPage() {
       <div className="page-mobile-footer">
         <MobileNav />
       </div>
+
+      {mapPlace && (
+        <KakaoSavedPlaceModal
+          place={mapPlace}
+          onClose={() => setMapPlace(null)}
+        />
+      )}
 
       {targetPlace && (
         <AddPlaceModal
