@@ -909,16 +909,19 @@ export default function MyPage() {
 
       <S.PageMain>
         <S.MainInner>
-          {(isLoggedIn || currentPage === "support") && currentPage !== "settings" && (
-            <S.PageHeader>
-              <S.PageTitle
-                $green={currentPage === "profile" || currentPage === "support"}
-              >
-                {title}
-              </S.PageTitle>
-              <S.PageDescription>{description}</S.PageDescription>
-            </S.PageHeader>
-          )}
+          {(isLoggedIn || currentPage === "support") &&
+            currentPage !== "settings" && (
+              <S.PageHeader>
+                <S.PageTitle
+                  $green={
+                    currentPage === "profile" || currentPage === "support"
+                  }
+                >
+                  {title}
+                </S.PageTitle>
+                <S.PageDescription>{description}</S.PageDescription>
+              </S.PageHeader>
+            )}
 
           {renderContent()}
         </S.MainInner>
