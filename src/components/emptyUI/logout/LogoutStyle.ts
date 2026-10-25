@@ -4,28 +4,22 @@ const PRIMARY = "#005259";
 const TEXT = "#0C293D";
 const MUTED = "#72869A";
 
-/* 전체 레이아웃 */
-
 export const Layout = styled.div({
   display: "flex",
-  flexDirection: "row",
   alignItems: "stretch",
   width: "100%",
-  minHeight: "100dvh",
-
-  "@media (max-width: 767px)": {
-    display: "block",
-  },
+  height: "100dvh",
+  minHeight: 0,
 });
 
 export const PageWrapper = styled.main({
   display: "flex",
-  flex: "1 1 0%",
   flexDirection: "column",
-  width: "100%",
+  flex: "1 1 0",
   minWidth: 0,
-  minHeight: "100dvh",
+  minHeight: 0,
   padding: "42px 40px 32px",
+  overflowY: "auto",
   backgroundColor: "#FFFFFF",
 
   "@media (max-width: 1023px)": {
@@ -33,86 +27,69 @@ export const PageWrapper = styled.main({
   },
 
   "@media (max-width: 767px)": {
-    minHeight: "100dvh",
-    padding: "24px 16px 20px",
+    padding: "calc(80px + env(safe-area-inset-top, 0px)) 20px 20px",
   },
 });
-
-/* 페이지 헤더 */
 
 export const PageHeader = styled.div({
   display: "flex",
   flexDirection: "column",
   alignItems: "flex-start",
   justifyContent: "center",
-  gap: "0px",
+  flexShrink: 0,
   width: "100%",
-  paddingBottom: "24px",
-  marginBottom: "24px",
+  paddingBottom: 24,
+  marginBottom: 24,
   borderBottom: "1px solid #E4EAEE",
 
   "@media (max-width: 1023px)": {
-    paddingBottom: "20px",
-    marginBottom: "20px",
+    paddingBottom: 20,
+    marginBottom: 20,
   },
 
   "@media (max-width: 767px)": {
-    paddingBottom: "18px",
-    marginBottom: "18px",
+    paddingBottom: 18,
+    marginBottom: 18,
   },
 });
 
-/* 기존 헤더 버튼 호환용 */
-
 export const HeaderLoginButton = styled.button({
-  minHeight: "44px",
+  minHeight: 44,
   padding: "10px 20px",
-  border: "none",
-  borderRadius: "9px",
+  borderRadius: 9,
   backgroundColor: PRIMARY,
   color: "#FFFFFF",
-  fontSize: "13px",
+  fontSize: 17,
   fontWeight: 700,
-  cursor: "pointer",
-});
 
-/* 메인 배너 */
+  "@media (max-width: 1023px)": {
+    fontSize: 16,
+  },
+});
 
 export const EmptyBanner = styled.section({
   display: "grid",
   gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.1fr)",
   alignItems: "center",
+  flex: "1 0 auto",
   width: "100%",
-  flex: "1 1 auto",
-  minHeight: "430px",
-  padding: "40px 26px",
-  overflow: "hidden",
-  borderRadius: "20px",
-  background: "linear-gradient(110deg, #F1FCFB 0%, #F0FFFC 60%, #E6FAF6 100%)",
+  minWidth: 0,
+  padding: "32px 26px",
+  borderRadius: 20,
+  // background: "linear-gradient(110deg, #F1FCFB 0%, #F0FFFC 60%, #E6FAF6 100%)",
 
   "@media (max-width: 1023px)": {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: "650px",
-    padding: "36px 24px",
-    gap: 0,
+    padding: "28px 24px",
   },
 
   "@media (max-width: 767px)": {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    flex: "1 0 auto",
-    minHeight: "620px",
-    padding: "32px 20px",
-    borderRadius: "20px",
+    padding: "24px 20px",
   },
 });
-
-/* 마스코트 */
 
 export const BannerImageArea = styled.div({
   gridColumn: 1,
@@ -122,45 +99,38 @@ export const BannerImageArea = styled.div({
   justifyContent: "center",
   width: "100%",
   minWidth: 0,
-  height: "100%",
 
   "@media (max-width: 1023px)": {
     order: 2,
-    flex: "0 1 auto",
-    width: "100%",
-    height: "auto",
-    minHeight: "220px",
-    margin: "24px 0",
+    flexShrink: 0,
+    margin: "20px 0",
   },
 
   "@media (max-width: 767px)": {
-    margin: "20px 0 24px",
+    margin: "18px 0 22px",
   },
 });
 
 export const MascotImage = styled.img({
-  display: "block",
   width: "100%",
-  maxWidth: "400px",
-  maxHeight: "340px",
+  maxWidth: 400,
+  maxHeight: "min(340px, 40dvh)",
   height: "auto",
   objectFit: "contain",
   objectPosition: "center",
 
   "@media (max-width: 1023px)": {
     width: "85%",
-    maxWidth: "340px",
-    maxHeight: "300px",
+    maxWidth: 340,
+    maxHeight: "min(300px, 32dvh)",
   },
 
   "@media (max-width: 767px)": {
     width: "100%",
-    maxWidth: "340px",
-    maxHeight: "320px",
+    maxWidth: 300,
+    maxHeight: "min(280px, 30dvh)",
   },
 });
-
-/* 배너 콘텐츠 */
 
 export const BannerContent = styled.div({
   gridColumn: 2,
@@ -181,31 +151,30 @@ export const BannerContent = styled.div({
 
 export const BannerTitle = styled.h2({
   display: "flex",
-  flexDirection: "row",
   alignItems: "center",
   justifyContent: "center",
   flexWrap: "wrap",
-  gap: "6px",
-  margin: "0 0 20px",
+  gap: 6,
+  marginBottom: 20,
   color: TEXT,
-  fontSize: "30px",
+  fontSize: 30,
   fontWeight: 800,
   letterSpacing: "-1.2px",
   lineHeight: 1.3,
+  textAlign: "center",
   wordBreak: "keep-all",
+  overflowWrap: "anywhere",
 
   "@media (max-width: 1023px)": {
     order: 0,
-    flexDirection: "column",
-    gap: "0px",
-    marginBottom: "20px",
-    fontSize: "32px",
-    lineHeight: 1.25,
+    flexShrink: 0,
+    fontSize: 30,
+    marginBottom: 16,
   },
 
   "@media (max-width: 767px)": {
-    fontSize: "35px",
-    marginBottom: "24px",
+    fontSize: 24,
+    marginBottom: 14,
   },
 });
 
@@ -217,42 +186,45 @@ export const TitleSecondLine = styled.span({
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: "8px",
+  gap: 8,
   color: "#00A99A",
 
-  svg: {
-    width: "28px",
-    height: "28px",
+  "& svg": {
+    width: 28,
+    height: 28,
+    flexShrink: 0,
     color: "#17C9B5",
     transform: "rotate(-20deg)",
   },
 
   "@media (max-width: 767px)": {
-    gap: "10px",
-
-    svg: {
-      width: "30px",
-      height: "30px",
+    "& svg": {
+      width: 24,
+      height: 24,
     },
   },
 });
 
 export const BannerDescription = styled.p({
-  margin: "0 0 28px",
+  marginBottom: 28,
   color: "#587185",
-  fontSize: "15px",
+  fontSize: 18,
   lineHeight: 1.8,
+  textAlign: "center",
   wordBreak: "keep-all",
+  overflowWrap: "anywhere",
+  "&.basic": { marginBottom: 0 },
 
   "@media (max-width: 1023px)": {
     order: 1,
-    margin: 0,
-    fontSize: "14px",
-    lineHeight: 1.8,
+    flexShrink: 0,
+    marginBottom: 0,
+    fontSize: 17,
   },
 
   "@media (max-width: 767px)": {
-    fontSize: "13px",
+    fontSize: 16,
+    "&.non-mobile": { display: "none" },
   },
 });
 
@@ -260,18 +232,16 @@ export const BannerLoginButton = styled.button({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: "10px",
+  gap: 10,
   width: "100%",
-  maxWidth: "310px",
-  minHeight: "52px",
+  maxWidth: 310,
+  minHeight: 52,
   padding: "10px 20px",
-  border: "none",
-  borderRadius: "10px",
+  borderRadius: 10,
   backgroundColor: PRIMARY,
   color: "#FFFFFF",
-  fontSize: "17px",
+  fontSize: 17,
   fontWeight: 700,
-  cursor: "pointer",
   transition: "background-color 0.2s, transform 0.2s",
 
   "&:hover": {
@@ -279,19 +249,23 @@ export const BannerLoginButton = styled.button({
     transform: "translateY(-2px)",
   },
 
+  "&:focus-visible": {
+    outline: "3px solid #527F79",
+    outlineOffset: 4,
+  },
+
   "@media (max-width: 1023px)": {
     order: 3,
-    width: "100%",
-    maxWidth: "360px",
-    minHeight: "54px",
-    fontSize: "17px",
-    borderRadius: "12px",
+    flexShrink: 0,
+    maxWidth: 360,
+    minHeight: 54,
+    borderRadius: 12,
+    fontSize: 16,
   },
 
   "@media (max-width: 767px)": {
-    maxWidth: "none",
-    minHeight: "56px",
-    fontSize: "18px",
+    maxWidth: 360,
+    minHeight: 52,
   },
 });
 
@@ -300,38 +274,38 @@ export const SignupRow = styled.div({
   alignItems: "center",
   justifyContent: "center",
   flexWrap: "wrap",
-  gap: "10px",
-  marginTop: "18px",
+  gap: 10,
+  marginTop: 18,
   color: MUTED,
-  fontSize: "14px",
+  fontSize: 16,
+  textAlign: "center",
 
   "@media (max-width: 1023px)": {
     order: 4,
+    flexShrink: 0,
     flexDirection: "column",
-    justifyContent: "center",
-    gap: "8px",
-    marginTop: "20px",
-    fontSize: "14px",
+    gap: 8,
+    marginTop: 20,
   },
 
   "@media (max-width: 767px)": {
-    fontSize: "14px",
+    fontSize: 15,
   },
 });
 
 export const SignupButton = styled.button({
   display: "inline-flex",
   alignItems: "center",
-  gap: "4px",
-  padding: 0,
-  border: "none",
-  backgroundColor: "transparent",
+  gap: 4,
   color: "#009F94",
-  fontSize: "inherit",
   fontWeight: 700,
-  cursor: "pointer",
 
   "&:hover": {
     textDecoration: "underline",
+  },
+
+  "&:focus-visible": {
+    outline: "3px solid #527F79",
+    outlineOffset: 4,
   },
 });

@@ -21,6 +21,24 @@ export const SidebarContainer = styled.aside({
 
   background: "#005044",
   color: "#ffffff",
+
+  "& .guest-avatar": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 80,
+    height: 80,
+    flexShrink: 0,
+    borderRadius: "50%",
+    backgroundColor: "#E8F6F2",
+    color: "#8FBDBB",
+  },
+
+  "@media (max-width: 767px)": {
+    '&[data-logged-in="false"]': {
+      display: "none",
+    },
+  },
 });
 
 export const LogoArea = styled.div({

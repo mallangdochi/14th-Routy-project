@@ -1,9 +1,10 @@
 import {
-  createContext,
-  useContext,
+  // createContext,
+  // useContext,
   useState,
-  type FormEvent,
+  // type FormEvent,
   type ReactNode,
+  type SubmitEvent,
 } from "react";
 
 import {
@@ -41,6 +42,8 @@ import {
   Message,
   PageFooter,
 } from "./RoutySignupStyle";
+// import { SignupContext } from "./SignupContext";
+import { SignupContext, useSignup } from "./SignupContext";
 
 export interface SignupData {
   firstName: string;
@@ -278,7 +281,8 @@ function useSignupState({
   };
 
   // 회원가입 완료
-  const submitSignup = async (event: FormEvent<HTMLFormElement>) => {
+  // const submitSignup = async (event: FormEvent<HTMLFormElement>) => {
+  const submitSignup = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (busy) return;
@@ -361,10 +365,10 @@ function useSignupState({
     submitSignup,
   };
 }
+export type SignupState = ReturnType<typeof useSignupState>;
+// type SignupState = ReturnType<typeof useSignupState>;
 
-type SignupState = ReturnType<typeof useSignupState>;
-
-const SignupContext = createContext<SignupState | null>(null);
+// const SignupContext = createContext<SignupState | null>(null);
 
 // 왼쪽과 오른쪽 페이지가 공유할 상태
 export function RoutySignupProvider({ children, ...props }: ProviderProps) {
@@ -375,15 +379,15 @@ export function RoutySignupProvider({ children, ...props }: ProviderProps) {
   );
 }
 
-export function useSignup() {
-  const context = useContext(SignupContext);
+// export function useSignup() {
+//   const context = useContext(SignupContext);
 
-  if (!context) {
-    throw new Error("RoutySignupProvider가 필요합니다.");
-  }
+//   if (!context) {
+//     throw new Error("RoutySignupProvider가 필요합니다.");
+//   }
 
-  return context;
-}
+//   return context;
+// }
 
 interface RoutySignupProps {
   side: "left" | "right";
@@ -460,7 +464,8 @@ export default function RoutySignup({
               <EnglishLabel>/ BIRTH</EnglishLabel>
             </FieldLabel>
 
-            <DatePicker modal
+            <DatePicker
+              modal
               label=""
               name="birth"
               value={s.form.birth}
@@ -676,7 +681,7 @@ export default function RoutySignup({
               }
               aria-pressed={s.showConfirm}
             >
-              {s.showConfirm ? <EyeClosed /> : <Eye />}
+              {s.showConfirm ? <Eye size={20} /> : <EyeClosed size={20} />}
             </EyeButton>
           </PasswordInput>
 
