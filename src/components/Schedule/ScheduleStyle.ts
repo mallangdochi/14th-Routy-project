@@ -432,6 +432,26 @@ export const SecondaryButton = styled.button({
     backgroundColor: "#F3F8F8",
   },
 });
+
+export const ScheduleButton = styled.button({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "7px",
+  minHeight: "38px",
+  padding: "0 13px",
+  border: "1px solid #E7EBED",
+  borderRadius: "7px",
+  backgroundColor: "#005259",
+  color: "#ffffff",
+  fontSize: "13px",
+  fontWeight: 600,
+
+  "&:hover": {
+    backgroundColor: "#003E43",
+  },
+});
+
 // 메인 탭
 // 메인 탭 - 슬라이딩 밑줄 모션
 export const MainTabs = styled.nav<{
