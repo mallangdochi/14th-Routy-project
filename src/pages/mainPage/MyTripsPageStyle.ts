@@ -24,6 +24,7 @@ export const MyTripsPageStyle = styled.div({
     minWidth: 0,
     minHeight: "100vh",
     overflowY: "auto",
+    scrollbarGutter: "stable",
     backgroundColor: "#fff",
   },
 

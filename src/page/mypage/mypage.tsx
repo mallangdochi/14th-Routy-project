@@ -30,6 +30,8 @@ import avatarP11 from "../../assets/profileAvatars/P11.webp";
 import avatarP12 from "../../assets/profileAvatars/P12.webp";
 import avatarP13 from "../../assets/profileAvatars/P13.webp";
 import * as S from "./myPageStyle";
+import { useAuth } from "../../contexts/AuthContext";
+import MyLoginRequired from "../../components/emptyUI/myLoginRequired/MyLoginRequired";
 
 type PageId = "profile" | "security" | "settings" | "support";
 type PasswordFieldId = "current" | "new" | "confirm";
@@ -196,6 +198,7 @@ type ProfileViewProps = {
 };
 
 function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
+  const { user } = useAuth();
   const [nickname, setNickname] = useState(savedProfile.nickname);
   const [profileImage, setProfileImage] = useState(savedProfile.image);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -267,7 +270,9 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
     setNameError("");
     onSave({ nickname: trimmed, image: profileImage });
   };
-
+  if (!user) {
+    return <MyLoginRequired />;
+  }
   return (
     <S.ProfileCard>
       <S.CardTitle>프로필 정보</S.CardTitle>
@@ -703,6 +708,8 @@ function SecurityView({
 }
 
 export default function MyPage() {
+   const { user } = useAuth();
+     const isLoggedIn = Boolean(user);
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -784,7 +791,10 @@ export default function MyPage() {
   const { title, description } = pageText[currentPage];
 
   const renderContent = () => {
-    if (currentPage === "profile") {
+  if (!isLoggedIn && currentPage !== "support") {
+    return <MyLoginRequired />;
+  }
+
       return (
         <ProfileView
           savedProfile={savedProfile}
@@ -872,7 +882,9 @@ export default function MyPage() {
           <ChevronLeft size={26} strokeWidth={1.8} aria-hidden="true" />
         </S.MobileTopBack>
         <S.MobileTopLogo src={routyLogo} alt="Routy" />
-        <S.MobileMenuToggle
+        
+        
+      {isLoggedIn && ( <S.MobileMenuToggle
           type="button"
           aria-label="계정 메뉴 열기"
           aria-controls="mypage-sidebar"
@@ -880,7 +892,8 @@ export default function MyPage() {
           onClick={() => setIsMobileMenuOpen(true)}
         >
           <Menu size={26} strokeWidth={1.9} aria-hidden="true" />
-        </S.MobileMenuToggle>
+        </S.MobileMenuToggle>)
+}      
       </S.MobileTopBar>
 
       <S.MobileDrawerBackdrop

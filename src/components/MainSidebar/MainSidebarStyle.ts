@@ -107,16 +107,6 @@ export const HeaderStyle = styled.div({
   padding: "30px 0 20px",
 });
 
-// export const LogoWrapper = styled(Link)({
-//   display: "flex",
-//   alignItems: "center",
-//   justifyContent: "center",
-//   flex: "1 1 0",
-//   minWidth: 0,
-//   height: "40px",
-//   marginBottom: "12px",
-//   order: -1,
-// });
 export const LogoWrapper = styled(Link)({
   display: "flex",
   alignItems: "center",
@@ -568,3 +558,69 @@ export const LogoutConfirmButton = styled.button({
     outlineOffset: 3,
   },
 });
+
+interface GuestStyleProps {
+  $collapsed: boolean;
+}
+
+export const GuestCard = styled.div<GuestStyleProps>(({ $collapsed }) => ({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: $collapsed ? "center" : "stretch",
+  width: "100%",
+  minWidth: 0,
+  padding: $collapsed ? 0 : "18px 12px 14px",
+  gap: $collapsed ? 0 : "16px",
+  marginBottom: "24px",
+  borderRadius: "14px",
+  backgroundColor: $collapsed ? "transparent" : "#ECF8F5",
+  flexShrink: 0,
+}));
+
+export const GuestMessage = styled.p<GuestStyleProps>(({ $collapsed }) => ({
+  display: $collapsed ? "none" : "block",
+  margin: 0,
+  color: "#0D3E41",
+  fontSize: "16px",
+  fontWeight: 600,
+
+  wordBreak: "keep-all",
+  overflowWrap: "anywhere",
+}));
+
+export const GuestLoginButton = styled.button<GuestStyleProps>(
+  ({ $collapsed }) => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: $collapsed ? "56px" : "100%",
+    height: $collapsed ? "56px" : "44px",
+    minWidth: 0,
+    padding: $collapsed ? 0 : "0 10px",
+    gap: $collapsed ? 0 : "8px",
+    border: 0,
+    borderRadius: "10px",
+    backgroundColor: "#005259",
+    color: "#FFFFFF",
+    fontFamily: "inherit",
+    fontSize: "16px",
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+    cursor: "pointer",
+    flexShrink: 0,
+    transition: "background-color 0.2s ease",
+    "& svg": {
+      display: $collapsed ? "block" : "none",
+      width: "23px",
+      height: "23px",
+      flexShrink: 0,
+    },
+    "&:hover:not(:disabled)": { backgroundColor: "#003E43" },
+    "&:focus-visible": {
+      outline: "3px solid #527F79",
+      outlineOffset: "3px",
+    },
+    "&:disabled": { cursor: "wait" },
+    "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+  }),
+);

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { ChevronRight, Plane } from "lucide-react";
+import { Plane } from "lucide-react";
 import mascot from "../../../assets/where.webp";
 import * as S from "./LogoutStyle";
 
@@ -10,9 +10,9 @@ export default function Logout() {
     navigate("/login");
   };
 
-  const handleSignup = () => {
-    navigate("/signup");
-  };
+  // const handleSignup = () => {
+  //   navigate("/signup");
+  // };
 
   return (
     <S.Layout>
@@ -40,9 +40,10 @@ export default function Logout() {
               <Plane aria-hidden="true" />
             </S.BannerTitle>
 
-            <S.BannerDescription>
+            <S.BannerDescription className="basic">
               로그인하고 나만의 여행을 계획해보세요.
-              <br />
+            </S.BannerDescription>
+            <S.BannerDescription className="non-mobile">
               Routy가 특별한 여정을 함께 만들어드릴게요.
             </S.BannerDescription>
 
@@ -50,14 +51,14 @@ export default function Logout() {
               로그인하기
             </S.BannerLoginButton>
 
-            <S.SignupRow>
+            {/* <S.SignupRow>
               <span>아직 계정이 없으신가요?</span>
 
               <S.SignupButton type="button" onClick={handleSignup}>
                 회원가입하기
                 <ChevronRight size={17} />
               </S.SignupButton>
-            </S.SignupRow>
+            </S.SignupRow> */}
           </S.BannerContent>
         </S.EmptyBanner>
       </S.PageWrapper>
