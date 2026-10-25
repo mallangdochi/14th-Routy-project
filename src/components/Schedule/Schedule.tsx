@@ -35,15 +35,20 @@ import { trips } from "../../data/trips";
 
 import MainSidebar from "../MainSidebar/MainSidebar";
 import * as S from "./ScheduleStyle";
-import ShareModal from "./ShareModal";
+import KakaoTravelMap, { type KakaoPlace } from "../../map/KakaoTravelMap";
 
+import ShareModal from "./ShareModal";
 import MobileHeader from "../mobileBanner/MobileHeader";
 import MobileNav from "../mobileBanner/MobileFooter";
 import Breadcrumb from "../MainSidebar/mainHeader/Breadcrumb";
 import Checklist from "../checklist/Checklist";
 import { mockChecklist, type ChecklistGroup } from "../../data/checklist";
 import EmptyChecklist from "../emptyUI/checklist/Checklist";
-// 데이터 타입
+
+// ===========================
+// 타입
+// ===========================
+
 type Category = "맛집" | "카페" | "관광지" | "숙소" | "쇼핑" | "교통";
 
 type Stop = {
@@ -56,6 +61,8 @@ type Stop = {
   image: string;
   x: number;
   y: number;
+  lat?: number;
+  lng?: number;
 };
 
 type Day = {
@@ -67,7 +74,11 @@ type Day = {
 
 type Tab = "schedule" | "map" | "budget" | "checklist";
 type Filter = "전체" | Category;
-// 임시 이미지 데이터
+
+// ===========================
+// 이미지
+// ===========================
+
 const IMG = {
   airport: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400",
   beach: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400",
@@ -76,6 +87,10 @@ const IMG = {
   nature: "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?w=400",
   hotel: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400",
 };
+
+// ===========================
+// 카테고리 및 탭
+// ===========================
 
 const CATEGORY_ICONS = {
   맛집: Utensils,
@@ -99,17 +114,44 @@ const FILTERS: {
   { key: "쇼핑", label: "쇼핑", icon: ShoppingBag },
 ];
 
-const MAIN_TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
+const MAIN_TABS: {
+  key: Tab;
+  label: string;
+  icon: React.ElementType;
+}[] = [
   { key: "schedule", label: "일정", icon: CalendarDays },
   { key: "map", label: "지도", icon: MapPin },
   { key: "budget", label: "예산", icon: Wallet },
-  { key: "checklist", label: "체크리스트", icon: ClipboardCheck },
+  {
+    key: "checklist",
+    label: "체크리스트",
+    icon: ClipboardCheck,
+  },
 ];
 
+// ===========================
+// 샘플 일정
+// ===========================
+
 const INITIAL_DAYS: Day[] = [
-  { id: 1, date: "10.16", weekday: "금", image: IMG.nature },
-  { id: 2, date: "10.17", weekday: "토", image: IMG.airport },
-  { id: 3, date: "10.18", weekday: "일", image: IMG.beach },
+  {
+    id: 1,
+    date: "10.16",
+    weekday: "금",
+    image: IMG.nature,
+  },
+  {
+    id: 2,
+    date: "10.17",
+    weekday: "토",
+    image: IMG.airport,
+  },
+  {
+    id: 3,
+    date: "10.18",
+    weekday: "일",
+    image: IMG.beach,
+  },
 ];
 
 const INITIAL_STOPS: Stop[] = [
@@ -123,6 +165,8 @@ const INITIAL_STOPS: Stop[] = [
     image: IMG.airport,
     x: 15,
     y: 56,
+    lat: 33.5104,
+    lng: 126.4929,
   },
   {
     id: 2,
@@ -134,6 +178,8 @@ const INITIAL_STOPS: Stop[] = [
     image: IMG.beach,
     x: 36,
     y: 35,
+    lat: 33.5434,
+    lng: 126.6694,
   },
   {
     id: 3,
@@ -167,8 +213,14 @@ const INITIAL_STOPS: Stop[] = [
     image: IMG.nature,
     x: 85,
     y: 40,
+    lat: 33.4586,
+    lng: 126.9424,
   },
 ];
+
+// ===========================
+// 일정 유틸
+// ===========================
 
 const createEmptyStop = (): Stop => ({
   id: Date.now(),
@@ -181,7 +233,7 @@ const createEmptyStop = (): Stop => ({
   x: 50,
   y: 50,
 });
-// 카드 순서 변경
+
 const moveStop = (
   items: Stop[],
   fromIndex: number,
@@ -198,7 +250,11 @@ const moveStop = (
     time: times[index],
   }));
 };
-// 일정 카드 컴포넌트
+
+// ===========================
+// 일정 카드
+// ===========================
+
 type StopCardProps = {
   stop: Stop;
   index: number;
@@ -240,7 +296,6 @@ function ScheduleStopCard({
       onDragOver={(event) => onDragOver(event, stop.id)}
       onDrop={(event) => onDrop(event, stop.id)}
     >
-      {/* 드래그 핸들 영역 */}
       <S.DragSlot data-edit-mode={isEditMode}>
         {isEditMode && (
           <S.DragHandle
@@ -256,12 +311,10 @@ function ScheduleStopCard({
         )}
       </S.DragSlot>
 
-      {/* 타임라인 숫자 */}
       <S.Timeline>
         <S.TimelineDot>{index + 1}</S.TimelineDot>
       </S.Timeline>
 
-      {/* 일정 카드 */}
       <S.StopCard data-stop-card>
         <S.StopTime>{stop.time}</S.StopTime>
 
@@ -276,7 +329,6 @@ function ScheduleStopCard({
           </small>
         </S.StopDetails>
 
-        {/* 편집 메뉴 및 카테고리 */}
         <S.StopActions>
           {isEditMode && (
             <>
@@ -320,11 +372,16 @@ function ScheduleStopCard({
     </S.StopRow>
   );
 }
-// 메인 컴포넌트
+
+// ===========================
+// 메인 Schedule
+// ===========================
+
 export default function Schedule() {
   const { tripId } = useParams<{ tripId: string }>();
 
   const selectedTrip = trips.find((trip) => trip.id === tripId);
+
   const tripDateText = (() => {
     if (!selectedTrip) return "";
 
@@ -335,9 +392,11 @@ export default function Schedule() {
 
     return `${selectedTrip.startDate.replaceAll("-", ".")} - ${selectedTrip.endDate.replaceAll("-", ".")} · ${nights}박 ${nights + 1}일`;
   })();
+
   const [days, setDays] = useState<Day[]>(INITIAL_DAYS);
   const [activeDayId, setActiveDayId] = useState(1);
   const [activeTab, setActiveTab] = useState<Tab>("schedule");
+
   const [checklistGroups, setChecklistGroups] = useState<ChecklistGroup[]>(() =>
     mockChecklist.map((group) => ({
       ...group,
@@ -355,15 +414,12 @@ export default function Schedule() {
     3: [],
   });
 
-  // 편집 모드
   const [isEditMode, setIsEditMode] = useState(false);
   const [menuId, setMenuId] = useState<number | null>(null);
   const editSnapshotRef = useRef<Stop[] | null>(null);
 
-  // 저장 완료 문구 표시 여부
   const [showSaveStatus, setShowSaveStatus] = useState(false);
 
-  // 저장 완료 알림은 2.5초 후 자동으로 닫힘
   useEffect(() => {
     if (!showSaveStatus) return;
 
@@ -374,27 +430,21 @@ export default function Schedule() {
     return () => window.clearTimeout(timer);
   }, [showSaveStatus]);
 
-  // 드래그 상태
   const [draggingId, setDraggingId] = useState<number | null>(null);
-
   const [dragOverId, setDragOverId] = useState<number | null>(null);
-
   const draggingIdRef = useRef<number | null>(null);
 
-  // 장소 추가 및 수정
   const [showAddForm, setShowAddForm] = useState(false);
   const [newStop, setNewStop] = useState<Stop>(createEmptyStop());
-
   const [editingStop, setEditingStop] = useState<Stop | null>(null);
 
-  // 지도
+  // 지도 관련 상태
   const [activeFilter, setActiveFilter] = useState<Filter>("전체");
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const [showRoute, setShowRoute] = useState(true);
   const [mapZoom, setMapZoom] = useState(1);
 
-  // 공유 모달
   const [showShareModal, setShowShareModal] = useState(false);
 
   const activeDay = days.find((day) => day.id === activeDayId) ?? days[0];
@@ -405,7 +455,10 @@ export default function Schedule() {
     (stop) => activeFilter === "전체" || stop.category === activeFilter,
   );
 
-  // 일정 데이터 변경
+  // ===========================
+  // 일정 데이터 업데이트
+  // ===========================
+
   const updateStops = (updater: (previous: Stop[]) => Stop[]) => {
     setStopsByDay((previous) => ({
       ...previous,
@@ -414,16 +467,18 @@ export default function Schedule() {
 
     setShowSaveStatus(false);
   };
-  // 드래그 상태 초기화
+
   const resetDrag = () => {
     draggingIdRef.current = null;
     setDraggingId(null);
     setDragOverId(null);
   };
-  // 편집 모드 전환
+
   const toggleEditMode = () => {
     if (!isEditMode) {
-      editSnapshotRef.current = stops.map((stop) => ({ ...stop }));
+      editSnapshotRef.current = stops.map((stop) => ({
+        ...stop,
+      }));
       setIsEditMode(true);
     } else {
       setIsEditMode(false);
@@ -451,18 +506,19 @@ export default function Schedule() {
     setShowSaveStatus(false);
     resetDrag();
   };
-  // 저장하기
+
   const handleSave = () => {
     setIsEditMode(false);
     setMenuId(null);
     resetDrag();
-
-    // 저장 완료 문구 표시
     editSnapshotRef.current = null;
     setShowSaveStatus(true);
   };
-  // 드래그 시작
-  // 드래그 시작 - 카드 전체 미리보기
+
+  // ===========================
+  // 드래그 순서 변경
+  // ===========================
+
   const handleDragStart = (
     event: React.DragEvent<HTMLButtonElement>,
     id: number,
@@ -473,14 +529,10 @@ export default function Schedule() {
     }
 
     const handle = event.currentTarget;
-
-    // 현재 핸들이 포함된 일정 카드 찾기
     const row = handle.closest("[data-stop-row]");
-
     const card = row?.querySelector("[data-stop-card]") as HTMLElement | null;
 
     draggingIdRef.current = id;
-
     setDraggingId(id);
     setDragOverId(null);
     setMenuId(null);
@@ -488,18 +540,14 @@ export default function Schedule() {
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", String(id));
 
-    // 카드 전체를 드래그 이미지로 사용
     if (card) {
       const rect = card.getBoundingClientRect();
-
       const offsetX = Math.min(rect.width / 2, 80);
-
       const offsetY = rect.height / 2;
-
       event.dataTransfer.setDragImage(card, offsetX, offsetY);
     }
   };
-  // 드래그 대상 카드
+
   const handleDragOver = (
     event: React.DragEvent<HTMLDivElement>,
     id: number,
@@ -513,7 +561,7 @@ export default function Schedule() {
 
     setDragOverId(draggingIdRef.current === id ? null : id);
   };
-  // 드롭: 순서와 시간 변경
+
   const handleDrop = (
     event: React.DragEvent<HTMLDivElement>,
     targetId: number,
@@ -529,7 +577,6 @@ export default function Schedule() {
 
     updateStops((previous) => {
       const fromIndex = previous.findIndex((item) => item.id === sourceId);
-
       const toIndex = previous.findIndex((item) => item.id === targetId);
 
       if (fromIndex < 0 || toIndex < 0) {
@@ -541,13 +588,18 @@ export default function Schedule() {
 
     resetDrag();
   };
-  // 카드 메뉴
+
+  // ===========================
+  // 일정 수정 및 삭제
+  // ===========================
+
   const toggleMenu = (id: number) => {
     setMenuId((previous) => (previous === id ? null : id));
   };
-  // 일정 수정 저장
+
   const hasStopTitle = (stop: Stop | null): stop is Stop => {
     if (stop?.title.trim()) return true;
+
     alert("장소 이름을 입력해주세요.");
     return false;
   };
@@ -564,7 +616,7 @@ export default function Schedule() {
     setEditingStop(null);
     setMenuId(null);
   };
-  // 일정 삭제
+
   const deleteStop = (id: number) => {
     if (!window.confirm("이 일정을 삭제하시겠습니까?")) {
       return;
@@ -574,7 +626,7 @@ export default function Schedule() {
 
     setMenuId(null);
   };
-  // 새 장소 추가
+
   const addStop = () => {
     if (!hasStopTitle(newStop)) return;
 
@@ -592,7 +644,34 @@ export default function Schedule() {
     setNewStop(createEmptyStop());
     setShowAddForm(false);
   };
+
+  // ===========================
+  // 카카오 지도 장소 추가
+  // ===========================
+
+  const addPlaceFromKakao = (place: KakaoPlace) => {
+    updateStops((previous) => [
+      ...previous,
+      {
+        id: Date.now(),
+        title: place.name,
+        time: "12:00",
+        description: "카카오 지도에서 추가한 장소",
+        address: place.address,
+        category: "관광지",
+        image: IMG.nature,
+        x: 50,
+        y: 50,
+        lat: place.lat,
+        lng: place.lng,
+      },
+    ]);
+  };
+
+  // ===========================
   // 날짜 추가
+  // ===========================
+
   const addDay = () => {
     const lastDay = days[days.length - 1];
     const nextId = Math.max(...days.map((d) => d.id)) + 1;
@@ -605,10 +684,9 @@ export default function Schedule() {
 
     const nextDay: Day = {
       id: nextId,
-      date: `${String(date.getMonth() + 1).padStart(
-        2,
-        "0",
-      )}.${String(date.getDate()).padStart(2, "0")}`,
+      date: `${String(date.getMonth() + 1).padStart(2, "0")}.${String(
+        date.getDate(),
+      ).padStart(2, "0")}`,
       weekday: weekdays[date.getDay()],
       image: IMG.beach,
     };
@@ -626,41 +704,38 @@ export default function Schedule() {
     setShowSaveStatus(false);
     resetDrag();
   };
-  // 공유 링크 복사
+
+  // ===========================
+  // 화면
+  // ===========================
 
   return (
     <S.Page>
-      {/* ===================================
-          왼쪽 사이드바
-      =================================== */}
       <S.SidebarArea>
         <MainSidebar />
       </S.SidebarArea>
 
-      {/* 모바일 상단 헤더 */}
       <S.MobileHeaderArea>
         <MobileHeader />
       </S.MobileHeaderArea>
 
-      {/* ===================================
-          오른쪽 메인 콘텐츠
-      =================================== */}
       <S.MainContent>
         <S.Container>
-          {/* ===================================
-              여행 정보 헤더
-          =================================== */}
+          {/* 여행 헤더 */}
           <S.Header>
             <S.BreadcrumbWrapper>
               <Breadcrumb
                 items={[
-                  { label: "내 여행", to: "/", Icon: House },
+                  {
+                    label: "내 여행",
+                    to: "/",
+                    Icon: House,
+                  },
                   { label: "여행 상세" },
                 ]}
               />
             </S.BreadcrumbWrapper>
 
-            {/* 저장하기 클릭 후에만 표시 */}
             {showSaveStatus && (
               <S.SaveStatus>
                 <Cloud size={17} />
@@ -701,9 +776,7 @@ export default function Schedule() {
                 </S.MemberList>
               </S.TripDescription>
 
-              {/* 우측 상단 버튼 */}
               <S.HeaderActions>
-                {/* 편집 모드일 때만 저장하기 표시 */}
                 {isEditMode && (
                   <S.PrimaryButton type="button" onClick={handleSave}>
                     <Check size={16} />
@@ -714,9 +787,7 @@ export default function Schedule() {
                 <S.SecondaryButton
                   type="button"
                   aria-label="공유"
-                  onClick={() => {
-                    setShowShareModal(true);
-                  }}
+                  onClick={() => setShowShareModal(true)}
                 >
                   <Share2 size={18} />
                   <S.ShareLabel>공유</S.ShareLabel>
@@ -728,7 +799,6 @@ export default function Schedule() {
               </S.HeaderActions>
             </S.TripInfo>
 
-            {/* 메인 탭 */}
             <S.MainTabs
               $activeIndex={MAIN_TABS.findIndex((tab) => tab.key === activeTab)}
             >
@@ -750,9 +820,7 @@ export default function Schedule() {
             </S.MainTabs>
           </S.Header>
 
-          {/* ===================================
-              날짜 선택
-          =================================== */}
+          {/* 날짜 선택 */}
           {(activeTab === "schedule" || activeTab === "map") && (
             <S.DayTabs>
               {days.map((day) => (
@@ -785,12 +853,10 @@ export default function Schedule() {
             </S.DayTabs>
           )}
 
-          {/* ===================================
-              일정 + 지도
-          =================================== */}
+          {/* 일정 + 지도 */}
           {activeTab === "schedule" || activeTab === "map" ? (
             <S.ContentGrid>
-              {/* 왼쪽 일정 패널 */}
+              {/* 일정 패널 */}
               <S.SchedulePanel data-tablet-hidden={activeTab === "map"}>
                 <S.ScheduleHeading>
                   <S.ScheduleHeadingLeft>
@@ -809,65 +875,61 @@ export default function Schedule() {
                     </S.Weather>
                   </S.ScheduleHeadingLeft>
 
-                  {/* 편집하기 버튼 */}
+                  <S.DesktopEditAction>
+                    {isEditMode ? (
+                      <S.CancelEditButton
+                        type="button"
+                        onClick={handleCancelEdit}
+                      >
+                        취소
+                      </S.CancelEditButton>
+                    ) : (
+                      <S.EditModeButton
+                        type="button"
+                        $active={false}
+                        onClick={toggleEditMode}
+                      >
+                        <Pencil size={15} />
+                        편집하기
+                      </S.EditModeButton>
+                    )}
+                  </S.DesktopEditAction>
 
-                  <>
-                    <S.DesktopEditAction>
-                      {isEditMode ? (
+                  <S.MobileEditAction>
+                    {isEditMode ? (
+                      <S.EditActionGroup>
                         <S.CancelEditButton
                           type="button"
                           onClick={handleCancelEdit}
                         >
                           취소
                         </S.CancelEditButton>
-                      ) : (
-                        <S.EditModeButton
-                          type="button"
-                          $active={false}
-                          onClick={toggleEditMode}
-                        >
-                          <Pencil size={15} />
-                          편집하기
-                        </S.EditModeButton>
-                      )}
-                    </S.DesktopEditAction>
 
-                    <S.MobileEditAction>
-                      {isEditMode ? (
-                        <S.EditActionGroup>
-                          <S.CancelEditButton
-                            type="button"
-                            onClick={handleCancelEdit}
-                          >
-                            취소
-                          </S.CancelEditButton>
-                          <S.SaveEditButton type="button" onClick={handleSave}>
-                            <Check size={14} />
-                            저장하기
-                          </S.SaveEditButton>
-                        </S.EditActionGroup>
-                      ) : (
-                        <S.EditModeButton
-                          type="button"
-                          $active={false}
-                          onClick={toggleEditMode}
-                        >
-                          <Pencil size={15} />
-                          편집하기
-                        </S.EditModeButton>
-                      )}
-                    </S.MobileEditAction>
-                  </>
+                        <S.SaveEditButton type="button" onClick={handleSave}>
+                          <Check size={14} />
+                          저장하기
+                        </S.SaveEditButton>
+                      </S.EditActionGroup>
+                    ) : (
+                      <S.EditModeButton
+                        type="button"
+                        $active={false}
+                        onClick={toggleEditMode}
+                      >
+                        <Pencil size={15} />
+                        편집하기
+                      </S.EditModeButton>
+                    )}
+                  </S.MobileEditAction>
                 </S.ScheduleHeading>
 
-                {/* 편집 모드 안내 */}
                 {isEditMode && stops.length > 1 && (
                   <S.EditHint>
                     왼쪽의 점 6개를 잡고 드래그하여 일정 순서를 변경하세요.
                   </S.EditHint>
                 )}
 
-                {/* 일정 카드 목록 */}
+                {/* 일정 카드 */}
                 <S.StopList>
                   {stops.map((stop, index) => (
                     <ScheduleStopCard
@@ -880,7 +942,9 @@ export default function Schedule() {
                       dragOverId={dragOverId}
                       onMenuToggle={toggleMenu}
                       onEdit={(item) => {
-                        setEditingStop({ ...item });
+                        setEditingStop({
+                          ...item,
+                        });
                         setMenuId(null);
                       }}
                       onDelete={deleteStop}
@@ -892,7 +956,7 @@ export default function Schedule() {
                   ))}
                 </S.StopList>
 
-                {/* 장소 추가 버튼 */}
+                {/* 장소 추가 */}
                 {!showAddForm && (
                   <S.AddPlaceButton
                     type="button"
@@ -910,7 +974,6 @@ export default function Schedule() {
                   </S.AddPlaceButton>
                 )}
 
-                {/* 새 장소 추가 폼 */}
                 {showAddForm && (
                   <S.AddForm>
                     <S.AddFormHeading>
@@ -991,72 +1054,23 @@ export default function Schedule() {
                 )}
               </S.SchedulePanel>
 
-              {/* ===================================
-                  오른쪽 지도
-              =================================== */}
+              {/* =======================
+                  실제 카카오 지도
+              ======================= */}
               <S.MapPanel data-tablet-hidden={activeTab === "schedule"}>
                 <S.MapCanvas>
-                  <S.MapContent
-                    style={
-                      {
-                        "--map-zoom": mapZoom,
-                      } as React.CSSProperties
-                    }
-                  >
-                    <S.IslandShape />
-
-                    <S.MapLabel $x={10} $y={46}>
-                      제주시
-                    </S.MapLabel>
-
-                    <S.MapLabel $x={43} $y={57}>
-                      한라산
-                    </S.MapLabel>
-
-                    <S.MapLabel $x={55} $y={83}>
-                      서귀포시
-                    </S.MapLabel>
-
-                    {showRoute && stops.length > 1 && (
-                      <S.RouteSvg
-                        viewBox="0 0 100 100"
-                        preserveAspectRatio="none"
-                      >
-                        <polyline
-                          points={stops
-                            .map((stop) => `${stop.x},${stop.y}`)
-                            .join(" ")}
-                          fill="none"
-                          stroke="#004F53"
-                          strokeWidth="0.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </S.RouteSvg>
-                    )}
-
-                    {visibleMapStops.map((stop) => {
-                      const number =
-                        stops.findIndex((item) => item.id === stop.id) + 1;
-
-                      return (
-                        <S.MapMarker key={stop.id} $x={stop.x} $y={stop.y}>
-                          <S.MarkerNumber>{number}</S.MarkerNumber>
-
-                          <S.MarkerCard>
-                            <img src={stop.image} alt="" />
-                            <strong>{stop.title}</strong>
-                            <span>{stop.time}</span>
-                          </S.MarkerCard>
-                        </S.MapMarker>
-                      );
-                    })}
-                  </S.MapContent>
+                  <KakaoTravelMap
+                    region={selectedTrip?.region ?? "제주"}
+                    stops={visibleMapStops}
+                    routeStops={stops}
+                    showRoute={showRoute}
+                    zoom={mapZoom}
+                    onAddPlace={addPlaceFromKakao}
+                  />
                 </S.MapCanvas>
 
-                {/* 지도 카테고리 및 경로 버튼 */}
+                {/* 카테고리 필터 */}
                 <S.MapToolbar>
-                  {/* PC / 태블릿 기존 카테고리 버튼 */}
                   <S.MapFilters>
                     {FILTERS.map((filter) => {
                       const Icon = filter.icon;
@@ -1075,7 +1089,7 @@ export default function Schedule() {
                     })}
                   </S.MapFilters>
 
-                  {/* 모바일 전용 카테고리 드롭다운 */}
+                  {/* 모바일 필터 */}
                   <S.MobileFilterWrapper>
                     <S.MobileFilterTrigger
                       type="button"
@@ -1120,6 +1134,7 @@ export default function Schedule() {
                               ) : (
                                 <Icon size={16} />
                               )}
+
                               <span>
                                 {filter.key === "전체"
                                   ? "전체 카테고리"
@@ -1132,7 +1147,6 @@ export default function Schedule() {
                     )}
                   </S.MobileFilterWrapper>
 
-                  {/* 경로 표시 / 숨기기 */}
                   <S.RouteToggle
                     type="button"
                     onClick={() => setShowRoute((previous) => !previous)}
@@ -1142,7 +1156,7 @@ export default function Schedule() {
                   </S.RouteToggle>
                 </S.MapToolbar>
 
-                {/* 지도 확대 / 축소 */}
+                {/* 지도 줌 */}
                 <S.MapZoomControls>
                   <button
                     type="button"
@@ -1185,41 +1199,29 @@ export default function Schedule() {
             )
           ) : (
             <S.EmptyPanel>
-              {activeTab === "budget" ? (
-                <Wallet size={38} />
-              ) : (
-                <ClipboardCheck size={38} />
-              )}
-
-              <h2>
-                {activeTab === "budget" ? "여행 예산" : "여행 체크리스트"}
-              </h2>
-
+              <Wallet size={38} />
+              <h2>여행 예산</h2>
               <p>해당 화면은 추후 연결 예정입니다.</p>
             </S.EmptyPanel>
           )}
         </S.Container>
       </S.MainContent>
 
-      {/* 모바일 저장 완료 토스트 */}
+      {/* 저장 완료 토스트 */}
       {showSaveStatus && (
         <S.MobileSaveToast role="status" aria-live="polite">
           <S.MobileSaveToastIcon>
             <Check size={18} strokeWidth={2.5} />
           </S.MobileSaveToastIcon>
-
           <span>모든 변경사항이 저장됨</span>
         </S.MobileSaveToast>
       )}
 
-      {/* 모바일 하단 내비게이션 */}
       <S.MobileNavArea>
         <MobileNav />
       </S.MobileNavArea>
 
-      {/* ===================================
-          일정 수정 모달
-      =================================== */}
+      {/* 일정 수정 모달 */}
       {editingStop && (
         <S.EditOverlay onClick={() => setEditingStop(null)}>
           <S.EditModal
