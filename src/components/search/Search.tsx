@@ -25,6 +25,7 @@ import MainSidebar from "../MainSidebar/MainSidebar";
 import MobileHeader from "../mobileBanner/MobileHeader";
 import MobileNav from "../mobileBanner/MobileFooter";
 import Breadcrumb from "../MainSidebar/mainHeader/Breadcrumb";
+import KakaoSavedPlaceModal from "../modal/saved-place/KakaoSavedPlaceModal";
 import * as S from "./SearchStyle";
 
 import {
@@ -64,6 +65,7 @@ export default function Search() {
 
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<SavedPlace | null>(null);
+  const [mapPlace, setMapPlace] = useState<SavedPlace | null>(null);
   const [addedPlaces, setAddedPlaces] = useState<
     Record<string, AddPlaceResult>
   >({});
@@ -122,15 +124,6 @@ export default function Search() {
   const handleAddPlace = (result: AddPlaceResult) => {
     // 검색 페이지 내 추가 완료 표시용 상태. 실제 일정 저장은 앱의 데이터 계층과 별도 연결 필요.
     setAddedPlaces((previous) => ({ ...previous, [result.place.id]: result }));
-  };
-
-  const openMap = (place: SavedPlace) => {
-    const query = encodeURIComponent(`${place.name} ${place.address}`);
-    window.open(
-      `https://www.google.com/maps/search/?api=1&query=${query}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
   };
 
   useLayoutEffect(() => {
@@ -303,7 +296,7 @@ export default function Search() {
                         <S.CardActions>
                           <S.MapButton
                             type="button"
-                            onClick={() => openMap(place)}
+                            onClick={() => setMapPlace(place)}
                           >
                             <MapIcon size={17} />
                             지도 보기
@@ -350,6 +343,12 @@ export default function Search() {
       <S.MobileNavArea>
         <MobileNav />
       </S.MobileNavArea>
+      {mapPlace && (
+        <KakaoSavedPlaceModal
+          place={mapPlace}
+          onClose={() => setMapPlace(null)}
+        />
+      )}
       {selectedPlace && (
         <AddPlaceModal
           open={true}
