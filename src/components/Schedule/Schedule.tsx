@@ -30,7 +30,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { trips } from "../../data/trips";
 
 import MainSidebar from "../MainSidebar/MainSidebar";
@@ -379,6 +379,14 @@ function ScheduleStopCard({
 
 export default function Schedule() {
   const { tripId } = useParams<{ tripId: string }>();
+
+  const navigate = useNavigate();
+
+  const handleTimetable = () => {
+    if (!tripId) return;
+
+    navigate(`/trips/${tripId}`);
+  };
 
   const selectedTrip = trips.find((trip) => trip.id === tripId);
 
@@ -793,9 +801,10 @@ export default function Schedule() {
                   <S.ShareLabel>공유</S.ShareLabel>
                 </S.SecondaryButton>
 
-                <S.SecondaryButton type="button" aria-label="더보기">
-                  <MoreHorizontal size={19} />
-                </S.SecondaryButton>
+                <S.ScheduleButton type="button" onClick={handleTimetable}>
+                  <CalendarDays size={17} />
+                  <span>시간표 보기</span>
+                </S.ScheduleButton>
               </S.HeaderActions>
             </S.TripInfo>
 

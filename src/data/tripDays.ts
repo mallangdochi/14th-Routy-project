@@ -21,6 +21,66 @@ export function getStayMinutes(place: TripDayPlace): number {
 }
 
 export const mockTripDays: TripDay[] = [
+  // ─────────────────────────────
+  // 여행 ID 1 - 제주 여행
+  // ─────────────────────────────
+  {
+    id: "trip-1-day-1",
+    tripId: "1",
+    day: 1,
+    date: "2026-10-29",
+    places: [
+      {
+        id: "trip-1-day-1-place-1",
+        name: "제주국제공항",
+        startTime: "09:00",
+        stayMinutes: 60,
+      },
+      {
+        id: "trip-1-day-1-place-2",
+        name: "함덕해수욕장",
+        startTime: "10:30",
+        stayMinutes: 120,
+      },
+      {
+        id: "trip-1-day-1-place-3",
+        name: "제주 흑돼지 맛집",
+        startTime: "13:00",
+        stayMinutes: 90,
+      },
+      {
+        id: "trip-1-day-1-place-4",
+        name: "카페 멜로드",
+        startTime: "15:00",
+        stayMinutes: 90,
+      },
+      {
+        id: "trip-1-day-1-place-5",
+        name: "성산일출봉",
+        startTime: "17:30",
+        stayMinutes: 90,
+      },
+    ],
+  },
+
+  {
+    id: "trip-1-day-2",
+    tripId: "1",
+    day: 2,
+    date: "2026-10-30",
+    places: [],
+  },
+  {
+    id: "trip-1-day-3",
+    tripId: "1",
+    day: 3,
+    date: "2026-10-31",
+    places: [],
+  },
+
+  // ─────────────────────────────
+  // 기존 여행 ID 2 데이터
+  // ─────────────────────────────
   {
     id: "trip-2-day-1",
     tripId: "2",

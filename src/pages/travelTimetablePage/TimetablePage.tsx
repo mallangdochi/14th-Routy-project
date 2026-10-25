@@ -109,8 +109,38 @@ export default function TripDaysPage() {
   });
 
   const days = mockTripDays
-    .filter((day) => day.tripId === (tripId ?? "2"))
+    .filter((day) => day.tripId === (tripId ?? "1"))
     .sort((a, b) => a.date.localeCompare(b.date) || a.day - b.day);
+
+  // 시간표는 최소 5일 칸 유지
+  const timetableDays = Array.from(
+    { length: Math.max(5, days.length) },
+    (_, index) => {
+      const existingDay = days[index];
+
+      if (existingDay) return existingDay;
+
+      const lastDate = days[days.length - 1]?.date;
+
+      const nextDate = lastDate ? parseDate(lastDate) : new Date();
+
+      nextDate.setDate(nextDate.getDate() + index - days.length + 1);
+
+      const date = [
+        nextDate.getFullYear(),
+        String(nextDate.getMonth() + 1).padStart(2, "0"),
+        String(nextDate.getDate()).padStart(2, "0"),
+      ].join("-");
+
+      return {
+        id: `empty-day-${index + 1}`,
+        tripId: tripId ?? "1",
+        day: index + 1,
+        date,
+        places: [],
+      };
+    },
+  );
 
   const scheduleTimes = days.flatMap((day) =>
     day.places.flatMap((place) => {
@@ -141,7 +171,7 @@ export default function TripDaysPage() {
     (_, index) => startHour + index,
   );
 
-  const dayDatesKey = days.map((day) => day.date).join(",");
+  const dayDatesKey = timetableDays.map((day) => day.date).join(",");
   const today = getSeoulToday();
 
   const placeCount = days.reduce((total, day) => total + day.places.length, 0);
@@ -309,7 +339,8 @@ export default function TripDaysPage() {
     const previousTarget = slideTargetRef.current ?? element.scrollLeft;
 
     const canNext =
-      previousTarget + visibleDays * dayWidth < days.length * dayWidth - 2;
+      previousTarget + visibleDays * dayWidth <
+      timetableDays.length * dayWidth - 2;
 
     if (direction === 1 && !canNext) return;
     if (direction === -1 && previousTarget <= 2) return;
@@ -597,7 +628,7 @@ export default function TripDaysPage() {
                       {
                         "--day-count": days.length,
                         "--timeline-hours": endHour - startHour,
-                        gridTemplateColumns: `var(--time-width) repeat(${days.length}, var(--day-column-width, 180px))`,
+                        gridTemplateColumns: `var(--time-width) repeat(${timetableDays.length}, var(--day-column-width, 180px))`,
                       } as CSSProperties
                     }
                   >
@@ -605,10 +636,12 @@ export default function TripDaysPage() {
                       <Clock3 aria-label="시간" />
                     </div>
 
-                    {days.map((day) => (
+                    {timetableDays.map((day, index) => (
                       <div className="day-heading" key={day.id}>
                         <strong>{formatDate(day.date)}</strong>
-                        <span>DAY {day.day}</span>
+                        <span>
+                          {index < days.length ? `DAY ${day.day}` : "일정 없음"}
+                        </span>
                       </div>
                     ))}
 
@@ -625,7 +658,7 @@ export default function TripDaysPage() {
                       ))}
                     </div>
 
-                    {days.map((day) => {
+                    {timetableDays.map((day) => {
                       const otherPlaces = day.places.filter(
                         (place) => !isTimelineTime(place.startTime),
                       );

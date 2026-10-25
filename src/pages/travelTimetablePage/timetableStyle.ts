@@ -10,131 +10,134 @@ export const PlaceCardStyle = styled("article", {
     prop !== "startOffsetMinutes" && prop !== "stayMinutes",
 })<PlaceCardStyleProps>(({ startOffsetMinutes, stayMinutes }) => {
   const duration =
-    typeof stayMinutes === "number" && Number.isFinite(stayMinutes) && stayMinutes > 0
-      ? stayMinutes : 60;
+    typeof stayMinutes === "number" &&
+    Number.isFinite(stayMinutes) &&
+    stayMinutes > 0
+      ? stayMinutes
+      : 60;
   return {
-  position: "absolute",
-  top: `calc(${startOffsetMinutes / 60} * var(--hour-height))`,
-  height: `calc(${duration / 60} * var(--hour-height))`,
-  boxSizing: "border-box",
-  overflow: "hidden",
-  left: "8px",
-  right: "8px",
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-  minWidth: 0,
-  minHeight: 0,
-  padding: "6px 12px 6px 15px",
-  borderRadius: "9px",
-  backgroundColor: "var(--card-background)",
-
-  "& .place-content": {
+    position: "absolute",
+    top: `calc(${startOffsetMinutes / 60} * var(--hour-height))`,
+    height: `calc(${duration / 60} * var(--hour-height))`,
+    boxSizing: "border-box",
+    overflow: "hidden",
+    left: "8px",
+    right: "8px",
     display: "flex",
-    flex: "1 1 0",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "flex-start",
-    minWidth: 0,
-    gap: 3,
-
-    "& h2": {
-      width: "100%",
-      minWidth: 0,
-      margin: 0,
-      overflow: "hidden",
-      whiteSpace: "nowrap",
-      textOverflow: "ellipsis",
-      color: "#304544",
-      fontSize: 17,
-      fontWeight: 700,
-      lineHeight: 1.5,
-    },
-  },
-
-  "& .place-time": {
-    minWidth: 0,
-    maxWidth: "100%",
-    margin: 0,
-    "& > span": {
-      minWidth: 0,
-      overflow: "hidden",
-      whiteSpace: "nowrap",
-      textOverflow: "ellipsis",
-    },
-    display: "flex",
-    justifyContent: "flex-start",
     alignItems: "center",
-    gap: "5px",
-
-    color: "#65766F",
-    lineHeight: 1.4,
-    fontVariantNumeric: "tabular-nums",
-    whiteSpace: "nowrap",
-
-    "& svg": {
-      width: "16px",
-      height: "16px",
-      flexShrink: 0,
-    },
-  },
-
-  "&.palette-0": {
-    "--card-background": "#E6F7EE",
-    "--card-accent": "#179565",
-  },
-
-  "&.palette-1": {
-    "--card-background": "#E7F0FF",
-    "--card-accent": "#4B80CC",
-  },
-
-  "&.palette-2": {
-    "--card-background": "#FFF0F3",
-    "--card-accent": "#DA6C8B",
-  },
-
-  "&.palette-3": {
-    "--card-background": "#FFF2E3",
-    "--card-accent": "#DA9145",
-  },
-
-  "&.palette-4": {
-    "--card-background": "#F0EBFF",
-    "--card-accent": "#8B70CE",
-  },
-
-  "&.palette-5": {
-    "--card-background": "#FFF8DC",
-    "--card-accent": "#B99A36",
-  },
-
-  "@media (max-width: 767px)": {
-    left: "4px",
-    right: "4px",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    gap: "6px",
-    padding: "6px 12px",
+    gap: "10px",
+    minWidth: 0,
+    minHeight: 0,
+    padding: "6px 12px 6px 15px",
+    borderRadius: "9px",
+    backgroundColor: "var(--card-background)",
 
     "& .place-content": {
-      flex: "0 1 auto",
-      width: "100%",
+      display: "flex",
+      flex: "1 1 0",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "flex-start",
       minWidth: 0,
-      gap: 0,
+      gap: 3,
 
       "& h2": {
-        fontSize: "15px",
+        width: "100%",
+        minWidth: 0,
+        margin: 0,
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+        textOverflow: "ellipsis",
+        color: "#304544",
+        fontSize: 17,
+        fontWeight: 700,
+        lineHeight: 1.5,
       },
     },
 
     "& .place-time": {
-      gap: "4px",
-      marginTop: "4px",
-      fontSize: "14px",
+      minWidth: 0,
+      maxWidth: "100%",
+      margin: 0,
+      "& > span": {
+        minWidth: 0,
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+        textOverflow: "ellipsis",
+      },
+      display: "flex",
+      justifyContent: "flex-start",
+      alignItems: "center",
+      gap: "5px",
+
+      color: "#65766F",
+      lineHeight: 1.4,
+      fontVariantNumeric: "tabular-nums",
+      whiteSpace: "nowrap",
+
+      "& svg": {
+        width: "16px",
+        height: "16px",
+        flexShrink: 0,
+      },
     },
-  },
+
+    "&.palette-0": {
+      "--card-background": "#E6F7EE",
+      "--card-accent": "#179565",
+    },
+
+    "&.palette-1": {
+      "--card-background": "#E7F0FF",
+      "--card-accent": "#4B80CC",
+    },
+
+    "&.palette-2": {
+      "--card-background": "#FFF0F3",
+      "--card-accent": "#DA6C8B",
+    },
+
+    "&.palette-3": {
+      "--card-background": "#FFF2E3",
+      "--card-accent": "#DA9145",
+    },
+
+    "&.palette-4": {
+      "--card-background": "#F0EBFF",
+      "--card-accent": "#8B70CE",
+    },
+
+    "&.palette-5": {
+      "--card-background": "#FFF8DC",
+      "--card-accent": "#B99A36",
+    },
+
+    "@media (max-width: 767px)": {
+      left: "4px",
+      right: "4px",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      justifyContent: "center",
+      gap: "6px",
+      padding: "6px 12px",
+
+      "& .place-content": {
+        flex: "0 1 auto",
+        width: "100%",
+        minWidth: 0,
+        gap: 0,
+
+        "& h2": {
+          fontSize: "15px",
+        },
+      },
+
+      "& .place-time": {
+        gap: "4px",
+        marginTop: "4px",
+        fontSize: "14px",
+      },
+    },
   };
 });
 
@@ -530,14 +533,15 @@ export const TripDaysPageStyle = styled.div({
   },
 
   "& .day-column": {
-    minWidth: 0,
-    borderLeft: "1px solid #E5EBE7",
+    minHeight: "calc(var(--timeline-hours) * var(--hour-height))",
+    borderRight: "1px solid #E4EAEE",
+    backgroundColor: "#FFFFFF",
   },
 
   "& .day-timeline": {
     position: "relative",
-    height: "calc(var(--timeline-hours, 24) * var(--hour-height))",
-    backgroundImage: "linear-gradient(to bottom, #EAF0EB 1px, transparent 1px)",
+    minHeight: "calc(var(--timeline-hours) * var(--hour-height))",
+    backgroundImage: "linear-gradient(to bottom, #E4EAEE 1px, transparent 1px)",
     backgroundSize: "100% var(--hour-height)",
   },
 
