@@ -1,23 +1,18 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useState, type ReactNode, type FormEvent } from "react";
 
 import {
   ArrowLeft,
   CheckCircle2,
   CircleAlert,
   Eye,
-  EyeOff,
+  EyeClosed,
 } from "lucide-react";
 
-import routyLogo from "../../assets/루티2.svg";
+import routyLogo from "../../assets/루티1.svg";
 import DatePicker from "../pickers/DatePicker";
 
 import {
+  SignupForm,
   LeftContent,
   RightContent,
   Header,
@@ -41,6 +36,7 @@ import {
   Message,
   PageFooter,
 } from "./RoutySignupStyle";
+import { SignupContext, useSignup } from "./SignupContext";
 
 export interface SignupData {
   firstName: string;
@@ -285,7 +281,7 @@ function useSignupState({
 
     setFormMessage("");
 
-    // DatePicker는 기본 form 소속 input이 아니므로 생년월일을 직접 검증합니다.
+    // 커스텀 날짜 선택기의 값은 상태를 기준으로 검증합니다.
     if (!form.birth) {
       setFormMessage("생년월일을 선택해주세요.");
       return;
@@ -324,7 +320,15 @@ function useSignupState({
     setBusy(true);
 
     try {
-      await onSignup(form);
+      const data: SignupData = {
+        ...form,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        phone: form.phone.replace(/\D/g, ""),
+        email: form.email.trim(),
+        username: form.username.trim(),
+      };
+      await onSignup(data);
       onCompleted();
     } catch {
       setFormMessage("회원가입에 실패했습니다.");
@@ -361,28 +365,34 @@ function useSignupState({
     submitSignup,
   };
 }
-
-type SignupState = ReturnType<typeof useSignupState>;
-
-const SignupContext = createContext<SignupState | null>(null);
+export type SignupState = ReturnType<typeof useSignupState>;
 
 // 왼쪽과 오른쪽 페이지가 공유할 상태
+// export function RoutySignupProvider({ children, ...props }: ProviderProps) {
+//   const value = useSignupState(props);
+
+//   return (
+//     <SignupContext.Provider value={value}>
+//       <SignupForm id={FORM_ID} onSubmit={value.submitSignup}>
+//         <input type="hidden" name="birth" value={value.form.birth} />
+//         {children}
+//       </SignupForm>
+//     </SignupContext.Provider>
+//   );
+// }
+
 export function RoutySignupProvider({ children, ...props }: ProviderProps) {
   const value = useSignupState(props);
 
   return (
-    <SignupContext.Provider value={value}>{children}</SignupContext.Provider>
+    <SignupContext.Provider value={value}>
+      <SignupForm id={FORM_ID} onSubmit={value.submitSignup} hidden>
+        <input type="hidden" name="birth" value={value.form.birth} />
+      </SignupForm>
+
+      {children}
+    </SignupContext.Provider>
   );
-}
-
-export function useSignup() {
-  const context = useContext(SignupContext);
-
-  if (!context) {
-    throw new Error("RoutySignupProvider가 필요합니다.");
-  }
-
-  return context;
 }
 
 interface RoutySignupProps {
@@ -397,6 +407,8 @@ export default function RoutySignup({
   onBack,
 }: RoutySignupProps) {
   const s = useSignup();
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [confirmTouched, setConfirmTouched] = useState(false);
 
   const disabled = !active || s.busy;
 
@@ -422,6 +434,7 @@ export default function RoutySignup({
 
               <Input
                 id="signup-first"
+                name="firstName"
                 form={FORM_ID}
                 type="text"
                 placeholder="이름을 입력해주세요."
@@ -440,6 +453,7 @@ export default function RoutySignup({
 
               <Input
                 id="signup-last"
+                name="lastName"
                 form={FORM_ID}
                 type="text"
                 placeholder="성을 입력해주세요."
@@ -459,8 +473,8 @@ export default function RoutySignup({
             </FieldLabel>
 
             <DatePicker
+              modal
               label=""
-              name="birth"
               value={s.form.birth}
               onChange={(value) => s.updateField("birth", value)}
               min="1900-01-01"
@@ -479,6 +493,7 @@ export default function RoutySignup({
             <InputGroup>
               <Input
                 id="signup-phone"
+                name="phone"
                 form={FORM_ID}
                 type="tel"
                 placeholder="휴대폰 번호를 입력해주세요."
@@ -500,10 +515,12 @@ export default function RoutySignup({
 
             <InputGroup>
               <Input
-                form={FORM_ID}
                 type="text"
                 inputMode="numeric"
                 placeholder="인증번호를 입력해주세요."
+                name="verificationCode"
+                form={FORM_ID}
+                autoComplete="one-time-code"
                 aria-label="휴대폰 인증번호"
                 value={s.verificationCode}
                 onChange={(e) => s.setVerificationCode(e.target.value)}
@@ -535,7 +552,9 @@ export default function RoutySignup({
 
             <Input
               id="signup-email"
+              name="email"
               form={FORM_ID}
+              // form={FORM_ID}
               type="email"
               placeholder="이메일을 입력해주세요."
               autoComplete="email"
@@ -566,7 +585,7 @@ export default function RoutySignup({
   // ==================================
 
   return (
-    <RightContent id={FORM_ID} onSubmit={s.submitSignup}>
+    <RightContent>
       <Fields>
         <Field>
           <FieldLabel htmlFor="signup-username">
@@ -577,6 +596,8 @@ export default function RoutySignup({
           <InputGroup>
             <Input
               id="signup-username"
+              name="username"
+              form={FORM_ID}
               type="text"
               placeholder="아이디를 입력해주세요."
               autoComplete="username"
@@ -613,13 +634,17 @@ export default function RoutySignup({
           <PasswordInput>
             <Input
               id="signup-password"
+              name="password"
+              form={FORM_ID}
               type={s.showPassword ? "text" : "password"}
               placeholder="8자 이상, 영문/숫자/특수문자"
               autoComplete="new-password"
               value={s.form.password}
               onChange={(e) => s.updateField("password", e.target.value)}
+              onBlur={() => setPasswordTouched(true)}
               minLength={8}
               disabled={disabled}
+              aria-invalid={passwordTouched && !s.passwordValid}
               required
             />
 
@@ -627,16 +652,20 @@ export default function RoutySignup({
               type="button"
               onClick={() => s.setShowPassword(!s.showPassword)}
               disabled={disabled}
-              aria-label="비밀번호 보기"
+              aria-label={s.showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
             >
-              {s.showPassword ? <EyeOff /> : <Eye />}
+              {s.showPassword ? <Eye size={20} /> : <EyeClosed size={20} />}
             </EyeButton>
           </PasswordInput>
 
-          <StatusText data-valid={s.passwordValid}>
-            {s.passwordValid ? <CheckCircle2 /> : <CircleAlert />}
-            영문, 숫자, 특수문자 포함 8자 이상
-          </StatusText>
+          {passwordTouched && !s.passwordValid && (
+            <StatusText data-valid={false} role="alert">
+              <CircleAlert />
+              {s.form.password.length === 0
+                ? "비밀번호를 입력해주세요."
+                : "영문, 숫자, 특수문자를 포함해 8자 이상 입력해주세요."}
+            </StatusText>
+          )}
         </Field>
 
         <Field>
@@ -648,12 +677,16 @@ export default function RoutySignup({
           <PasswordInput>
             <Input
               id="signup-confirm"
+              name="confirmPassword"
+              form={FORM_ID}
               type={s.showConfirm ? "text" : "password"}
               placeholder="비밀번호를 다시 입력해주세요."
               autoComplete="new-password"
               value={s.confirmPassword}
               onChange={(e) => s.setConfirmPassword(e.target.value)}
+              onBlur={() => setConfirmTouched(true)}
               disabled={disabled}
+              aria-invalid={confirmTouched && !s.passwordMatched}
               required
             />
 
@@ -661,18 +694,23 @@ export default function RoutySignup({
               type="button"
               onClick={() => s.setShowConfirm(!s.showConfirm)}
               disabled={disabled}
-              aria-label="비밀번호 확인 보기"
+              aria-label={
+                s.showConfirm ? "비밀번호 확인 숨기기" : "비밀번호 확인 보기"
+              }
+              aria-pressed={s.showConfirm}
             >
-              {s.showConfirm ? <EyeOff /> : <Eye />}
+              {s.showConfirm ? <Eye size={20} /> : <EyeClosed size={20} />}
             </EyeButton>
           </PasswordInput>
 
-          <StatusText data-valid={s.passwordMatched}>
-            {s.passwordMatched ? <CheckCircle2 /> : <CircleAlert />}
-            {s.passwordMatched
-              ? "비밀번호가 일치합니다."
-              : "비밀번호 일치 여부를 확인해주세요."}
-          </StatusText>
+          {confirmTouched && !s.passwordMatched && (
+            <StatusText data-valid={false} role="alert">
+              <CircleAlert />
+              {s.confirmPassword.length === 0
+                ? "비밀번호를 다시 입력해주세요."
+                : "비밀번호가 일치하지 않습니다."}
+            </StatusText>
+          )}
         </Field>
 
         <TermsSection>
@@ -689,6 +727,8 @@ export default function RoutySignup({
           <CheckRow>
             <input
               type="checkbox"
+              name="agreeTerms"
+              form={FORM_ID}
               checked={s.form.agreeTerms}
               onChange={(e) => s.updateField("agreeTerms", e.target.checked)}
               disabled={disabled}
@@ -700,6 +740,8 @@ export default function RoutySignup({
           <CheckRow>
             <input
               type="checkbox"
+              name="agreePrivacy"
+              form={FORM_ID}
               checked={s.form.agreePrivacy}
               onChange={(e) => s.updateField("agreePrivacy", e.target.checked)}
               disabled={disabled}
@@ -711,6 +753,8 @@ export default function RoutySignup({
           <CheckRow>
             <input
               type="checkbox"
+              name="agreeMarketing"
+              form={FORM_ID}
               checked={s.form.agreeMarketing}
               onChange={(e) =>
                 s.updateField("agreeMarketing", e.target.checked)
@@ -723,6 +767,8 @@ export default function RoutySignup({
           <CheckRow>
             <input
               type="checkbox"
+              name="agreeLocation"
+              form={FORM_ID}
               checked={s.form.agreeLocation}
               onChange={(e) => s.updateField("agreeLocation", e.target.checked)}
               disabled={disabled}
@@ -733,7 +779,7 @@ export default function RoutySignup({
 
         {s.formMessage && <Message role="alert">{s.formMessage}</Message>}
 
-        <SubmitButton type="submit" disabled={disabled}>
+        <SubmitButton type="submit" form={FORM_ID} disabled={disabled}>
           {s.busy ? "회원가입 처리 중..." : "회원가입"}
         </SubmitButton>
       </Fields>

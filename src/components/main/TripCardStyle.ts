@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
-import { dropdownAnimation } from "../../styles/animation";
 
 export const TripCardStyle = styled.article({
+  cursor: "pointer",
   "--trip-font-size": "16px",
   fontSize: "var(--trip-font-size)",
   minWidth: 0,
@@ -36,43 +36,39 @@ export const TripCardStyle = styled.article({
   },
 
   "& .trip-menu": {
-    position: "relative",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-    flexShrink: 0,
-  },
+    "& .sort-trigger": {
+      justifyContent: "center",
+      width: "30px",
+      height: "30px",
+      padding: 0,
+      borderRadius: "6px",
+      color: "#73859b",
+    },
 
-  "& .trip-menu-trigger": {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "30px",
-    height: "30px",
+    "& .sort-trigger svg": {
+      width: "20px",
+      height: "20px",
+    },
 
-    borderRadius: "6px",
+    "& .sort-dropdown": {
+      left: "auto",
+      right: 0,
+      minWidth: "140px",
+    },
 
-    color: "#73859b",
-  },
+    "& .sort-dropdown button": {
+      fontSize: "var(--trip-font-size)",
+    },
 
-  "& .trip-menu-dropdown": {
-    ...dropdownAnimation,
-    position: "absolute",
-    top: "100%",
-    right: 0,
-    zIndex: 20,
-    display: "flex",
-    flexDirection: "column",
-    minWidth: "140px",
-    padding: "8px 0",
-    border: "1px solid #e5e9ed",
-    borderRadius: "10px",
-    backgroundColor: "#fff",
-    boxShadow: "0 6px 18px rgba(0, 0, 0, 0.12)",
-  },
-  "& .trip-menu-trigger svg": {
-    width: "20px",
-    height: "20px",
+    "& .sort-dropdown button:last-child": {
+      color: "#bd453d",
+    },
+
+    "@media (hover: hover) and (pointer: fine)": {
+      "& .sort-trigger:hover": {
+        backgroundColor: "#edf3f4",
+      },
+    },
   },
 
   "& .trip-image-wrapper": {
@@ -169,32 +165,6 @@ export const TripCardStyle = styled.article({
     color: "#173e61",
   },
 
-  "& .trip-menu-dropdown button": {
-    display: "block",
-    width: "100%",
-    padding: "10px",
-
-    borderRadius: "5px",
-
-    color: "#20394e",
-    fontSize: "var(--trip-font-size)",
-    textAlign: "left",
-  },
-
-  "& .trip-menu-dropdown .delete": {
-    color: "#bd453d",
-  },
-
-  "& .trip-menu-dropdown button:hover": {
-    backgroundColor: "#eaf7f4",
-  },
-
-  "& .trip-menu-dropdown button:focus-visible": {
-    outline: "2px solid #005358",
-    outlineOffset: "-2px",
-    backgroundColor: "#eaf7f4",
-  },
-
   "&.view-list": {
     display: "flex",
     alignItems: "stretch",
@@ -251,14 +221,6 @@ export const TripCardStyle = styled.article({
   "@media (hover: hover) and (pointer: fine)": {
     "&:hover": {
       boxShadow: "0 6px 18px rgba(20,45,55,0.1)",
-    },
-
-    "& .trip-menu-trigger:hover": {
-      backgroundColor: "#edf3f4",
-    },
-
-    "& .trip-menu-dropdown button:hover": {
-      backgroundColor: "#f1f5f5",
     },
   },
 

@@ -5,8 +5,7 @@ import {
   createScheduleColorMap,
   getScheduleColorStyle,
 } from "../../utils/colorUtils";
-import { travelScheduleData } from "../../data/schedule";
-import type { TravelSchedule } from "../../data/schedule";
+import { trips, type Trip } from "../../data/trips";
 import { SchedulePageLayout, SchedulePageStyle } from "./schedulePageStyle";
 import MonthPicker from "../../components/pickers/MonthPicker";
 import {
@@ -20,12 +19,12 @@ import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 import { Link } from "react-router";
+import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
 
 type SchedulePageProps = {
-  schedules?: TravelSchedule[];
-  initialDate?: string;
+  schedules?: Trip[];
   createTripHref?: string;
-  getTripHref?: (trip: TravelSchedule) => string;
+  getTripHref?: (trip: Trip) => string;
 };
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
@@ -40,8 +39,7 @@ const shortDate = (value: string) => {
 };
 
 export default function SchedulePage({
-  schedules = travelScheduleData,
-  initialDate = "2026-10-06",
+  schedules = trips,
   createTripHref = "/trips/new",
   getTripHref = (trip) => `/trips/${encodeURIComponent(trip.id)}`,
 }: SchedulePageProps) {
@@ -50,7 +48,8 @@ export default function SchedulePage({
     () => createScheduleColorMap(schedules),
     [schedules],
   );
-  const [selected, setSelected] = useState(() => parseDate(initialDate));
+  const [selected, setSelected] = useState(() => new Date());
+
   const [month, setMonth] = useState(
     () => new Date(selected.getFullYear(), selected.getMonth(), 1),
   );
@@ -111,7 +110,7 @@ export default function SchedulePage({
     requestAnimationFrame(() => dateRefs.current.get(dateKey(next))?.focus());
   }
 
-  function tripCard(trip: TravelSchedule, showDates: boolean) {
+  function tripCard(trip: Trip, showDates: boolean) {
     return (
       <li key={trip.id}>
         <a
@@ -122,7 +121,7 @@ export default function SchedulePage({
           <MapPin aria-hidden="true" className="pin" />
 
           <div className="trip-copy">
-            <h3>{trip.name}</h3>
+            <h3>{trip.title}</h3>
             <p>{trip.items.join(" · ")}</p>
           </div>
 
@@ -153,12 +152,14 @@ export default function SchedulePage({
         className="page-content"
         aria-labelledby={titleId}
       >
-        <nav className="trips-breadcrumb" aria-label="현재 위치">
-          <House size={18} aria-hidden="true" />
-          <span>내 여행</span>
-          <ChevronRight size={18} aria-hidden="true" />
-          <span aria-current="page">일정</span>
-        </nav>
+        <div className="trips-breadcrumb" aria-label="현재 위치">
+          <Breadcrumb
+            items={[
+              { label: "내 여행", to: "/", Icon: House },
+              { label: "일정", to: "/schedule" },
+            ]}
+          />
+        </div>
 
         <header className="schedule-header">
           <div className="heading-row">
@@ -240,7 +241,7 @@ export default function SchedulePage({
                       key={key}
                       style={{ gridColumn: col + 1, gridRow: "1 / -1" }}
                       data-outside={date.getMonth() !== month.getMonth()}
-                      data-selected={key === selectedKey}
+                      data-selected={key === todayKey}
                       data-weekday={date.getDay()}
                     >
                       <button
@@ -267,14 +268,14 @@ export default function SchedulePage({
                     key={trip.id}
                     className="calendar-event"
                     href={getTripHref(trip)}
-                    aria-label={`${trip.name}, ${shortDate(trip.startDate)}부터 ${shortDate(trip.endDate)}까지, ${trip.items.join(", ")}`}
+                    aria-label={`${trip.title}, ${shortDate(trip.startDate)}부터 ${shortDate(trip.endDate)}까지, ${trip.items.join(", ")}`}
                     style={{
                       ...getScheduleColorStyle(trip.id, scheduleColorMap),
                       gridColumn: `${start + 1} / ${end + 2}`,
                       gridRow: lane + 2,
                     }}
                   >
-                    <strong>{trip.name}</strong>
+                    <strong>{trip.title}</strong>
                     <span>{trip.items.join(" · ")}</span>
                   </a>
                 ))}

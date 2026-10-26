@@ -1,8 +1,8 @@
 import { MyTripsPageStyle } from "./MyTripsPageStyle";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 
-import { useEffect, useRef, useState } from "react";
-import { Grid2X2, List, Plus, ChevronDown, House } from "lucide-react";
+import { useLayoutEffect, useRef, useState } from "react";
+import { Grid2X2, List, Plus, House } from "lucide-react";
 
 import { trips, type TripStatus } from "../../data/trips";
 import TripCard from "../../components/main/TripCard";
@@ -10,6 +10,10 @@ import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import EmptyTravel from "../../components/emptyUI/travel/EmptyTravel";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
 import { useNavigate } from "react-router";
+import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
+import Dropdown from "../../components/dropdown/Dropdown";
+import { useAuth } from "../../contexts/AuthContext";
+import Logout from "../../components/emptyUI/logout/Logout";
 
 type FilterType = "ALL" | TripStatus;
 type ViewType = "grid" | "list";
@@ -29,48 +33,54 @@ const sortOptions: { value: SortType; label: string }[] = [
 ];
 
 export default function MyTripsPage() {
+  const { user } = useAuth();
   const [filter, setFilter] = useState<FilterType>("ALL");
   const [sort, setSort] = useState<SortType>("recent");
   const [view, setView] = useState<ViewType>("grid");
-  const [isSortOpen, setIsSortOpen] = useState(false);
-  const [sortFocusIndex, setSortFocusIndex] = useState(0);
-
   const navigate = useNavigate();
 
-  const sortWrapperRef = useRef<HTMLDivElement>(null);
-  const sortTriggerRef = useRef<HTMLButtonElement>(null);
-  const sortOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const tabsRef = useRef<HTMLDivElement>(null);
 
-  const selectedSortIndex = sortOptions.findIndex(
-    (option) => option.value === sort,
-  );
+  useLayoutEffect(() => {
+    const container = tabsRef.current;
+    if (!container) return;
 
-  useEffect(() => {
-    if (!isSortOpen) return;
+    const updateIndicator = () => {
+      const selectedButton = container.querySelector<HTMLButtonElement>(
+        'button[aria-pressed="true"]',
+      );
 
-    sortOptionRefs.current[sortFocusIndex]?.focus();
-  }, [isSortOpen, sortFocusIndex]);
+      if (!selectedButton) return;
 
-  useEffect(() => {
-    if (!isSortOpen) return;
-
-    const handleOutsideClick = (event: PointerEvent) => {
-      if (!sortWrapperRef.current?.contains(event.target as Node)) {
-        setIsSortOpen(false);
-      }
+      container.style.setProperty(
+        "--indicator-left",
+        `${selectedButton.offsetLeft}px`,
+      );
+      container.style.setProperty(
+        "--indicator-top",
+        `${selectedButton.offsetTop}px`,
+      );
+      container.style.setProperty(
+        "--indicator-width",
+        `${selectedButton.offsetWidth}px`,
+      );
+      container.style.setProperty(
+        "--indicator-height",
+        `${selectedButton.offsetHeight}px`,
+      );
     };
 
-    document.addEventListener("pointerdown", handleOutsideClick);
+    updateIndicator();
 
-    return () => {
-      document.removeEventListener("pointerdown", handleOutsideClick);
-    };
-  }, [isSortOpen]);
+    const observer = new ResizeObserver(updateIndicator);
+    observer.observe(container);
 
-  const openSortMenu = () => {
-    setSortFocusIndex(Math.max(0, selectedSortIndex));
-    setIsSortOpen(true);
-  };
+    container.querySelectorAll("button").forEach((button) => {
+      observer.observe(button);
+    });
+
+    return () => observer.disconnect();
+  }, [filter, user]);
 
   const previewEmpty = false;
 
@@ -102,6 +112,7 @@ export default function MyTripsPage() {
 
   const handleOpenTrip = (id: string) => {
     console.log("여행 선택:", id);
+    navigate(`/trip-schedule/${id}`);
   };
 
   const handleEditTrip = (id: string) => {
@@ -121,209 +132,128 @@ export default function MyTripsPage() {
         <MobileHeader />
       </div>
       <main className="page-content">
-        <div className="trips-page-inner">
-          <nav className="trips-breadcrumb" aria-label="현재 위치">
-            <House size={18} aria-hidden="true" />
-            <span aria-current="page">내 여행</span>
-          </nav>
-
-          <header className="trips-header">
-            <div className="trips-header-top">
-              <h1>내 여행 일정</h1>
-
-              <button
-                type="button"
-                className="schedule-button"
-                onClick={() => navigate("/schedule")}
-              >
-                나의 일정표
-              </button>
+        {!user ? (
+          <Logout />
+        ) : (
+          <div className="trips-page-inner">
+            <div className="trips-breadcrumb" aria-label="현재 위치">
+              <Breadcrumb
+                items={[{ label: "내 여행", to: "/", Icon: House }]}
+              />
             </div>
 
-            <p>설레는 여행을 계획하고, 특별한 추억을 만들어보세요.</p>
-          </header>
-          <div className="trips-toolbar">
-            <div
-              className="trips-tabs"
-              role="group"
-              aria-label="여행 상태 필터"
-            >
-              {filters.map((item) => (
+            <header className="trips-header">
+              <div className="trips-header-top">
+                <h1>내 여행 일정</h1>
+
                 <button
-                  key={item.value}
                   type="button"
-                  className={filter === item.value ? "active" : ""}
-                  aria-pressed={filter === item.value}
-                  onClick={() => setFilter(item.value)}
+                  className="schedule-button"
+                  onClick={() => navigate("/schedule")}
                 >
-                  {item.label}
-                  <span className="tab-count">{getCount(item.value)}</span>
+                  나의 일정표
                 </button>
-              ))}
-            </div>
+              </div>
 
-            <div className="trips-controls">
+              <p>설레는 여행을 계획하고, 특별한 추억을 만들어보세요.</p>
+            </header>
+            <div className="trips-toolbar">
               <div
-                ref={sortWrapperRef}
-                className="sort-wrapper"
-                onBlur={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) {
-                    setIsSortOpen(false);
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape" && isSortOpen) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setIsSortOpen(false);
-                    sortTriggerRef.current?.focus();
-                    return;
-                  }
-
-                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                    event.preventDefault();
-
-                    if (!isSortOpen) {
-                      openSortMenu();
-                      return;
-                    }
-
-                    const direction = event.key === "ArrowDown" ? 1 : -1;
-
-                    setSortFocusIndex(
-                      (index) =>
-                        (index + direction + sortOptions.length) %
-                        sortOptions.length,
-                    );
-                  }
-
-                  if (
-                    isSortOpen &&
-                    (event.key === "Home" || event.key === "End")
-                  ) {
-                    event.preventDefault();
-                    setSortFocusIndex(
-                      event.key === "Home" ? 0 : sortOptions.length - 1,
-                    );
-                  }
-                }}
+                ref={tabsRef}
+                className="trips-tabs"
+                role="group"
+                aria-label="여행 상태 필터"
               >
-                <button
-                  ref={sortTriggerRef}
-                  type="button"
-                  className="sort-trigger"
-                  aria-label={`여행 정렬: ${sortOptions[selectedSortIndex]?.label}`}
-                  aria-haspopup="menu"
-                  aria-expanded={isSortOpen}
-                  onClick={() => {
-                    if (isSortOpen) {
-                      setIsSortOpen(false);
-                    } else {
-                      openSortMenu();
-                    }
-                  }}
-                >
-                  {sortOptions[selectedSortIndex]?.label}
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={isSortOpen ? "is-open" : ""}
-                  />
-                </button>
+                <span className="trips-tab-indicator" aria-hidden="true" />
 
-                <div
-                  className="sort-dropdown"
-                  role="menu"
-                  data-open={isSortOpen}
-                  aria-hidden={!isSortOpen}
-                  aria-label="여행 정렬"
-                >
-                  {sortOptions.map((option, index) => (
-                    <button
-                      key={option.value}
-                      ref={(element) => {
-                        sortOptionRefs.current[index] = element;
-                      }}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={sort === option.value}
-                      tabIndex={isSortOpen && sortFocusIndex === index ? 0 : -1}
-                      className={sort === option.value ? "is-selected" : ""}
-                      onFocus={() => setSortFocusIndex(index)}
-                      onClick={() => {
-                        setSort(option.value);
-                        setIsSortOpen(false);
-                        sortTriggerRef.current?.focus();
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="view-switch" role="group" aria-label="보기 방식">
-                <button
-                  type="button"
-                  className={view === "grid" ? "active" : ""}
-                  aria-label="그리드 보기"
-                  aria-pressed={view === "grid"}
-                  onClick={() => setView("grid")}
-                >
-                  <Grid2X2 aria-hidden="true" />
-                </button>
-
-                <button
-                  type="button"
-                  className={view === "list" ? "active" : ""}
-                  aria-label="리스트 보기"
-                  aria-pressed={view === "list"}
-                  onClick={() => setView("list")}
-                >
-                  <List aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <section
-            className={`trips-content-region ${filter === "ALL" ? "is-all" : ""}`}
-            aria-label="여행 목록"
-          >
-            {filteredTrips.length === 0 ? (
-              <EmptyTravel />
-            ) : (
-              <div className={`trips-grid view-${view}`}>
-                {filteredTrips.map((trip) => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    view={view}
-                    onOpen={handleOpenTrip}
-                    onEdit={handleEditTrip}
-                    onDelete={handleDeleteTrip}
-                  />
+                {filters.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className={filter === item.value ? "active" : ""}
+                    aria-pressed={filter === item.value}
+                    onClick={() => setFilter(item.value)}
+                  >
+                    {item.label}
+                    <span className="tab-count">{getCount(item.value)}</span>
+                  </button>
                 ))}
-
-                {filter === "ALL" && (
+              </div>
+              <div className="trips-controls">
+                <Dropdown
+                  label="여행 정렬"
+                  value={sort}
+                  options={sortOptions}
+                  onChange={setSort}
+                />
+                <div
+                  className="view-switch"
+                  role="group"
+                  aria-label="보기 방식"
+                >
                   <button
                     type="button"
-                    className="create-trip-card"
-                    onClick={handleCreateTrip}
+                    className={view === "grid" ? "active" : ""}
+                    aria-label="그리드 보기"
+                    aria-pressed={view === "grid"}
+                    onClick={() => setView("grid")}
                   >
-                    <span className="create-icon">
-                      <Plus aria-hidden="true" />
-                    </span>
-
-                    <strong>새 여행 만들기</strong>
-                    <span className="create-description">
-                      새로운 여행을 계획해 보세요.
-                    </span>
+                    <Grid2X2 aria-hidden="true" />
                   </button>
-                )}
+
+                  <button
+                    type="button"
+                    className={view === "list" ? "active" : ""}
+                    aria-label="리스트 보기"
+                    aria-pressed={view === "list"}
+                    onClick={() => setView("list")}
+                  >
+                    <List aria-hidden="true" />
+                  </button>
+                </div>
               </div>
-            )}
-          </section>
-        </div>
+            </div>
+
+            <section
+              className={`trips-content-region ${filter === "ALL" ? "is-all" : ""}`}
+              aria-label="여행 목록"
+            >
+              {filteredTrips.length === 0 ? (
+                <EmptyTravel />
+              ) : (
+                <div className={`trips-grid view-${view}`}>
+                  {filteredTrips.map((trip) => (
+                    <TripCard
+                      key={trip.id}
+                      trip={trip}
+                      view={view}
+                      onOpen={handleOpenTrip}
+                      onEdit={handleEditTrip}
+                      onDelete={handleDeleteTrip}
+                    />
+                  ))}
+
+                  {filter === "ALL" && (
+                    <button
+                      type="button"
+                      className="create-trip-card"
+                      onClick={handleCreateTrip}
+                    >
+                      <span className="create-icon">
+                        <Plus aria-hidden="true" />
+                      </span>
+
+                      <strong>새 여행 만들기</strong>
+                      <span className="create-description">
+                        새로운 여행을 계획해 보세요.
+                      </span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
       </main>
 
       <div className="page-mobile-footer">

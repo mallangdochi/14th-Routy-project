@@ -100,3 +100,24 @@ export const modalAnimation: CSSObject = {
     },
   },
 };
+
+// 메뉴바 애니메이션
+export const menuAnimation: Record<"indicator" | "button", CSSObject> = {
+  indicator: {
+    transition:
+      "transform 340ms cubic-bezier(0.22, 1, 0.36, 1), width 340ms cubic-bezier(0.22, 1, 0.36, 1)",
+
+    "@media (prefers-reduced-motion: reduce)": {
+      transition: "none",
+    },
+  },
+
+  button: {
+    transition:
+      "color 240ms ease, background-color 240ms ease, border-color 240ms ease",
+
+    "@media (prefers-reduced-motion: reduce)": {
+      transition: "none",
+    },
+  },
+};

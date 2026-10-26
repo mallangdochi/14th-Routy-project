@@ -60,6 +60,7 @@ html {
   text-rendering: optimizeLegibility;
   font-synthesis: none;
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
 }
 
 body {

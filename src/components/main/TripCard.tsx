@@ -1,7 +1,7 @@
 import { CalendarDays, MapPin, MoreVertical } from "lucide-react";
-import { useState } from "react";
 import type { Trip, TripStatus } from "../../data/trips";
 import { TripCardStyle } from "./TripCardStyle";
+import Dropdown from "../dropdown/Dropdown";
 
 interface TripCardProps {
   trip: Trip;
@@ -10,6 +10,16 @@ interface TripCardProps {
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 }
+
+type TripMenuAction = "" | "edit" | "delete";
+
+const tripMenuOptions: {
+  value: TripMenuAction;
+  label: string;
+}[] = [
+  { value: "edit", label: "여행 수정" },
+  { value: "delete", label: "여행 삭제" },
+];
 
 const statusLabels: Record<TripStatus, string> = {
   PLANNING: "계획중",
@@ -39,10 +49,11 @@ export default function TripCard({
   onEdit,
   onDelete,
 }: TripCardProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   return (
-    <TripCardStyle className={`trip-card view-${view}`}>
+    <TripCardStyle
+      className={`trip-card view-${view}`}
+      onClick={() => onOpen?.(trip.id)}
+    >
       <button
         type="button"
         className="trip-image-button"
@@ -73,45 +84,21 @@ export default function TripCard({
             <h2>{trip.title}</h2>
           </button>
 
-          <div className="trip-menu">
-            <button
-              type="button"
-              className="trip-menu-trigger"
-              aria-label={`${trip.title} 관리 메뉴`}
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((prev) => !prev)}
-            >
-              <MoreVertical aria-hidden="true" />
-            </button>
-            <div
-              className="trip-menu-dropdown"
-              data-open={menuOpen}
-              aria-hidden={!menuOpen}
-            >
-              <button
-                type="button"
-                tabIndex={menuOpen ? 0 : -1}
-                onClick={() => {
-                  onEdit?.(trip.id);
-                  setMenuOpen(false);
-                }}
-              >
-                여행 수정
-              </button>
-
-              <button
-                type="button"
-                className="delete"
-                tabIndex={menuOpen ? 0 : -1}
-                onClick={() => {
-                  onDelete?.(trip.id);
-                  setMenuOpen(false);
-                }}
-              >
-                여행 삭제
-              </button>
-            </div>
-          </div>
+          <Dropdown<TripMenuAction>
+            className="trip-menu"
+            label={`${trip.title} 관리 메뉴`}
+            value=""
+            showLabel={false}
+            trigger={<MoreVertical aria-hidden="true" />}
+            options={tripMenuOptions}
+            onChange={(action) => {
+              if (action === "edit") {
+                onEdit?.(trip.id);
+              } else if (action === "delete") {
+                onDelete?.(trip.id);
+              }
+            }}
+          />
         </div>
 
         <p className="trip-date">

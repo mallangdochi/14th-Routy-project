@@ -4,7 +4,7 @@ import {
   useId,
   useRef,
   useState,
-  type FormEvent,
+  type SubmitEvent,
   type TransitionEvent,
 } from "react";
 
@@ -15,21 +15,21 @@ import {
   CheckCircle2,
   CircleAlert,
   Eye,
-  EyeOff,
+  EyeClosed,
   LockKeyhole,
   Mail,
 } from "lucide-react";
 
 import CoverFront from "./CoverFront";
 import DatePicker from "../pickers/DatePicker";
-import routyLogoMobile from "../../assets/루티2.svg";
+import routyLogoMobile from "../../assets/루티1.svg";
 
 import coverInside from "../../assets/routy-cover-inside.svg";
 
 import RoutySignup, {
   RoutySignupProvider,
   type SignupApiProps,
-  useSignup,
+  // useSignup,
 } from "../RoutySignup/RoutySignup";
 
 import {
@@ -55,7 +55,7 @@ import {
   AccountLinks,
   TextButton,
   SignUpButton,
-  Feedback,
+  FieldMessage,
   Hint,
   DesktopOnly,
   MobileShell,
@@ -88,6 +88,9 @@ import {
   MobilePasswordBox,
   MobileEyeButton,
 } from "./RoutyBookLoginStyle";
+import { useSignup } from "../RoutySignup/SignupContext";
+import { loginWithEmail } from "../../api/auth";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface RoutyBookLoginProps extends SignupApiProps {
   onLogin?: (
@@ -102,8 +105,26 @@ interface RoutyBookLoginProps extends SignupApiProps {
 
 type CoverPhase = "closed" | "opening" | "open" | "closing";
 
+type LoginErrors = { email: string; password: string };
+
+function validateLogin(email: string, password: string): LoginErrors {
+  return {
+    email: !email.trim()
+      ? "이메일을 입력해주세요."
+      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+        ? "올바른 이메일 형식을 입력해주세요."
+        : "",
+    password: password ? "" : "비밀번호를 입력해주세요.",
+  };
+}
+
+function focusLoginError(form: HTMLFormElement, errors: LoginErrors) {
+  const field = errors.email ? "email" : errors.password ? "password" : null;
+  if (field) form.querySelector<HTMLInputElement>(`[name="${field}"]`)?.focus();
+}
+
 export default function RoutyBookLogin({
-  onLogin,
+  // onLogin,
   onFindId,
   onFindPassword,
   onCheckUsername,
@@ -114,6 +135,18 @@ export default function RoutyBookLogin({
   const navigate = useNavigate();
   const location = useLocation();
   const fieldId = useId();
+
+  const { refreshUser } = useAuth();
+
+  const handleLogin = async (
+    email: string,
+    password: string,
+    remember: boolean,
+  ): Promise<void> => {
+    await loginWithEmail(email, password, remember);
+    await refreshUser();
+    navigate("/", { replace: true });
+  };
 
   // 최초 진입 및 새로고침 시에는 항상 닫힌 여권부터 표시합니다.
   const [isOpen, setIsOpen] = useState(false);
@@ -142,6 +175,10 @@ export default function RoutyBookLogin({
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [loginError, setLoginError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<LoginErrors>({
+    email: "",
+    password: "",
+  });
 
   // ==================================
   // URL 상태 동기화
@@ -322,26 +359,31 @@ export default function RoutyBookLogin({
   // 로그인 처리
   // ==================================
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-
+    console.log("로그인 제출 처리 실행");
     if (loginDisabled || loginLoading) {
       return;
     }
 
     setLoginError("");
-
-    if (!onLogin) {
-      setLoginError("로그인 API가 아직 연결되지 않았습니다.");
+    const errors = validateLogin(email, password);
+    setFieldErrors(errors);
+    if (errors.email || errors.password) {
+      focusLoginError(event.currentTarget, errors);
       return;
     }
 
     setLoginLoading(true);
 
     try {
-      await onLogin(email, password, remember);
-    } catch {
-      setLoginError("로그인에 실패했습니다. 다시 확인해주세요.");
+      await handleLogin(email, password, remember);
+    } catch (error) {
+      setLoginError(
+        error instanceof Error
+          ? error.message
+          : "로그인 처리 중 오류가 발생했습니다.",
+      );
     } finally {
       setLoginLoading(false);
     }
@@ -382,7 +424,7 @@ export default function RoutyBookLogin({
               <LoginFace aria-hidden={isSignup}>
                 <LoginHeading>로그인</LoginHeading>
 
-                <LoginForm onSubmit={handleSubmit}>
+                <LoginForm onSubmit={handleSubmit} noValidate>
                   {/* 이메일 */}
                   <InputLabel htmlFor={`${fieldId}-email`}>이메일</InputLabel>
 
@@ -393,15 +435,36 @@ export default function RoutyBookLogin({
 
                     <TextInput
                       id={`${fieldId}-email`}
+                      name="email"
+                      aria-invalid={Boolean(fieldErrors.email)}
+                      aria-describedby={`${fieldId}-email-error`}
                       type="email"
                       placeholder="이메일을 입력해주세요."
                       autoComplete="username"
                       value={email}
-                      onChange={(event) => setEmail(event.target.value)}
+                      onChange={(event) => {
+                        setEmail(event.target.value);
+                        setFieldErrors((previous) => ({
+                          ...previous,
+                          email: "",
+                        }));
+                        setLoginError("");
+                      }}
                       disabled={loginDisabled || loginLoading}
                       required
                     />
                   </InputBox>
+                  <FieldMessage
+                    id={`${fieldId}-email-error`}
+                    aria-live="polite"
+                  >
+                    {fieldErrors.email && (
+                      <>
+                        <CircleAlert aria-hidden="true" />
+                        <span>{fieldErrors.email}</span>
+                      </>
+                    )}
+                  </FieldMessage>
 
                   {/* 비밀번호 */}
                   <InputLabel htmlFor={`${fieldId}-password`}>
@@ -415,11 +478,21 @@ export default function RoutyBookLogin({
 
                     <TextInput
                       id={`${fieldId}-password`}
+                      name="password"
+                      aria-invalid={Boolean(fieldErrors.password || loginError)}
+                      aria-describedby={`${fieldId}-password-error`}
                       type={showPassword ? "text" : "password"}
                       placeholder="비밀번호를 입력해주세요."
                       autoComplete="current-password"
                       value={password}
-                      onChange={(event) => setPassword(event.target.value)}
+                      onChange={(event) => {
+                        setPassword(event.target.value);
+                        setFieldErrors((previous) => ({
+                          ...previous,
+                          password: "",
+                        }));
+                        setLoginError("");
+                      }}
                       disabled={loginDisabled || loginLoading}
                       required
                     />
@@ -432,9 +505,24 @@ export default function RoutyBookLogin({
                         showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
                       }
                     >
-                      {showPassword ? <EyeOff /> : <Eye />}
+                      {showPassword ? (
+                        <Eye size={20} />
+                      ) : (
+                        <EyeClosed size={20} />
+                      )}
                     </PasswordToggle>
                   </InputBox>
+                  <FieldMessage
+                    id={`${fieldId}-password-error`}
+                    aria-live="polite"
+                  >
+                    {(fieldErrors.password || loginError) && (
+                      <>
+                        <CircleAlert aria-hidden="true" />
+                        <span>{fieldErrors.password || loginError}</span>
+                      </>
+                    )}
+                  </FieldMessage>
 
                   {/* 로그인 상태 유지 */}
                   <RememberLabel>
@@ -454,8 +542,6 @@ export default function RoutyBookLogin({
                   >
                     {loginLoading ? "로그인 중..." : "로그인"}
                   </SubmitButton>
-
-                  {loginError && <Feedback role="alert">{loginError}</Feedback>}
                 </LoginForm>
 
                 {/* 계정 관련 메뉴 */}
@@ -546,7 +632,7 @@ export default function RoutyBookLogin({
       <MobileFlow
         page={mobilePage}
         onPageChange={changeMobilePage}
-        onLogin={onLogin}
+        onLogin={handleLogin}
         onFindId={onFindId}
         onFindPassword={onFindPassword}
         hasPhoneApi={Boolean(onSendVerification && onConfirmVerification)}
@@ -604,11 +690,34 @@ function MobileFlow({
   const [loginPasswordVisible, setLoginPasswordVisible] = useState(false);
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<LoginErrors>({
+    email: "",
+    password: "",
+  });
+  const [mobilePasswordTouched, setMobilePasswordTouched] = useState(false);
+  const [mobileConfirmTouched, setMobileConfirmTouched] = useState(false);
 
   // 모바일 표지: 터치하면 닫힌 여권이 확대되며 사라지고 로그인 화면이 나타납니다.
   const [mobileOpening, setMobileOpening] = useState(false);
   const mobileOpeningPending = useRef(false);
   const mobileOpeningTimer = useRef<number | null>(null);
+
+  const [previousMobilePage, setPreviousMobilePage] = useState(page);
+
+  if (page !== previousMobilePage) {
+    setPreviousMobilePage(page);
+
+    if (page !== "login") {
+      setMobileOpening(false);
+    }
+
+    if (page === "signup") {
+      setStep(0);
+      setStepError("");
+      setMobilePasswordTouched(false);
+      setMobileConfirmTouched(false);
+    }
+  }
 
   // 전환이 완료되면 한 번만 로그인 페이지로 이동합니다.
   const finishMobileOpen = () => {
@@ -640,13 +749,26 @@ function MobileFlow({
     );
   };
 
+  // useEffect(() => {
+  //   // 다른 화면으로 이동하거나 컴포넌트가 해제되면 타이머가 남지 않도록 정리합니다.
+  //   // 표지가 커지는 동안 로그인 주소로 바뀌어도 애니메이션은 유지합니다.
+  //   if (page === "login" && mobileOpeningPending.current) return;
+  //   if (page !== "cover") {
+  //     mobileOpeningPending.current = false;
+  //     // setMobileOpening(false);
+  //     if (mobileOpeningTimer.current !== null) {
+  //       window.clearTimeout(mobileOpeningTimer.current);
+  //       mobileOpeningTimer.current = null;
+  //     }
+  //   }
+  // }, [page]);
+
   useEffect(() => {
-    // 다른 화면으로 이동하거나 컴포넌트가 해제되면 타이머가 남지 않도록 정리합니다.
-    // 표지가 커지는 동안 로그인 주소로 바뀌어도 애니메이션은 유지합니다.
     if (page === "login" && mobileOpeningPending.current) return;
+
     if (page !== "cover") {
       mobileOpeningPending.current = false;
-      setMobileOpening(false);
+
       if (mobileOpeningTimer.current !== null) {
         window.clearTimeout(mobileOpeningTimer.current);
         mobileOpeningTimer.current = null;
@@ -663,12 +785,14 @@ function MobileFlow({
     [],
   );
 
-  useEffect(() => {
-    if (page === "signup") {
-      setStep(0);
-      setStepError("");
-    }
-  }, [page]);
+  // useEffect(() => {
+  //   if (page === "signup") {
+  //     setStep(0);
+  //     setStepError("");
+  //     setMobilePasswordTouched(false);
+  //     setMobileConfirmTouched(false);
+  //   }
+  // }, [page]);
 
   const handleBack = () => {
     setStepError("");
@@ -683,20 +807,38 @@ function MobileFlow({
     }
   };
 
-  const handleMobileLogin = async (event: FormEvent<HTMLFormElement>) => {
+  const handleMobileLogin = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (loginBusy) return;
+
     setLoginError("");
+    const errors = validateLogin(loginEmail, loginPassword);
+    setFieldErrors(errors);
+    if (errors.email || errors.password) {
+      focusLoginError(event.currentTarget, errors);
+      return;
+    }
+
     if (!onLogin) {
       setLoginError("로그인 서버가 아직 연결되지 않았습니다.");
       return;
     }
+
+    setLoginBusy(true);
+
     try {
-      setLoginBusy(true);
       await onLogin(loginEmail, loginPassword, remember);
-    } catch {
-      setLoginError("로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
+    } catch (error) {
+      setLoginError(
+        error instanceof Error
+          ? error.message
+          : "로그인 처리 중 오류가 발생했습니다.",
+      );
     } finally {
+      // catch {
+      //   setLoginError("로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
+      // }
       setLoginBusy(false);
     }
   };
@@ -753,7 +895,7 @@ function MobileFlow({
     setStep((value) => Math.min(value + 1, STEP_TITLES.length - 1));
   };
 
-  const handleSignupNext = (event: FormEvent<HTMLFormElement>) => {
+  const handleSignupNext = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (signup.busy) return;
     if (step === STEP_TITLES.length - 1) {
@@ -788,18 +930,43 @@ function MobileFlow({
           {page === "login" ? (
             <MobileContent>
               <MobileTitle data-login="true">로그인</MobileTitle>
-              <MobileForm onSubmit={handleMobileLogin}>
+              <MobileForm
+                onSubmit={handleMobileLogin}
+                noValidate
+                data-login="true"
+              >
                 <MobileField>
                   <MobileLabel htmlFor="mobile-login-email">이메일</MobileLabel>
                   <MobileInput
                     id="mobile-login-email"
+                    name="email"
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    aria-describedby={"mobile-login-email-error"}
                     type="email"
                     autoComplete="username"
                     placeholder="이메일을 입력해주세요."
                     value={loginEmail}
-                    onChange={(event) => setLoginEmail(event.target.value)}
+                    onChange={(event) => {
+                      setLoginEmail(event.target.value);
+                      setFieldErrors((previous) => ({
+                        ...previous,
+                        email: "",
+                      }));
+                      setLoginError("");
+                    }}
                     required
                   />
+                  <FieldMessage
+                    id="mobile-login-email-error"
+                    aria-live="polite"
+                  >
+                    {fieldErrors.email && (
+                      <>
+                        <CircleAlert aria-hidden="true" />
+                        <span>{fieldErrors.email}</span>
+                      </>
+                    )}
+                  </FieldMessage>
                 </MobileField>
                 <MobileField>
                   <MobileLabel htmlFor="mobile-login-password">
@@ -808,11 +975,21 @@ function MobileFlow({
                   <MobilePasswordBox>
                     <MobileInput
                       id="mobile-login-password"
+                      name="password"
+                      aria-invalid={Boolean(fieldErrors.password || loginError)}
+                      aria-describedby={"mobile-login-password-error"}
                       type={loginPasswordVisible ? "text" : "password"}
                       autoComplete="current-password"
                       placeholder="비밀번호를 입력해주세요."
                       value={loginPassword}
-                      onChange={(event) => setLoginPassword(event.target.value)}
+                      onChange={(event) => {
+                        setLoginPassword(event.target.value);
+                        setFieldErrors((previous) => ({
+                          ...previous,
+                          password: "",
+                        }));
+                        setLoginError("");
+                      }}
                       required
                     />
                     <MobileEyeButton
@@ -825,12 +1002,23 @@ function MobileFlow({
                       onClick={() => setLoginPasswordVisible((value) => !value)}
                     >
                       {loginPasswordVisible ? (
-                        <EyeOff size={20} />
-                      ) : (
                         <Eye size={20} />
+                      ) : (
+                        <EyeClosed size={20} />
                       )}
                     </MobileEyeButton>
                   </MobilePasswordBox>
+                  <FieldMessage
+                    id="mobile-login-password-error"
+                    aria-live="polite"
+                  >
+                    {(fieldErrors.password || loginError) && (
+                      <>
+                        <CircleAlert aria-hidden="true" />
+                        <span>{fieldErrors.password || loginError}</span>
+                      </>
+                    )}
+                  </FieldMessage>
                 </MobileField>
                 <MobileCheck>
                   <input
@@ -840,9 +1028,6 @@ function MobileFlow({
                   />
                   로그인 상태 유지
                 </MobileCheck>
-                {loginError && (
-                  <MobileStatus role="alert">{loginError}</MobileStatus>
-                )}
                 <MobilePrimary type="submit" disabled={loginBusy}>
                   {loginBusy ? "로그인 중..." : "로그인"}
                 </MobilePrimary>
@@ -983,6 +1168,7 @@ function MobileFlow({
                     <MobileField>
                       <MobileLabel>생년월일</MobileLabel>
                       <DatePicker
+                        modal
                         label=""
                         name="birth"
                         value={signup.form.birth}
@@ -1080,21 +1266,37 @@ function MobileFlow({
                             onChange={(event) =>
                               signup.updateField("password", event.target.value)
                             }
+                            onBlur={() => setMobilePasswordTouched(true)}
+                            aria-invalid={
+                              mobilePasswordTouched && !signup.passwordValid
+                            }
                           />
                           <MobileEyeButton
                             type="button"
-                            aria-label="비밀번호 보기"
+                            aria-label={
+                              signup.showPassword
+                                ? "비밀번호 숨기기"
+                                : "비밀번호 보기"
+                            }
                             onClick={() =>
                               signup.setShowPassword(!signup.showPassword)
                             }
                           >
                             {signup.showPassword ? (
-                              <EyeOff size={20} />
+                              <EyeClosed size={24} />
                             ) : (
-                              <Eye size={20} />
+                              <Eye size={24} />
                             )}
                           </MobileEyeButton>
                         </MobilePasswordBox>
+                        {mobilePasswordTouched && !signup.passwordValid && (
+                          <MobileStatus role="alert">
+                            <CircleAlert size={18} aria-hidden="true" />
+                            {signup.form.password.length === 0
+                              ? "비밀번호를 입력해주세요."
+                              : "영문, 숫자, 특수문자를 포함해 8자 이상 입력해주세요."}
+                          </MobileStatus>
+                        )}
                       </MobileField>
                       <MobileField>
                         <MobileLabel htmlFor="mobile-confirm-password">
@@ -1110,21 +1312,37 @@ function MobileFlow({
                             onChange={(event) =>
                               signup.setConfirmPassword(event.target.value)
                             }
+                            onBlur={() => setMobileConfirmTouched(true)}
+                            aria-invalid={
+                              mobileConfirmTouched && !signup.passwordMatched
+                            }
                           />
                           <MobileEyeButton
                             type="button"
-                            aria-label="비밀번호 확인 보기"
+                            aria-label={
+                              signup.showConfirm
+                                ? "비밀번호 확인 숨기기"
+                                : "비밀번호 확인 보기"
+                            }
                             onClick={() =>
                               signup.setShowConfirm(!signup.showConfirm)
                             }
                           >
                             {signup.showConfirm ? (
-                              <EyeOff size={20} />
+                              <EyeClosed size={24} />
                             ) : (
-                              <Eye size={20} />
+                              <Eye size={24} />
                             )}
                           </MobileEyeButton>
                         </MobilePasswordBox>
+                        {mobileConfirmTouched && !signup.passwordMatched && (
+                          <MobileStatus role="alert">
+                            <CircleAlert size={18} aria-hidden="true" />
+                            {signup.confirmPassword.length === 0
+                              ? "비밀번호를 다시 입력해주세요."
+                              : "비밀번호가 일치하지 않습니다."}
+                          </MobileStatus>
+                        )}
                       </MobileField>
                     </>
                   )}

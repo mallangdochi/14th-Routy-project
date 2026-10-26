@@ -8,8 +8,6 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import {
   Image as ImageIcon,
-  Eye,
-  EyeOff,
   ChevronLeft,
   Menu,
   CircleAlert,
@@ -32,9 +30,65 @@ import avatarP11 from "../../assets/profileAvatars/P11.webp";
 import avatarP12 from "../../assets/profileAvatars/P12.webp";
 import avatarP13 from "../../assets/profileAvatars/P13.webp";
 import * as S from "./myPageStyle";
+import { useAuth } from "../../contexts/AuthContext";
+import MyLoginRequired from "../../components/emptyUI/myLoginRequired/MyLoginRequired";
 
 type PageId = "profile" | "security" | "settings" | "support";
 type PasswordFieldId = "current" | "new" | "confirm";
+
+type PasswordEyeIconProps = {
+  visible: boolean;
+};
+
+function PasswordEyeIcon({ visible }: PasswordEyeIconProps) {
+  if (visible) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="23"
+        height="23"
+        viewBox="0 0 256 256"
+        fill="none"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path
+          d="M16 128C47 82 86 48 128 48S209 82 240 128C209 174 170 208 128 208S47 174 16 128Z"
+          stroke="currentColor"
+          strokeWidth="15"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle
+          cx="128"
+          cy="128"
+          r="48"
+          stroke="currentColor"
+          strokeWidth="15"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="23"
+      height="23"
+      viewBox="0 0 256 256"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="15"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M16 128C66 218 190 218 240 128" />
+      <path d="M36 157L16 182M74 188L66 212M128 201V228M182 188L190 212M220 157L240 182" />
+    </svg>
+  );
+}
 
 type ProfileData = {
   nickname: string;
@@ -215,7 +269,6 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
     setNameError("");
     onSave({ nickname: trimmed, image: profileImage });
   };
-
   return (
     <S.ProfileCard>
       <S.CardTitle>프로필 정보</S.CardTitle>
@@ -559,11 +612,7 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
                   aria-pressed={visible[field.id]}
                   onClick={() => toggleVisibility(field.id)}
                 >
-                  {visible[field.id] ? (
-                    <EyeOff size={21} strokeWidth={1.8} aria-hidden="true" />
-                  ) : (
-                    <Eye size={21} strokeWidth={1.8} aria-hidden="true" />
-                  )}
+                  <PasswordEyeIcon visible={visible[field.id]} />
                 </S.PasswordVisibilityButton>
 
                 {hasError && (
@@ -655,6 +704,8 @@ function SecurityView({
 }
 
 export default function MyPage() {
+  const { user } = useAuth();
+  const isLoggedIn = Boolean(user);
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -666,30 +717,18 @@ export default function MyPage() {
   const [account, setAccount] = useState<AccountData>(initialAccount);
   const [toastVersion, setToastVersion] = useState(0);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
-  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(
     () =>
       typeof window !== "undefined" &&
-      window.matchMedia("(max-width: 760px)").matches,
+      window.matchMedia("(max-width: 767px)").matches,
   );
 
   const [savedSettings, setSavedSettings] =
     useState<SettingsData>(initialSettings);
 
   useEffect(() => {
-    if (!isLogoutOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsLogoutOpen(false);
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isLogoutOpen]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 760px)");
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
     const updateViewport = (event: MediaQueryListEvent) => {
       setIsMobileViewport(event.matches);
       if (!event.matches) setIsMobileMenuOpen(false);
@@ -700,7 +739,7 @@ export default function MyPage() {
   }, []);
 
   useEffect(() => {
-    if (!isMobileMenuOpen) return;
+    if (!isLoggedIn || !isMobileViewport || !isMobileMenuOpen) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -715,7 +754,7 @@ export default function MyPage() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [isMobileMenuOpen]);
+  }, [isLoggedIn, isMobileViewport, isMobileMenuOpen]);
 
   useEffect(() => {
     if (toastVersion === 0) return;
@@ -736,6 +775,10 @@ export default function MyPage() {
   const { title, description } = pageText[currentPage];
 
   const renderContent = () => {
+    if (!isLoggedIn && currentPage !== "support") {
+      return <MyLoginRequired />;
+    }
+
     if (currentPage === "profile") {
       return (
         <ProfileView
@@ -824,99 +867,71 @@ export default function MyPage() {
           <ChevronLeft size={26} strokeWidth={1.8} aria-hidden="true" />
         </S.MobileTopBack>
         <S.MobileTopLogo src={routyLogo} alt="Routy" />
-        <S.MobileMenuToggle
-          type="button"
-          aria-label="계정 메뉴 열기"
-          aria-controls="mypage-sidebar"
-          aria-expanded={isMobileMenuOpen}
-          onClick={() => setIsMobileMenuOpen(true)}
-        >
-          <Menu size={26} strokeWidth={1.9} aria-hidden="true" />
-        </S.MobileMenuToggle>
+        {isLoggedIn && (
+          <S.MobileMenuToggle
+            type="button"
+            aria-label="계정 메뉴 열기"
+            aria-controls="mypage-sidebar"
+            aria-expanded={isMobileMenuOpen}
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu size={26} strokeWidth={1.9} aria-hidden="true" />
+          </S.MobileMenuToggle>
+        )}
       </S.MobileTopBar>
 
-      <S.MobileDrawerBackdrop
-        $open={isMobileMenuOpen}
-        aria-hidden="true"
-        onClick={() => setIsMobileMenuOpen(false)}
-      />
-      <S.SidebarShell id="mypage-sidebar" $open={isMobileMenuOpen}>
-        <Sidebar
-          profileName={savedProfile.nickname}
-          profileImage={savedProfile.image}
-          onNavigate={(page) => {
-            setIsMobileMenuOpen(false);
-            navigate(`/mypage/${page}`);
-          }}
-          onBack={() => {
-            setIsMobileMenuOpen(false);
-            navigate("/");
-          }}
-          onLogout={() => {
-            setIsMobileMenuOpen(false);
-            setIsLogoutOpen(true);
-          }}
+      {isLoggedIn && isMobileViewport && (
+        <S.MobileDrawerBackdrop
+          $open={isMobileMenuOpen}
+          aria-hidden="true"
+          onClick={() => setIsMobileMenuOpen(false)}
         />
-      </S.SidebarShell>
+      )}
+
+      {(isLoggedIn || !isMobileViewport) && (
+        <S.SidebarShell
+          id="mypage-sidebar"
+          $open={isLoggedIn && isMobileMenuOpen}
+        >
+          <Sidebar
+            profileImage={savedProfile.image}
+            onNavigate={(page) => {
+              setIsMobileMenuOpen(false);
+              navigate(`/mypage/${page}`);
+            }}
+            onBack={() => {
+              setIsMobileMenuOpen(false);
+              navigate("/");
+            }}
+          />
+        </S.SidebarShell>
+      )}
 
       <S.PageMain>
         <S.MainInner>
-          {currentPage !== "settings" && (
-            <S.PageHeader>
-              <S.PageTitle
-                $green={currentPage === "profile" || currentPage === "support"}
-              >
-                {title}
-              </S.PageTitle>
-              <S.PageDescription>{description}</S.PageDescription>
-            </S.PageHeader>
-          )}
+          {(isLoggedIn || currentPage === "support") &&
+            currentPage !== "settings" && (
+              <S.PageHeader>
+                <S.PageTitle
+                  $green={
+                    currentPage === "profile" || currentPage === "support"
+                  }
+                >
+                  {title}
+                </S.PageTitle>
+                <S.PageDescription>{description}</S.PageDescription>
+              </S.PageHeader>
+            )}
 
           {renderContent()}
         </S.MainInner>
       </S.PageMain>
 
-      {toastVersion > 0 && (
+      {isLoggedIn && toastVersion > 0 && (
         <S.SaveToast role="status">저장되었습니다.</S.SaveToast>
       )}
 
-      {isLogoutOpen && (
-        <S.AvatarModalBackdrop>
-          <S.WithdrawConfirmDialog
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="logout-title"
-            aria-describedby="logout-description"
-          >
-            <S.WithdrawConfirmTitle id="logout-title">
-              로그아웃하시겠습니까?
-            </S.WithdrawConfirmTitle>
-            <S.WithdrawConfirmDescription id="logout-description">
-              로그아웃하면 홈 화면으로 이동합니다.
-            </S.WithdrawConfirmDescription>
-            <S.WithdrawConfirmActions>
-              <S.WithdrawNoButton
-                type="button"
-                autoFocus
-                onClick={() => setIsLogoutOpen(false)}
-              >
-                취소
-              </S.WithdrawNoButton>
-              <S.WithdrawYesButton
-                type="button"
-                onClick={() => {
-                  setIsLogoutOpen(false);
-                  navigate("/");
-                }}
-              >
-                로그아웃
-              </S.WithdrawYesButton>
-            </S.WithdrawConfirmActions>
-          </S.WithdrawConfirmDialog>
-        </S.AvatarModalBackdrop>
-      )}
-
-      {isWithdrawOpen && (
+      {isLoggedIn && isWithdrawOpen && (
         <S.AvatarModalBackdrop>
           <S.WithdrawConfirmDialog
             role="dialog"

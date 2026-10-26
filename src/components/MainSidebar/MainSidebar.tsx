@@ -11,19 +11,24 @@ import * as S from "./MainSidebarStyle";
 import smallRouty from "../../../public/favicon.svg";
 
 import ProfileImage from "../../assets/profile.webp";
-import SidebarBanner from "../../assets/mainsidebar.webp";
+import Side1 from "../../assets/lunch.webp";
+import Side2 from "../../assets/morning.webp";
+import Side3 from "../../assets/dinner.webp";
 import {
   Bell,
   Bookmark,
   Briefcase,
   ChevronDown,
   ChevronRight,
+  LogIn,
   LogOut,
   Plus,
   Search,
   Settings,
   UserRound,
 } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { logout } from "../../api/auth";
 
 type MenuId = "myTrip" | "search" | "saved" | "notification" | "settings";
 
@@ -71,10 +76,72 @@ const MenuIcon = ({ id }: MenuIconProps) => {
   return icons[id];
 };
 
+const getSidebarImage = () => {
+  const hour = new Date().getHours();
+
+  if (hour >= 6 && hour < 14) return Side1;
+  if (hour >= 14 && hour < 20) return Side2;
+
+  return Side3;
+};
+
 const MainSidebar = () => {
   const navigate = useNavigate();
+  const { user, loading, error, refreshUser } = useAuth();
+
+  const profileLabel = loading
+    ? "확인 중..."
+    : error
+      ? "다시 확인"
+      : user
+        ? `${user.username?.trim() || "회원"}님`
+        : "로그인";
+
   const [isCollapsed, setIsCollapsed] = useState(false);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const [sidebarImage, setSidebarImage] = useState(getSidebarImage);
+
+  useEffect(() => {
+    let timerId: number;
+
+    const scheduleUpdate = () => {
+      const now = new Date();
+      const next = new Date(now);
+      const hour = now.getHours();
+
+      if (hour < 6) {
+        next.setHours(6, 0, 0, 0);
+      } else if (hour < 14) {
+        next.setHours(14, 0, 0, 0);
+      } else if (hour < 20) {
+        next.setHours(20, 0, 0, 0);
+      } else {
+        next.setDate(next.getDate() + 1);
+        next.setHours(6, 0, 0, 0);
+      }
+
+      timerId = window.setTimeout(() => {
+        setSidebarImage(getSidebarImage());
+        scheduleUpdate();
+      }, next.getTime() - now.getTime());
+    };
+
+    const syncImage = () => {
+      window.clearTimeout(timerId);
+      setSidebarImage(getSidebarImage());
+      scheduleUpdate();
+    };
+
+    scheduleUpdate();
+    window.addEventListener("focus", syncImage);
+    document.addEventListener("visibilitychange", syncImage);
+
+    return () => {
+      window.clearTimeout(timerId);
+      window.removeEventListener("focus", syncImage);
+      document.removeEventListener("visibilitychange", syncImage);
+    };
+  }, []);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const dropdownId = useId();
   const tooltipId = useId();
@@ -103,6 +170,39 @@ const MainSidebar = () => {
           });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  const logoutPendingRef = useRef(false);
+  const locationKey = `${pathname}${hash}`;
+  const [menuSelection, setMenuSelection] = useState<{
+    menu: MenuId;
+    locationKey: string;
+  } | null>(null);
+  const navigationTimerRef = useRef<number | null>(null);
+  const displayedMenu =
+    menuSelection?.locationKey === locationKey
+      ? menuSelection.menu
+      : activeMenu;
+  const visibleMenuItems = user
+    ? MENU_ITEMS
+    : MENU_ITEMS.filter((item) => item.id !== "saved");
+  const selectedMainIndex = visibleMenuItems.findIndex(
+    (item) => item.id === displayedMenu,
+  );
+  const mainMenuMotionStyle: CSSProperties = {
+    transform: `translateY(${
+      Math.max(selectedMainIndex, 0) * (isCollapsed ? 64 : 40)
+    }px)`,
+    opacity: selectedMainIndex >= 0 ? 1 : 0,
+  };
+
+  useEffect(() => {
+    return () => {
+      if (navigationTimerRef.current !== null) {
+        window.clearTimeout(navigationTimerRef.current);
+      }
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!isCollapsed || !isProfileOpen) return;
@@ -213,6 +313,28 @@ const MainSidebar = () => {
     navigate(path);
   };
 
+  const handleMenuNavigate = (menu: MenuId) => {
+    setIsProfileOpen(false);
+    setTooltip(null);
+
+    if (menu === displayedMenu) return;
+
+    if (navigationTimerRef.current !== null) {
+      window.clearTimeout(navigationTimerRef.current);
+      navigationTimerRef.current = null;
+    }
+
+    setMenuSelection({ menu, locationKey });
+
+    const path = MENU_PATHS[menu];
+    if (path === `${pathname}${hash}` || path === pathname) return;
+
+    navigationTimerRef.current = window.setTimeout(() => {
+      navigationTimerRef.current = null;
+      navigate(path);
+    }, S.MENU_SELECTION_DURATION_MS + 40);
+  };
+
   const profileDropdown = (
     <S.ProfileDropdown
       ref={dropdownRef}
@@ -241,6 +363,7 @@ const MainSidebar = () => {
           setIsProfileOpen(false);
           setTooltip(null);
           setIsLogoutOpen(true);
+          setLogoutError("");
         }}
       >
         <LogOut size={20} strokeWidth={1.5} aria-hidden="true" />
@@ -251,6 +374,36 @@ const MainSidebar = () => {
 
   const handleCreateTrip = () => {
     navigate("/trips/new");
+  };
+
+  const handleLogout = async (): Promise<void> => {
+    if (logoutPendingRef.current) return;
+
+    logoutPendingRef.current = true;
+    setLogoutLoading(true);
+    setLogoutError("");
+
+    try {
+      await logout();
+      await refreshUser();
+
+      setIsLogoutOpen(false);
+      setIsProfileOpen(false);
+      setTooltip(null);
+
+      const isMobile = window.matchMedia("(max-width: 767px)").matches;
+
+      navigate(isMobile ? "/login" : "/", { replace: true });
+    } catch (error) {
+      setLogoutError(
+        error instanceof Error
+          ? error.message
+          : "로그아웃 처리 중 오류가 발생했습니다.",
+      );
+    } finally {
+      logoutPendingRef.current = false;
+      setLogoutLoading(false);
+    }
   };
 
   return (
@@ -297,48 +450,129 @@ const MainSidebar = () => {
           </S.LogoWrapper>
         </S.HeaderStyle>
 
-        <S.ProfileWrapper>
-          <S.ProfileButton
-            data-profile-button=""
-            ref={profileButtonRef}
-            {...tooltipProps("프로필")}
-            type="button"
-            aria-label="홍길동님 프로필 메뉴"
-            aria-controls={isProfileOpen ? dropdownId : undefined}
-            aria-expanded={isProfileOpen}
-            onClick={() => {
-              setIsProfileOpen((prev) => !prev);
-              setTooltip(null);
-            }}
-          >
-            <S.ProfileImage src={ProfileImage} alt="프로필 이미지" />
+        {user ? (
+          <>
+            <S.ProfileWrapper>
+              <S.ProfileButton
+                data-profile-button=""
+                ref={profileButtonRef}
+                {...tooltipProps(user ? "프로필" : profileLabel)}
+                type="button"
+                disabled={loading}
+                aria-busy={loading}
+                aria-label={user ? "내 프로필 메뉴" : profileLabel}
+                aria-controls={user && isProfileOpen ? dropdownId : undefined}
+                aria-expanded={user ? isProfileOpen : undefined}
+                onClick={() => {
+                  setTooltip(null);
 
-            <S.ProfileName data-profile-name="">홍길동님</S.ProfileName>
+                  if (error) {
+                    void refreshUser();
+                    return;
+                  }
 
-            <S.ProfileArrow data-profile-arrow="" $isOpen={isProfileOpen}>
-              <ChevronDown size={23} strokeWidth={1.5} aria-hidden="true" />
-            </S.ProfileArrow>
-          </S.ProfileButton>
+                  if (!user) {
+                    handleNavigate("/login");
+                    return;
+                  }
 
-          {isProfileOpen &&
-            (isCollapsed
-              ? createPortal(profileDropdown, document.body)
-              : profileDropdown)}
-        </S.ProfileWrapper>
+                  setIsProfileOpen((prev) => !prev);
+                }}
+              >
+                {user ? (
+                  <S.ProfileImage src={ProfileImage} alt="기본 프로필 이미지" />
+                ) : (
+                  <UserRound size={23} strokeWidth={1.5} aria-hidden="true" />
+                )}
 
-        <S.CreateTripButton
-          data-create-button=""
-          type="button"
-          {...tooltipProps("새 여행 만들기")}
-          onClick={handleCreateTrip}
-        >
-          <Plus size={20} strokeWidth={2} />
-          <span data-create-label="">새 여행 만들기</span>
-        </S.CreateTripButton>
+                <S.ProfileName data-profile-name="">
+                  {profileLabel}
+                </S.ProfileName>
+
+                {user && (
+                  <S.ProfileArrow data-profile-arrow="" $isOpen={isProfileOpen}>
+                    <ChevronDown
+                      size={23}
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                    />
+                  </S.ProfileArrow>
+                )}
+              </S.ProfileButton>
+
+              {user &&
+                isProfileOpen &&
+                (isCollapsed
+                  ? createPortal(profileDropdown, document.body)
+                  : profileDropdown)}
+            </S.ProfileWrapper>
+
+            <S.CreateTripButton
+              data-create-button=""
+              type="button"
+              {...tooltipProps("새 여행 만들기")}
+              onClick={handleCreateTrip}
+            >
+              <Plus size={20} strokeWidth={2} />
+              <span data-create-label="">새 여행 만들기</span>
+            </S.CreateTripButton>
+          </>
+        ) : (
+          <S.GuestCard $collapsed={isCollapsed} aria-busy={loading}>
+            <S.GuestMessage $collapsed={isCollapsed}>
+              {loading ? (
+                "로그인 상태를 확인하고 있어요"
+              ) : error ? (
+                "로그인 상태를 다시 확인해 주세요"
+              ) : (
+                <>
+                  나만의 여행을
+                  <br />
+                  시작해 보세요
+                </>
+              )}
+            </S.GuestMessage>
+            <S.GuestLoginButton
+              type="button"
+              $collapsed={isCollapsed}
+              disabled={loading}
+              {...tooltipProps(
+                loading ? "확인 중..." : error ? "다시 확인" : "로그인",
+              )}
+              onClick={() => {
+                setTooltip(null);
+                if (error) {
+                  void refreshUser();
+                  return;
+                }
+                handleNavigate("/login");
+              }}
+            >
+              <LogIn size={23} strokeWidth={1.8} aria-hidden="true" />
+              {!isCollapsed && (
+                <span>
+                  {loading ? "확인 중..." : error ? "다시 확인" : "로그인"}
+                </span>
+              )}
+            </S.GuestLoginButton>
+          </S.GuestCard>
+        )}
 
         <S.MainNavigation data-main-navigation="">
-          {MENU_ITEMS.map((item) => {
-            const isActive = activeMenu === item.id;
+          <S.ActiveMenuHighlight
+            aria-hidden="true"
+            style={{
+              ...mainMenuMotionStyle,
+              height: isCollapsed ? 52 : 35,
+            }}
+          />
+          <S.ActiveMenuRail
+            data-active-menu-rail=""
+            aria-hidden="true"
+            style={mainMenuMotionStyle}
+          />
+          {visibleMenuItems.map((item) => {
+            const isActive = displayedMenu === item.id;
 
             return (
               <S.MenuButton
@@ -346,8 +580,10 @@ const MainSidebar = () => {
                 key={item.id}
                 type="button"
                 $active={isActive}
+                $sharedHighlight
+                aria-current={isActive ? "page" : undefined}
                 {...tooltipProps(item.label)}
-                onClick={() => handleNavigate(MENU_PATHS[item.id])}
+                onClick={() => handleMenuNavigate(item.id)}
               >
                 <S.MenuIcon data-menu-icon="">
                   <MenuIcon id={item.id} />
@@ -360,31 +596,33 @@ const MainSidebar = () => {
         </S.MainNavigation>
 
         <S.BottomSection>
-          <S.BottomNavigation data-bottom-navigation="">
-            {BOTTOM_ITEMS.map((item) => {
-              const isActive = activeMenu === item.id;
+          {user && (
+            <S.BottomNavigation data-bottom-navigation="">
+              {BOTTOM_ITEMS.map((item) => {
+                const isActive = displayedMenu === item.id;
 
-              return (
-                <S.MenuButton
-                  data-menu-button=""
-                  key={item.id}
-                  type="button"
-                  $active={isActive}
-                  {...tooltipProps(item.label)}
-                  onClick={() => handleNavigate(MENU_PATHS[item.id])}
-                >
-                  <S.MenuIcon data-menu-icon="">
-                    <MenuIcon id={item.id} />
-                  </S.MenuIcon>
+                return (
+                  <S.MenuButton
+                    data-menu-button=""
+                    key={item.id}
+                    type="button"
+                    $active={isActive}
+                    {...tooltipProps(item.label)}
+                    onClick={() => handleMenuNavigate(item.id)}
+                  >
+                    <S.MenuIcon data-menu-icon="">
+                      <MenuIcon id={item.id} />
+                    </S.MenuIcon>
 
-                  <S.MenuLabel data-menu-label="">{item.label}</S.MenuLabel>
-                </S.MenuButton>
-              );
-            })}
-          </S.BottomNavigation>
+                    <S.MenuLabel data-menu-label="">{item.label}</S.MenuLabel>
+                  </S.MenuButton>
+                );
+              })}
+            </S.BottomNavigation>
+          )}
 
           <S.BannerWrapper data-sidebar-banner="">
-            <S.BannerImage src={SidebarBanner} alt="Routy 여행 마스코트" />
+            <S.BannerImage src={sidebarImage} alt="Routy 여행 마스코트" />
           </S.BannerWrapper>
         </S.BottomSection>
         {tooltip &&
@@ -427,28 +665,36 @@ const MainSidebar = () => {
               <S.LogoutDialogTitle id="main-sidebar-logout-title">
                 로그아웃하시겠습니까?
               </S.LogoutDialogTitle>
+
               <S.LogoutDialogDescription id="main-sidebar-logout-description">
-                로그아웃하면 홈 화면으로 이동합니다.
+                {logoutError ? (
+                  <span role="alert">{logoutError}</span>
+                ) : (
+                  "현재 계정에서 로그아웃합니다."
+                )}
               </S.LogoutDialogDescription>
+
               <S.LogoutDialogActions>
                 <S.LogoutCancelButton
                   type="button"
                   autoFocus
+                  disabled={logoutLoading}
                   onClick={() => {
+                    setLogoutError("");
                     setIsLogoutOpen(false);
                     profileButtonRef.current?.focus();
                   }}
                 >
                   취소
                 </S.LogoutCancelButton>
+
                 <S.LogoutConfirmButton
                   type="button"
-                  onClick={() => {
-                    setIsLogoutOpen(false);
-                    navigate("/");
-                  }}
+                  disabled={logoutLoading}
+                  aria-busy={logoutLoading}
+                  onClick={() => void handleLogout()}
                 >
-                  로그아웃
+                  {logoutLoading ? "로그아웃 중..." : "로그아웃"}
                 </S.LogoutConfirmButton>
               </S.LogoutDialogActions>
             </S.LogoutDialog>

@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { dropdownAnimation } from "../../styles/animation";
+import { menuAnimation } from "../../styles/animation";
 
 export const MyTripsPageStyle = styled.div({
   "--page-font-size": "16px",
@@ -11,9 +11,9 @@ export const MyTripsPageStyle = styled.div({
   backgroundColor: "#FEFBF5",
 
   "& .page-sidebar": {
+    display: "flex",
     flex: "0 0 auto",
     minWidth: 0,
-    display: "flex",
     alignSelf: "stretch",
   },
 
@@ -24,6 +24,7 @@ export const MyTripsPageStyle = styled.div({
     minWidth: 0,
     minHeight: "100vh",
     overflowY: "auto",
+    scrollbarGutter: "stable",
     backgroundColor: "#fff",
   },
 
@@ -72,7 +73,6 @@ export const MyTripsPageStyle = styled.div({
     flexShrink: 0,
     minWidth: "140px",
     padding: "11px 20px",
-
     borderRadius: "8px",
     backgroundColor: "#005358",
     color: "#fff",
@@ -90,30 +90,50 @@ export const MyTripsPageStyle = styled.div({
 
   "& .trips-tabs": {
     display: "flex",
-    alignItems: "center",
-    gap: "18px",
-    minWidth: 0,
-  },
+    position: "relative",
 
-  "& .trips-tabs button": {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "7px",
-    minHeight: "45px",
-    padding: "0 12px",
+    "& .trips-tab-indicator": {
+      ...menuAnimation.indicator,
+      display: "block",
+      position: "absolute",
+      top: "auto",
+      bottom: "-1px",
+      left: 0,
+      width: "var(--indicator-width, 0px)",
+      height: 2,
+      borderRadius: 0,
+      backgroundColor: "#005358",
+      opacity: 1,
+      visibility: "visible",
+      zIndex: 1,
+      transform: "translateX(var(--indicator-left, 0px))",
+      pointerEvents: "none",
+    },
 
-    borderBottom: "2px solid transparent",
+    "& button": {
+      ...menuAnimation.button,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "7px",
+      minHeight: "45px",
+      padding: "0 25px",
+      border: 0,
+      backgroundColor: "transparent",
+      color: "#718596",
+      fontSize: "var(--page-font-size)",
+      fontWeight: 600,
+      whiteSpace: "nowrap",
 
-    color: "#718596",
-    fontSize: "var(--page-font-size)",
-    fontWeight: 600,
-    whiteSpace: "nowrap",
-  },
+      "&:focus-visible": {
+        outline: "2px solid #527F79",
+        outlineOffset: "-4px",
+      },
 
-  "& .trips-tabs button.active": {
-    borderBottomColor: "#005358",
-    color: "#005358",
+      "&.active": {
+        color: "#005358",
+      },
+    },
   },
 
   "& .tab-count": {
@@ -136,101 +156,33 @@ export const MyTripsPageStyle = styled.div({
     paddingBottom: "6px",
   },
 
-  "& .sort-wrapper": {
-    position: "relative",
-    flexShrink: 0,
-  },
-
-  "& .sort-trigger": {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "10px",
-    padding: "8px",
-    borderRadius: "8px",
-    color: "#40596c",
-    fontSize: "var(--page-font-size)",
-    whiteSpace: "nowrap",
-  },
-
-  "& .sort-trigger svg": {
-    width: "16px",
-    height: "16px",
-    flexShrink: 0,
-  },
-
-  "& .sort-trigger svg.is-open": {
-    transform: "rotate(180deg)",
-  },
-
-  "& .sort-dropdown": {
-    ...dropdownAnimation,
-
-    position: "absolute",
-    top: "100%",
-    right: 0,
-    zIndex: 30,
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-    minWidth: "170px",
-    marginTop: "6px",
-    padding: "8px",
-    border: "1px solid #e5e9ed",
-    borderRadius: "12px",
-    backgroundColor: "#fff",
-    boxShadow: "0 6px 18px rgba(20, 45, 55, 0.12)",
-  },
-
-  "& .sort-dropdown button": {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: "8px",
-    color: "#20394e",
-    fontSize: "var(--page-font-size)",
-    textAlign: "left",
-    whiteSpace: "nowrap",
-  },
-
-  "& .sort-dropdown button.is-selected": {
-    backgroundColor: "#eaf7f4",
-    color: "#005358",
-    fontWeight: 700,
-  },
-
-  "& .sort-wrapper button:focus-visible": {
-    outline: "2px solid #005358",
-    outlineOffset: "-2px",
-  },
   "& .view-switch": {
     display: "flex",
     gap: "3px",
     padding: "4px",
     borderRadius: "8px",
     backgroundColor: "#f0f3f5",
-  },
 
-  "& .view-switch button": {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "36px",
-    height: "36px",
+    "& button": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "36px",
+      height: "36px",
+      borderRadius: "6px",
+      color: "#8293a0",
 
-    borderRadius: "6px",
+      "&.active": {
+        backgroundColor: "#fff",
+        color: "#005358",
+        boxShadow: "0 1px 5px rgba(0,0,0,0.07)",
+      },
+    },
 
-    color: "#8293a0",
-  },
-
-  "& .view-switch button.active": {
-    backgroundColor: "#fff",
-    color: "#005358",
-    boxShadow: "0 1px 5px rgba(0,0,0,0.07)",
-  },
-
-  "& .view-switch svg": {
-    width: "19px",
-    height: "19px",
+    "& svg": {
+      width: "19px",
+      height: "19px",
+    },
   },
 
   "& .trips-breadcrumb": {
@@ -241,6 +193,7 @@ export const MyTripsPageStyle = styled.div({
     color: "#172c3d",
     fontWeight: 600,
   },
+
   "& .trips-content-region": {
     display: "flex",
     flexDirection: "column",
@@ -248,22 +201,23 @@ export const MyTripsPageStyle = styled.div({
     flex: 1,
     minWidth: 0,
     padding: "32px 0",
+
+    "&.is-all": {
+      justifyContent: "center",
+    },
   },
-  "& .trips-content-region.is-all": {
-    justifyContent: "center",
-  },
+
   "& .trips-grid": {
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-
     alignItems: "stretch",
     gap: "16px",
-  },
 
-  "& .trips-grid.view-list": {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
+    "&.view-list": {
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px",
+    },
   },
 
   "& .create-trip-card": {
@@ -278,6 +232,10 @@ export const MyTripsPageStyle = styled.div({
     borderRadius: "12px",
     backgroundColor: "#fff",
     color: "#005358",
+
+    "& strong": {
+      fontSize: "17px",
+    },
   },
 
   "& .create-icon": {
@@ -288,15 +246,11 @@ export const MyTripsPageStyle = styled.div({
     height: "42px",
     border: "2px solid #005358",
     borderRadius: "50%",
-  },
 
-  "& .create-icon svg": {
-    width: "25px",
-    height: "25px",
-  },
-
-  "& .create-trip-card strong": {
-    fontSize: "17px",
+    "& svg": {
+      width: "25px",
+      height: "25px",
+    },
   },
 
   "& .create-description": {
@@ -318,10 +272,6 @@ export const MyTripsPageStyle = styled.div({
   },
 
   "@media (hover: hover) and (pointer: fine)": {
-    "& .sort-dropdown button:hover": {
-      backgroundColor: "#eaf7f4",
-      color: "#005358",
-    },
     "& .schedule-button:hover": {
       backgroundColor: "#00666b",
     },
@@ -338,12 +288,15 @@ export const MyTripsPageStyle = styled.div({
 
   "@media (max-width: 1023px)": {
     "--page-font-size": "15px",
+
     "& .trips-toolbar": {
       flexWrap: "wrap",
     },
+
     "& .trips-controls": {
       marginLeft: "auto",
     },
+
     "& .trips-page-inner": {
       padding: "24px 16px 0",
     },
@@ -352,25 +305,12 @@ export const MyTripsPageStyle = styled.div({
       fontSize: "24px",
     },
 
-    "& .trips-header p": {
-      fontSize: "var(--page-font-size)",
-    },
-
-    "& .schedule-button": {
-      fontSize: "var(--page-font-size)",
-    },
-
     "& .trips-tabs": {
       gap: "5px",
-    },
 
-    "& .trips-tabs button": {
-      padding: "0 7px",
-      fontSize: "var(--page-font-size)",
-    },
-
-    "& .tab-count": {
-      fontSize: "var(--page-font-size)",
+      "& button": {
+        padding: "0 7px",
+      },
     },
 
     "& .trips-grid": {
@@ -379,40 +319,14 @@ export const MyTripsPageStyle = styled.div({
 
     "& .create-trip-card": {
       minHeight: "200px",
-    },
 
-    "& .create-trip-card strong, & .create-description": {
-      fontSize: "var(--page-font-size)",
+      "& strong": {
+        fontSize: "var(--page-font-size)",
+      },
     },
   },
 
-  "@media (max-width: 767px)": {
-    "--page-font-size": "14px",
-
-    "& .sort-dropdown": {
-      left: 0,
-      right: "auto",
-    },
-    "& .trips-breadcrumb": {
-      display: "none",
-    },
-    "& .trips-content-region": {
-      padding: "16px 0",
-    },
-    flexDirection: "column",
-
-    "& .page-sidebar": {
-      display: "none",
-    },
-
-    "& .page-mobile-header": {
-      display: "block",
-    },
-
-    "& .page-mobile-footer": {
-      display: "block",
-    },
-
+  "@media (max-width: 800px)": {
     "& .trips-toolbar": {
       flexDirection: "column",
       alignItems: "stretch",
@@ -422,36 +336,32 @@ export const MyTripsPageStyle = styled.div({
 
     "& .trips-tabs": {
       flexWrap: "nowrap",
+      alignItems: "stretch",
+      gap: 0,
       width: "100%",
-      maxWidth: "100%",
-      gap: "7px",
-      overflowX: "auto",
-      overscrollBehaviorX: "contain",
-      scrollbarWidth: "none",
+      borderBottom: "1px solid #E2E6E9",
+
+      "& button": {
+        flex: "1 1 0",
+        minWidth: 0,
+        minHeight: 44,
+        gap: 4,
+        padding: "10px 0",
+        fontWeight: 400,
+
+        "&.active": {
+          fontWeight: 700,
+        },
+      },
     },
 
-    "& .trips-tabs::-webkit-scrollbar": {
-      display: "none",
-    },
-
-    "& .trips-tabs button": {
-      flexShrink: 0,
-      minHeight: "40px",
-      padding: "0 11px",
-      border: "1px solid #e3e9ed",
-      borderRadius: "24px",
-      fontSize: "var(--page-font-size)",
-    },
-
-    "& .trips-tabs button.active": {
-      borderColor: "#005358",
-      backgroundColor: "#005358",
-      color: "#fff",
-    },
-
-    "& .trips-tabs button.active .tab-count": {
-      backgroundColor: "rgba(255,255,255,0.16)",
-      color: "#fff",
+    "& .tab-count": {
+      minWidth: 0,
+      height: "auto",
+      padding: 0,
+      borderRadius: 0,
+      backgroundColor: "transparent",
+      color: "inherit",
     },
 
     "& .trips-controls": {
@@ -459,41 +369,18 @@ export const MyTripsPageStyle = styled.div({
       justifyContent: "space-between",
       padding: "0 0 4px",
     },
+  },
 
-    "& .trips-grid": {
-      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-      gap: "12px",
+  "@media (max-width: 767px)": {
+    "--page-font-size": "14px",
+    flexDirection: "column",
+
+    "& .trips-breadcrumb, & .page-sidebar": {
+      display: "none",
     },
 
-    "& .trips-grid.view-list": {
-      display: "flex",
-      flexDirection: "column",
-      gap: "12px",
-    },
-
-    "& .create-trip-card": {
-      minHeight: "180px",
-      gap: "9px",
-      padding: "12px",
-    },
-
-    "& .create-icon": {
-      width: "34px",
-      height: "34px",
-    },
-
-    "& .create-icon svg": {
-      width: "20px",
-      height: "20px",
-    },
-
-    "& .create-trip-card strong, & .create-description": {
-      fontSize: "var(--page-font-size)",
-    },
-
-    "& .view-list .create-trip-card": {
-      minHeight: "90px",
-      flexWrap: "wrap",
+    "& .page-mobile-header, & .page-mobile-footer": {
+      display: "block",
     },
 
     "& .page-content": {
@@ -511,20 +398,12 @@ export const MyTripsPageStyle = styled.div({
     },
 
     "& .trips-header-top": {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
       gap: "10px",
     },
 
     "& .trips-header h1": {
       fontSize: "22px",
       whiteSpace: "nowrap",
-    },
-
-    "& .trips-header p": {
-      fontSize: "var(--page-font-size)",
-      lineHeight: 1.6,
     },
 
     "& .schedule-button": {
@@ -535,8 +414,40 @@ export const MyTripsPageStyle = styled.div({
       minWidth: "100px",
       minHeight: "36px",
       padding: "8px 12px",
-      fontSize: "var(--page-font-size)",
       whiteSpace: "nowrap",
+    },
+
+    "& .trips-content-region": {
+      padding: "16px 0",
+    },
+
+    "& .trips-grid": {
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      gap: "12px",
+
+      "&.view-list": {
+        gap: "12px",
+      },
+    },
+
+    "& .create-trip-card": {
+      minHeight: "180px",
+      gap: "9px",
+      padding: "12px",
+    },
+
+    "& .create-icon": {
+      width: "34px",
+      height: "34px",
+
+      "& svg": {
+        width: "20px",
+        height: "20px",
+      },
+    },
+
+    "& .view-list .create-trip-card": {
+      flexWrap: "wrap",
     },
   },
 });
