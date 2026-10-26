@@ -407,7 +407,7 @@ const MainSidebar = () => {
   };
 
   return (
-    <S.SidebarShell>
+    <S.SidebarShell data-collapsed={isCollapsed ? "true" : "false"}>
       <S.SidebarContainer data-collapsed={isCollapsed ? "true" : "false"}>
         <S.HeaderStyle data-sidebar-header="">
           <S.LogoWrapper
