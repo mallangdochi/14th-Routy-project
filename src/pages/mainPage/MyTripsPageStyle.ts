@@ -39,14 +39,14 @@ export const MyTripsPageStyle = styled.div({
     width: "100%",
     maxWidth: "1430px",
     margin: "0 auto",
-    padding: "26px 44px 0",
+    padding: "32px 32px 0",
   },
 
   "& .trips-header": {
     display: "flex",
     flexDirection: "column",
     gap: "8px",
-    marginBottom: "35px",
+    marginBottom: "36px",
   },
 
   "& .trips-header-top": {
@@ -75,7 +75,7 @@ export const MyTripsPageStyle = styled.div({
   "& .schedule-button": {
     flexShrink: 0,
     minWidth: "154px",
-    padding: "12px 22px",
+    padding: "12px 24px",
     borderRadius: "9px",
     backgroundColor: "#005358",
     color: "#fff",
@@ -194,8 +194,8 @@ export const MyTripsPageStyle = styled.div({
   "& .trips-breadcrumb": {
     display: "flex",
     alignItems: "center",
-    gap: "9px",
-    marginBottom: "26px",
+    gap: "8px",
+    marginBottom: "32px",
     color: "#172c3d",
     fontWeight: 600,
   },
@@ -206,7 +206,7 @@ export const MyTripsPageStyle = styled.div({
     justifyContent: "flex-start",
     flex: 1,
     minWidth: 0,
-    padding: "35px 0",
+    padding: "32px 0",
 
     "&.is-all": {
       justifyContent: "center",
@@ -217,7 +217,7 @@ export const MyTripsPageStyle = styled.div({
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     alignItems: "stretch",
-    gap: "18px",
+    gap: "16px",
 
     "&.view-list": {
       display: "flex",
@@ -231,7 +231,7 @@ export const MyTripsPageStyle = styled.div({
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: "13px",
+    gap: "14px",
     minHeight: "286px",
     padding: "22px",
     border: "1px dashed #c9dce0",
