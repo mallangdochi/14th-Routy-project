@@ -90,8 +90,9 @@ export const TripCardStyle = styled.article({
     left: "10px",
     padding: "5px 12px",
     borderRadius: "20px",
-    fontSize: "var(--trip-font-size)",
-    fontWeight: 700,
+    fontSize: "14px",
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
     whiteSpace: "nowrap",
   },
 
@@ -123,7 +124,8 @@ export const TripCardStyle = styled.article({
     paddingRight: "20px",
     color: "#152c45",
     fontSize: "18px",
-    fontWeight: 700,
+    fontWeight: 600,
+    letterSpacing: "-0.015em",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
@@ -131,7 +133,9 @@ export const TripCardStyle = styled.article({
   "& .trip-date": {
     overflow: "hidden",
     color: "#73869d",
-    fontSize: "var(--trip-font-size)",
+    fontSize: "16px",
+    fontWeight: 400,
+    letterSpacing: "-0.01em",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
@@ -143,7 +147,9 @@ export const TripCardStyle = styled.article({
     gap: "8px",
     marginTop: "4px",
     color: "#687f97",
-    fontSize: "var(--trip-font-size)",
+    fontSize: "16px",
+    fontWeight: 400,
+    letterSpacing: "-0.01em",
   },
 
   "& .trip-stats span": {
@@ -155,7 +161,7 @@ export const TripCardStyle = styled.article({
 
   "& .trip-stats strong": {
     color: "#1a3552",
-    fontWeight: 700,
+    fontWeight: 600,
   },
 
   "& .trip-stats svg": {

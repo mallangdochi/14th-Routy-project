@@ -70,7 +70,7 @@ export const PageInner = styled.div({
     paddingBottom: 24,
 
     "& h1": {
-      fontSize: 44,
+      fontSize: 35,
       color: "#0D3E41",
     },
   },

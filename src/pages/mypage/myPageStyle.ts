@@ -158,20 +158,13 @@ export const PageHeader = styled.header({
 
 export const PageTitle = styled.h1<{ $green: boolean }>(({ $green }) => ({
   color: $green ? green : navy,
-  fontSize: 48,
+  fontSize: 35,
   fontWeight: 800,
   letterSpacing: "-0.05em",
   lineHeight: 1.3,
 
-  "@media (max-width: 1100px)": {
-    fontSize: 40,
-  },
-
   "@media (max-width: 760px)": {
     fontSize: 30,
-  },
-  "@media (min-width: 761px) and (max-width: 1199px)": {
-    fontSize: 34,
   },
 }));
 
