@@ -1,5 +1,5 @@
 export async function loginWithEmail(
-  email: string,
+  loginId: string,
   password: string,
   remember: boolean,
 ): Promise<void> {
@@ -10,7 +10,7 @@ export async function loginWithEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      email,
+      loginId: loginId.trim(),
       password,
       remember,
     }),
@@ -78,13 +78,6 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
         ? user.username
         : null,
   };
-  // return {
-  //   id: user.id,
-  //   email:
-  //     "email" in user && typeof user.email === "string"
-  //       ? user.email
-  //       : undefined,
-  // };
 }
 export async function logout(): Promise<void> {
   const response = await fetch("/api/auth/logout", {
@@ -114,4 +107,91 @@ export async function logout(): Promise<void> {
   ) {
     throw new Error("로그아웃 응답을 확인하지 못했습니다.");
   }
+}
+
+export async function checkUsername(username: string): Promise<boolean> {
+  const response = await fetch("/api/auth/check-username", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      username: username.trim(),
+    }),
+  });
+
+  const data: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      data !== null &&
+      typeof data === "object" &&
+      "message" in data &&
+      typeof data.message === "string"
+        ? data.message
+        : "아이디 중복 확인에 실패했습니다.";
+
+    throw new Error(message);
+  }
+
+  if (
+    data === null ||
+    typeof data !== "object" ||
+    !("available" in data) ||
+    typeof data.available !== "boolean"
+  ) {
+    throw new Error("아이디 중복 확인 응답이 올바르지 않습니다.");
+  }
+
+  return data.available;
+}
+export interface SignupRequest {
+  firstName: string;
+  lastName: string;
+  birth: string;
+  phone: string;
+  email: string;
+  username: string;
+  password: string;
+  agreeTerms: boolean;
+  agreePrivacy: boolean;
+  agreeMarketing: boolean;
+  agreeLocation: boolean;
+}
+
+export async function signupWithEmail(form: SignupRequest): Promise<void> {
+  const response = await fetch("/api/auth/signup", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(form),
+  });
+
+  const data: unknown = await response.json().catch(() => null);
+
+  const message =
+    data !== null &&
+    typeof data === "object" &&
+    "message" in data &&
+    typeof data.message === "string"
+      ? data.message
+      : "회원가입 요청에 실패했습니다.";
+
+  if (!response.ok) {
+    throw new Error(message);
+  }
+
+  if (
+    data === null ||
+    typeof data !== "object" ||
+    !("success" in data) ||
+    data.success !== true
+  ) {
+    throw new Error("회원가입 응답이 올바르지 않습니다.");
+  }
+
+  window.alert(message);
 }
