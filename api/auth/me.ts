@@ -52,6 +52,7 @@ export default async function handler(
           typeof data.user.user_metadata.username === "string"
             ? data.user.user_metadata.username
             : null,
+        profileCompleted: data.user.user_metadata?.profile_completed !== false,
       },
     });
     // return response.status(200).json({

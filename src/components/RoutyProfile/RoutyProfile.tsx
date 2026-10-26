@@ -7,6 +7,9 @@ import {
 } from "react";
 import { useNavigate } from "react-router";
 import { ChevronRight, Pencil, Plane, X } from "lucide-react";
+import { completeInitialProfile } from "../../api/auth";
+import { markCurrentProfileCompleted } from "../../utils/firstLoginProfile";
+import { useAuth } from "../../contexts/AuthContext";
 
 import routyLogo from "../../assets/루티2.svg";
 import sampleAvatar from "../../assets/profileimg.png";
@@ -88,6 +91,7 @@ export default function RoutyProfile({
   onFinish,
 }: RoutyProfileProps) {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [screen, setScreen] = useState<"profile" | "welcome">("profile");
@@ -137,11 +141,20 @@ export default function RoutyProfile({
     setLoading(true);
 
     try {
-      await onSaveProfile?.({ nickname: value, avatarFile });
+      if (onSaveProfile) {
+        await onSaveProfile({ nickname: value, avatarFile });
+      }
+      await completeInitialProfile(value);
+      markCurrentProfileCompleted();
+      await refreshUser();
       setNickname(value);
       setScreen("welcome");
-    } catch {
-      setError("프로필 설정에 실패했습니다. 다시 시도해주세요.");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "프로필 설정에 실패했습니다. 다시 시도해주세요.",
+      );
     } finally {
       setLoading(false);
     }
