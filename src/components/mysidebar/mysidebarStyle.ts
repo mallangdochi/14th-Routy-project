@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import { Link } from "react-router";
 
 interface MenuButtonProps {
   $active: boolean;
@@ -7,7 +8,9 @@ interface MenuButtonProps {
 export const SidebarContainer = styled.aside({
   width: "230px",
   minWidth: "230px",
-  height: "100dvh",
+  height: "calc(100dvh / 0.9)",
+  zoom: 0.9,
+
   position: "sticky",
   top: 0,
   alignSelf: "flex-start",
@@ -41,12 +44,19 @@ export const SidebarContainer = styled.aside({
   },
 });
 
-export const LogoArea = styled.div({
+export const LogoArea = styled(Link)({
   height: "36px",
   paddingLeft: "6px",
   display: "flex",
   alignItems: "center",
+  alignSelf: "flex-start",
   flexShrink: 0,
+  borderRadius: "4px",
+
+  "&:focus-visible": {
+    outline: "3px solid #ffffff",
+    outlineOffset: "4px",
+  },
 });
 
 export const Logo = styled.img({
@@ -96,9 +106,9 @@ export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
   display: "flex",
   alignItems: "center",
   gap: "13px",
+  flexShrink: 0,
 
   borderRadius: "9px",
-
   background: $active ? "#edf8f5" : "transparent",
   color: $active ? "#005044" : "#ffffff",
 
@@ -123,6 +133,7 @@ export const Footer = styled.div({
   display: "flex",
   flexDirection: "column",
   gap: "3px",
+  flexShrink: 0,
 
   "@media (max-height: 520px)": {
     marginTop: "28px",
@@ -144,6 +155,7 @@ export const FooterButton = styled.button({
   display: "flex",
   alignItems: "center",
   gap: "13px",
+  flexShrink: 0,
 
   borderRadius: "8px",
   background: "transparent",

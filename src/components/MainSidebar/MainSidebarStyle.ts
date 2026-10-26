@@ -4,12 +4,21 @@ import { Link } from "react-router";
 
 export const MENU_SELECTION_DURATION_MS = 180;
 const menuSelectionTransition = `${MENU_SELECTION_DURATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+
 export const SidebarShell = styled.div({
   position: "relative",
   display: "flex",
   flexShrink: 0,
-  height: "100%",
-  minHeight: "100vh",
+
+  zoom: 1.1,
+  height: "calc(100dvh / 1.1)",
+  minHeight: "calc(100dvh / 1.1)",
+
+  '&[data-collapsed="true"]': {
+    zoom: 0.9,
+    height: "calc(100dvh / 0.9)",
+    minHeight: "calc(100dvh / 0.9)",
+  },
 });
 
 export const SidebarContainer = styled.aside({
