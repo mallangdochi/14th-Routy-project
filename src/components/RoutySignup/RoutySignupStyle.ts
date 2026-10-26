@@ -8,6 +8,11 @@ const muted = "#778D90";
 const success = "#36AA83";
 const error = "#D85A5A";
 
+// 레이아웃 박스를 추가하지 않고 양쪽 페이지를 하나의 폼으로 묶습니다.
+export const SignupForm = styled.form({
+  display: "contents",
+});
+
 // 회원가입 왼쪽 페이지 (회전하는 종이 뒷면에 표시)
 export const LeftContent = styled.div({
   display: "flex",
@@ -22,7 +27,7 @@ export const LeftContent = styled.div({
 });
 
 // 회원가입 오른쪽 페이지
-export const RightContent = styled.form({
+export const RightContent = styled.div({
   width: "100%",
   height: "100%",
   padding: "52px 52px 35px",
