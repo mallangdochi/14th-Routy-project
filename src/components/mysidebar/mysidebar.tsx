@@ -1,168 +1,3 @@
-// import { useLocation, useNavigate } from "react-router";
-// import {
-//   UserRound,
-//   LockKeyhole,
-//   Settings,
-//   Headset,
-//   Plane,
-//   LogOut,
-// } from "lucide-react";
-
-// import routyLogo from "../../assets/routy-logo.svg";
-// import routyMascot from "../../assets/profile.webp";
-
-// import {
-//   SidebarContainer,
-//   LogoArea,
-//   Logo,
-//   UserSection,
-//   Avatar,
-//   UserName,
-//   Navigation,
-//   MenuButton,
-//   Footer,
-//   Divider,
-//   FooterButton,
-// } from "./mysidebarStyle";
-// import { useAuth } from "../../contexts/AuthContext";
-// import { useRef, useState } from "react";
-// import { logout } from "../../api/auth";
-
-// type MenuId = "profile" | "security" | "settings" | "support";
-
-// interface SidebarProps {
-//   // profileName?: string;
-//   profileImage?: string;
-//   onNavigate?: (page: MenuId) => void;
-//   onBack?: () => void;
-//   // onLogout?: () => void;
-// }
-
-// const menuItems = [
-//   {
-//     id: "profile",
-//     label: "프로필 관리",
-//     icon: UserRound,
-//   },
-//   {
-//     id: "security",
-//     label: "계정 및 보안",
-//     icon: LockKeyhole,
-//   },
-//   {
-//     id: "settings",
-//     label: "설정",
-//     icon: Settings,
-//   },
-//   {
-//     id: "support",
-//     label: "고객센터",
-//     icon: Headset,
-//   },
-// ] as const;
-
-// export default function Sidebar({
-//   // profileName = "회원",
-//   profileImage = routyMascot,
-//   onNavigate,
-//   onBack,
-//   // onLogout,
-// }: SidebarProps) {
-//   const { pathname } = useLocation();
-//   const navigate = useNavigate();
-//   // const { refreshUser } = useAuth();
-//   const { user, refreshUser } = useAuth();
-
-//   const profileName = user?.username?.trim() || "회원";
-
-//   const [logoutLoading, setLogoutLoading] = useState(false);
-//   const [logoutError, setLogoutError] = useState("");
-//   const logoutPendingRef = useRef(false);
-
-//   const currentSection = pathname.split("/")[2];
-
-//   const activeMenu: MenuId =
-//     menuItems.find((item) => item.id === currentSection)?.id ?? "profile";
-
-//   const handleMenuClick = (id: MenuId): void => {
-//     onNavigate?.(id);
-//   };
-
-//   const handleLogout = async (): Promise<void> => {
-//     if (logoutPendingRef.current) return;
-
-//     logoutPendingRef.current = true;
-//     setLogoutLoading(true);
-//     setLogoutError("");
-
-//     try {
-//       await logout();
-//       await refreshUser();
-
-//       const isMobile = window.matchMedia("(max-width: 767px)").matches;
-
-//       navigate(isMobile ? "/login" : "/", { replace: true });
-//     } catch (error) {
-//       setLogoutError(
-//         error instanceof Error
-//           ? error.message
-//           : "로그아웃 처리 중 오류가 발생했습니다.",
-//       );
-//     } finally {
-//       logoutPendingRef.current = false;
-//       setLogoutLoading(false);
-//     }
-//   };
-
-//   return (
-//     <SidebarContainer>
-//       <LogoArea>
-//         <Logo src={routyLogo} alt="Routy" />
-//       </LogoArea>
-
-//       <UserSection>
-//         <Avatar src={profileImage} alt="프로필" />
-//         <UserName>{profileName}님</UserName>
-//       </UserSection>
-
-//       <Navigation aria-label="계정 메뉴">
-//         {menuItems.map(({ id, label, icon: Icon }) => (
-//           <MenuButton
-//             key={id}
-//             type="button"
-//             $active={activeMenu === id}
-//             aria-current={activeMenu === id ? "page" : undefined}
-//             onClick={() => handleMenuClick(id)}
-//           >
-//             <Icon size={20} strokeWidth={1.9} aria-hidden="true" />
-//             <span>{label}</span>
-//           </MenuButton>
-//         ))}
-//       </Navigation>
-
-//       <Footer>
-//         <Divider />
-
-//         <FooterButton type="button" onClick={onBack}>
-//           <Plane size={22} strokeWidth={1.8} aria-hidden="true" />
-//           <span>여행으로 돌아가기</span>
-//         </FooterButton>
-
-//         <FooterButton
-//           type="button"
-//           disabled={logoutLoading}
-//           aria-busy={logoutLoading}
-//           onClick={() => void handleLogout()}
-//         >
-//           <LogOut size={21} strokeWidth={1.8} aria-hidden="true" />
-//           <span>{logoutLoading ? "로그아웃 중..." : "로그아웃"}</span>
-//         </FooterButton>
-//         {logoutError && <p role="alert">{logoutError}</p>}
-//       </Footer>
-//     </SidebarContainer>
-//   );
-// }
-
 import { useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
@@ -173,6 +8,7 @@ import {
   Plane,
   LogOut,
   LogIn,
+  type LucideIcon,
 } from "lucide-react";
 
 import routyLogo from "../../assets/routy-logo.svg";
@@ -203,28 +39,39 @@ interface SidebarProps {
   onBack?: () => void;
 }
 
+interface MenuItem {
+  id: MenuId;
+  label: string;
+  icon: LucideIcon;
+  strokeWidth: number;
+}
+
 const menuItems = [
   {
     id: "profile",
     label: "프로필 관리",
     icon: UserRound,
+    strokeWidth: 1.5,
   },
   {
     id: "security",
     label: "계정 및 보안",
     icon: LockKeyhole,
+    strokeWidth: 1.5,
   },
   {
     id: "settings",
     label: "설정",
     icon: Settings,
+    strokeWidth: 1.5,
   },
   {
     id: "support",
     label: "고객센터",
     icon: Headset,
+    strokeWidth: 1.5,
   },
-] as const;
+] satisfies readonly MenuItem[];
 
 export default function Sidebar({
   profileImage = routyMascot,
@@ -300,7 +147,7 @@ export default function Sidebar({
 
   return (
     <SidebarContainer data-logged-in={isLoggedIn}>
-      <LogoArea>
+      <LogoArea to="/" aria-label="Routy 스타트 페이지로 이동">
         <Logo src={routyLogo} alt="Routy" />
       </LogoArea>
 
@@ -319,7 +166,7 @@ export default function Sidebar({
       </UserSection>
 
       <Navigation aria-label="계정 메뉴">
-        {visibleMenuItems.map(({ id, label, icon: Icon }) => (
+        {visibleMenuItems.map(({ id, label, icon: Icon, strokeWidth }) => (
           <MenuButton
             key={id}
             type="button"
@@ -327,7 +174,11 @@ export default function Sidebar({
             aria-current={activeMenu === id ? "page" : undefined}
             onClick={() => handleMenuClick(id)}
           >
-            <Icon size={20} strokeWidth={1.9} aria-hidden="true" />
+            <Icon
+              size={20}
+              strokeWidth={strokeWidth + (activeMenu === id ? 0.8 : 0)}
+              aria-hidden="true"
+            />
             <span>{label}</span>
           </MenuButton>
         ))}

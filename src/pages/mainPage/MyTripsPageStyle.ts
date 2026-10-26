@@ -1,9 +1,9 @@
 import styled from "@emotion/styled";
 import { menuAnimation } from "../../styles/animation";
 
+// PC에서 브라우저 110% 확대와 비슷한 밀도를 내도록 크기를 조정합니다.
+// 태블릿(1023px 이하)과 모바일(767px 이하)은 기존 값을 유지합니다.
 export const MyTripsPageStyle = styled.div({
-  "--page-font-size": "16px",
-  fontSize: "var(--page-font-size)",
   display: "flex",
   alignItems: "stretch",
   width: "100%",
@@ -37,54 +37,58 @@ export const MyTripsPageStyle = styled.div({
     flexDirection: "column",
     flex: 1,
     width: "100%",
-    maxWidth: "1300px",
+    maxWidth: "1430px",
     margin: "0 auto",
-    padding: "24px 40px 0",
+    padding: "26px 44px 0",
   },
 
   "& .trips-header": {
     display: "flex",
     flexDirection: "column",
-    gap: "7px",
-    marginBottom: "32px",
+    gap: "8px",
+    marginBottom: "35px",
   },
 
   "& .trips-header-top": {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: "16px",
+    gap: "18px",
     width: "100%",
   },
 
   "& .trips-header h1": {
     color: "#172c3d",
-    fontSize: "28px",
-    fontWeight: 800,
+    fontSize: "32px",
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
   },
 
   "& .trips-header p": {
     color: "#75899c",
-    fontSize: "var(--page-font-size)",
+    fontSize: "18px",
+    fontWeight: 400,
+    letterSpacing: "-0.01em",
     lineHeight: 1.6,
   },
 
   "& .schedule-button": {
     flexShrink: 0,
-    minWidth: "140px",
-    padding: "11px 20px",
-    borderRadius: "8px",
+    minWidth: "154px",
+    padding: "12px 22px",
+    borderRadius: "9px",
     backgroundColor: "#005358",
     color: "#fff",
-    fontSize: "var(--page-font-size)",
-    fontWeight: 700,
+    fontSize: "17px",
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
   },
 
   "& .trips-toolbar": {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: "15px",
+    gap: "17px",
     borderBottom: "1px solid #e5ebef",
   },
 
@@ -115,14 +119,15 @@ export const MyTripsPageStyle = styled.div({
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
-      gap: "7px",
-      minHeight: "45px",
-      padding: "0 25px",
+      gap: "8px",
+      minHeight: "50px",
+      padding: "0 27px",
       border: 0,
       backgroundColor: "transparent",
       color: "#718596",
-      fontSize: "var(--page-font-size)",
+      fontSize: "18px",
       fontWeight: 600,
+      letterSpacing: "-0.01em",
       whiteSpace: "nowrap",
 
       "&:focus-visible": {
@@ -140,36 +145,37 @@ export const MyTripsPageStyle = styled.div({
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: "23px",
-    height: "23px",
-    padding: "0 5px",
+    minWidth: "25px",
+    height: "25px",
+    padding: "0 6px",
     borderRadius: "20px",
     backgroundColor: "#edf1f4",
     color: "#536b7c",
-    fontSize: "var(--page-font-size)",
+    fontSize: "15px",
+    fontWeight: 600,
   },
 
   "& .trips-controls": {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    paddingBottom: "6px",
+    gap: "13px",
+    paddingBottom: "7px",
   },
 
   "& .view-switch": {
     display: "flex",
     gap: "3px",
     padding: "4px",
-    borderRadius: "8px",
+    borderRadius: "9px",
     backgroundColor: "#f0f3f5",
 
     "& button": {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      width: "36px",
-      height: "36px",
-      borderRadius: "6px",
+      width: "40px",
+      height: "40px",
+      borderRadius: "7px",
       color: "#8293a0",
 
       "&.active": {
@@ -180,16 +186,16 @@ export const MyTripsPageStyle = styled.div({
     },
 
     "& svg": {
-      width: "19px",
-      height: "19px",
+      width: "21px",
+      height: "21px",
     },
   },
 
   "& .trips-breadcrumb": {
     display: "flex",
     alignItems: "center",
-    gap: "8px",
-    marginBottom: "24px",
+    gap: "9px",
+    marginBottom: "26px",
     color: "#172c3d",
     fontWeight: 600,
   },
@@ -200,7 +206,7 @@ export const MyTripsPageStyle = styled.div({
     justifyContent: "flex-start",
     flex: 1,
     minWidth: 0,
-    padding: "32px 0",
+    padding: "35px 0",
 
     "&.is-all": {
       justifyContent: "center",
@@ -211,12 +217,12 @@ export const MyTripsPageStyle = styled.div({
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     alignItems: "stretch",
-    gap: "16px",
+    gap: "18px",
 
     "&.view-list": {
       display: "flex",
       flexDirection: "column",
-      gap: "10px",
+      gap: "11px",
     },
   },
 
@@ -225,16 +231,18 @@ export const MyTripsPageStyle = styled.div({
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: "12px",
-    minHeight: "260px",
-    padding: "20px",
+    gap: "13px",
+    minHeight: "286px",
+    padding: "22px",
     border: "1px dashed #c9dce0",
-    borderRadius: "12px",
+    borderRadius: "13px",
     backgroundColor: "#fff",
     color: "#005358",
 
     "& strong": {
-      fontSize: "17px",
+      fontSize: "18px",
+      fontWeight: 600,
+      letterSpacing: "-0.01em",
     },
   },
 
@@ -242,30 +250,31 @@ export const MyTripsPageStyle = styled.div({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    width: "42px",
-    height: "42px",
+    width: "46px",
+    height: "46px",
     border: "2px solid #005358",
     borderRadius: "50%",
 
     "& svg": {
-      width: "25px",
-      height: "25px",
+      width: "28px",
+      height: "28px",
     },
   },
 
   "& .create-description": {
     color: "#7b8d9a",
-    fontSize: "var(--page-font-size)",
+    fontSize: "16px",
+    fontWeight: 600,
     textAlign: "center",
   },
 
   "& .view-list .create-trip-card": {
     flexDirection: "row",
-    minHeight: "90px",
+    minHeight: "99px",
   },
 
   "& .trips-empty": {
-    padding: "70px 20px",
+    padding: "77px 22px",
     color: "#718596",
     fontSize: "var(--page-font-size)",
     textAlign: "center",
@@ -299,10 +308,6 @@ export const MyTripsPageStyle = styled.div({
 
     "& .trips-page-inner": {
       padding: "24px 16px 0",
-    },
-
-    "& .trips-header h1": {
-      fontSize: "24px",
     },
 
     "& .trips-tabs": {

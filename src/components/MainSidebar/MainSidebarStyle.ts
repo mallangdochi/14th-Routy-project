@@ -4,12 +4,21 @@ import { Link } from "react-router";
 
 export const MENU_SELECTION_DURATION_MS = 180;
 const menuSelectionTransition = `${MENU_SELECTION_DURATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+
 export const SidebarShell = styled.div({
   position: "relative",
   display: "flex",
   flexShrink: 0,
-  height: "100%",
-  minHeight: "100vh",
+
+  // zoom: 1.1,
+  height: "calc(100dvh / 1.0)",
+  minHeight: "calc(100dvh / 1.0)",
+
+  '&[data-collapsed="true"]': {
+    zoom: 0.9,
+    height: "calc(100dvh / 0.9)",
+    minHeight: "calc(100dvh / 0.9)",
+  },
 });
 
 export const SidebarContainer = styled.aside({
@@ -47,21 +56,26 @@ export const SidebarContainer = styled.aside({
         objectFit: "contain",
       },
     },
-
     "& [data-profile-button]": {
       justifyContent: "center",
-      padding: "10px 6px",
-      gap: "4px",
+      padding: "5px",
+      gap: 0,
     },
+
+    "& [data-profile-image]": {
+      width: "60px",
+      height: "60px",
+    },
+
+    "& [data-profile-arrow]": {
+      display: "none",
+    },
+
     "& [data-profile-name], & [data-menu-label], & [data-create-label], & [data-sidebar-banner]":
       {
         display: "none",
       },
-    "& [data-profile-arrow]": {
-      marginLeft: 0,
-      flexShrink: 0,
-      "& svg": { width: "18px", height: "18px" },
-    },
+
     "& [data-create-button]": {
       width: "56px",
       height: "56px",

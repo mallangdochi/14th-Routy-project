@@ -60,17 +60,26 @@ interface MenuIconProps {
   id: MenuId;
 }
 
-const MenuIcon = ({ id }: MenuIconProps) => {
+interface MenuIconProps {
+  id: MenuId;
+  active: boolean;
+}
+
+const MenuIcon = ({ id, active }: MenuIconProps) => {
+  const strokeWidth = (id === "search" ? 1.8 : 1.5) + (active ? 0.5 : 0);
+
   const icons: Record<MenuId, ReactNode> = {
-    myTrip: <Briefcase size={23} strokeWidth={1.8} aria-hidden="true" />,
-
-    search: <Search size={23} aria-hidden="true" />,
-
-    saved: <Bookmark size={23} strokeWidth={1.5} aria-hidden="true" />,
-
-    notification: <Bell size={23} strokeWidth={1.5} aria-hidden="true" />,
-
-    settings: <Settings size={23} strokeWidth={1.5} aria-hidden="true" />,
+    myTrip: (
+      <Briefcase size={23} strokeWidth={strokeWidth} aria-hidden="true" />
+    ),
+    search: <Search size={23} strokeWidth={strokeWidth} aria-hidden="true" />,
+    saved: <Bookmark size={23} strokeWidth={strokeWidth} aria-hidden="true" />,
+    notification: (
+      <Bell size={23} strokeWidth={strokeWidth} aria-hidden="true" />
+    ),
+    settings: (
+      <Settings size={23} strokeWidth={strokeWidth} aria-hidden="true" />
+    ),
   };
 
   return icons[id];
@@ -97,7 +106,28 @@ const MainSidebar = () => {
         ? `${user.username?.trim() || "회원"}님`
         : "로그인";
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+
+    try {
+      return (
+        window.localStorage.getItem("routy-main-sidebar-collapsed") === "true"
+      );
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "routy-main-sidebar-collapsed",
+        String(isCollapsed),
+      );
+    } catch {
+      // 저장이 제한된 환경에서도 펼치기·접기는 정상 동작
+    }
+  }, [isCollapsed]);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const [sidebarImage, setSidebarImage] = useState(getSidebarImage);
 
@@ -347,16 +377,9 @@ const MainSidebar = () => {
         onClick={() => handleNavigate("/mypage/profile")}
       >
         <UserRound size={20} strokeWidth={1.3} aria-hidden="true" />
-        <span>프로필 수정</span>
+        <span>마이페이지</span>
       </S.DropdownItem>
-      <S.DropdownItem
-        type="button"
-        onClick={() => handleNavigate("/mypage/security")}
-      >
-        <Settings size={20} strokeWidth={1.3} aria-hidden="true" />
-        <span>계정 설정</span>
-      </S.DropdownItem>
-      <S.DropdownDivider />
+
       <S.DropdownItem
         type="button"
         onClick={() => {
@@ -407,7 +430,7 @@ const MainSidebar = () => {
   };
 
   return (
-    <S.SidebarShell>
+    <S.SidebarShell data-collapsed={isCollapsed ? "true" : "false"}>
       <S.SidebarContainer data-collapsed={isCollapsed ? "true" : "false"}>
         <S.HeaderStyle data-sidebar-header="">
           <S.LogoWrapper
@@ -480,7 +503,11 @@ const MainSidebar = () => {
                 }}
               >
                 {user ? (
-                  <S.ProfileImage src={ProfileImage} alt="기본 프로필 이미지" />
+                  <S.ProfileImage
+                    data-profile-image=""
+                    src={ProfileImage}
+                    alt="기본 프로필 이미지"
+                  />
                 ) : (
                   <UserRound size={23} strokeWidth={1.5} aria-hidden="true" />
                 )}
@@ -489,7 +516,16 @@ const MainSidebar = () => {
                   {profileLabel}
                 </S.ProfileName>
 
-                {user && (
+                {/* {user && (
+                  <S.ProfileArrow data-profile-arrow="" $isOpen={isProfileOpen}>
+                    <ChevronDown
+                      size={23}
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                    />
+                  </S.ProfileArrow>
+                )} */}
+                {user && !isCollapsed && (
                   <S.ProfileArrow data-profile-arrow="" $isOpen={isProfileOpen}>
                     <ChevronDown
                       size={23}
@@ -586,7 +622,7 @@ const MainSidebar = () => {
                 onClick={() => handleMenuNavigate(item.id)}
               >
                 <S.MenuIcon data-menu-icon="">
-                  <MenuIcon id={item.id} />
+                  <MenuIcon id={item.id} active={isActive} />
                 </S.MenuIcon>
 
                 <S.MenuLabel data-menu-label="">{item.label}</S.MenuLabel>
@@ -611,7 +647,7 @@ const MainSidebar = () => {
                     onClick={() => handleMenuNavigate(item.id)}
                   >
                     <S.MenuIcon data-menu-icon="">
-                      <MenuIcon id={item.id} />
+                      <MenuIcon id={item.id} active={isActive} />
                     </S.MenuIcon>
 
                     <S.MenuLabel data-menu-label="">{item.label}</S.MenuLabel>

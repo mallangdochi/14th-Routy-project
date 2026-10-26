@@ -167,6 +167,7 @@ export default async function handler(
       options: {
         data: {
           login_id: loginId,
+          profile_completed: false,
           first_name: firstName,
           last_name: lastName,
           birth,
