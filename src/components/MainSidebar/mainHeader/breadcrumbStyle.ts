@@ -42,32 +42,18 @@ export const BreadcrumbStyle = styled.nav({
     textDecoration: "none",
   },
 
-  "&& .breadcrumb-item::after": {
-    content: "none",
-  },
-
   "&& .breadcrumb-label": {
-    position: "relative",
     display: "inline-block",
-
-    "&::after": {
-      content: '""',
-      position: "absolute",
-      left: 0,
-      right: 0,
-      bottom: "-3px",
-      height: "1px",
-      backgroundColor: breadcrumbColor,
-      transform: "scaleX(0)",
-      transformOrigin: "left center",
-      transition: "transform 0.2s ease",
-      pointerEvents: "none",
-    },
+    fontWeight: 500,
+    textDecoration: "none",
   },
 
-  "&& .breadcrumb-item:hover > .breadcrumb-label::after, && .breadcrumb-item:focus-visible > .breadcrumb-label::after":
+  "&& .breadcrumb-item:hover > .breadcrumb-label, && .breadcrumb-item:focus-visible > .breadcrumb-label":
     {
-      transform: "scaleX(1)",
+      fontWeight: 700,
+      textDecoration: "underline",
+      textUnderlineOffset: "6px",
+      textDecorationThickness: "1px",
     },
 
   "&& a.breadcrumb-item:focus-visible": {
@@ -86,11 +72,5 @@ export const BreadcrumbStyle = styled.nav({
 
   "@media (max-width: 767px)": {
     fontSize: "14px",
-  },
-
-  "@media (prefers-reduced-motion: reduce)": {
-    "&& .breadcrumb-label::after": {
-      transition: "none",
-    },
   },
 });

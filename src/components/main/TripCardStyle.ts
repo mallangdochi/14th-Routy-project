@@ -113,7 +113,7 @@ export const TripCardStyle = styled.article({
   "& .trip-content": {
     display: "flex",
     flexDirection: "column",
-    gap: "9px",
+    gap: "4px",
     minWidth: 0,
     padding: "14px",
   },
@@ -122,7 +122,7 @@ export const TripCardStyle = styled.article({
     overflow: "hidden",
     paddingRight: "20px",
     color: "#152c45",
-    fontSize: "17px",
+    fontSize: "18px",
     fontWeight: 700,
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",

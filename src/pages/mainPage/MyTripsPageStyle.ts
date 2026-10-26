@@ -4,7 +4,7 @@ import { menuAnimation } from "../../styles/animation";
 // PC에서 브라우저 110% 확대와 비슷한 밀도를 내도록 크기를 조정합니다.
 // 태블릿(1023px 이하)과 모바일(767px 이하)은 기존 값을 유지합니다.
 export const MyTripsPageStyle = styled.div({
-  "--page-font-size": "18px",
+  "--page-font-size": "19px",
   fontSize: "var(--page-font-size)",
   display: "flex",
   alignItems: "stretch",
@@ -61,7 +61,7 @@ export const MyTripsPageStyle = styled.div({
 
   "& .trips-header h1": {
     color: "#172c3d",
-    fontSize: "31px",
+    fontSize: "35px",
     fontWeight: 800,
   },
 
@@ -301,10 +301,6 @@ export const MyTripsPageStyle = styled.div({
 
     "& .trips-page-inner": {
       padding: "24px 16px 0",
-    },
-
-    "& .trips-header h1": {
-      fontSize: "24px",
     },
 
     "& .trips-tabs": {
