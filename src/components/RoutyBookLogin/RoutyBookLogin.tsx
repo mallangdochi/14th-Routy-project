@@ -361,7 +361,7 @@ export default function RoutyBookLogin({
 
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-
+    console.log("로그인 제출 처리 실행");
     if (loginDisabled || loginLoading) {
       return;
     }

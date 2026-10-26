@@ -29,9 +29,26 @@ export default async function handler(
     });
   }
 
-  if (request.headers.origin !== appOrigin) {
+  const allowedOrigins = new Set([
+    appOrigin,
+    ...(process.env.ADDITIONAL_ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ]);
+
+  const origin = request.headers.origin;
+
+  if (typeof origin !== "string" || !allowedOrigins.has(origin)) {
     return response.status(403).json({
       message: "허용되지 않은 출처의 요청입니다.",
+    });
+  }
+  const contentType = request.headers["content-type"] ?? "";
+
+  if (contentType.split(";")[0].trim().toLowerCase() !== "application/json") {
+    return response.status(415).json({
+      message: "JSON 형식으로 요청해주세요.",
     });
   }
 
