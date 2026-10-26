@@ -4,8 +4,6 @@ import { menuAnimation } from "../../styles/animation";
 // PC에서 브라우저 110% 확대와 비슷한 밀도를 내도록 크기를 조정합니다.
 // 태블릿(1023px 이하)과 모바일(767px 이하)은 기존 값을 유지합니다.
 export const MyTripsPageStyle = styled.div({
-  "--page-font-size": "19px",
-  fontSize: "var(--page-font-size)",
   display: "flex",
   alignItems: "stretch",
   width: "100%",
@@ -61,13 +59,16 @@ export const MyTripsPageStyle = styled.div({
 
   "& .trips-header h1": {
     color: "#172c3d",
-    fontSize: "35px",
-    fontWeight: 800,
+    fontSize: "32px",
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
   },
 
   "& .trips-header p": {
     color: "#75899c",
-    fontSize: "var(--page-font-size)",
+    fontSize: "18px",
+    fontWeight: 400,
+    letterSpacing: "-0.01em",
     lineHeight: 1.6,
   },
 
@@ -78,8 +79,9 @@ export const MyTripsPageStyle = styled.div({
     borderRadius: "9px",
     backgroundColor: "#005358",
     color: "#fff",
-    fontSize: "var(--page-font-size)",
-    fontWeight: 700,
+    fontSize: "17px",
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
   },
 
   "& .trips-toolbar": {
@@ -123,8 +125,9 @@ export const MyTripsPageStyle = styled.div({
       border: 0,
       backgroundColor: "transparent",
       color: "#718596",
-      fontSize: "var(--page-font-size)",
+      fontSize: "18px",
       fontWeight: 600,
+      letterSpacing: "-0.01em",
       whiteSpace: "nowrap",
 
       "&:focus-visible": {
@@ -148,7 +151,8 @@ export const MyTripsPageStyle = styled.div({
     borderRadius: "20px",
     backgroundColor: "#edf1f4",
     color: "#536b7c",
-    fontSize: "var(--page-font-size)",
+    fontSize: "15px",
+    fontWeight: 600,
   },
 
   "& .trips-controls": {
@@ -236,7 +240,9 @@ export const MyTripsPageStyle = styled.div({
     color: "#005358",
 
     "& strong": {
-      fontSize: "19px",
+      fontSize: "18px",
+      fontWeight: 600,
+      letterSpacing: "-0.01em",
     },
   },
 
@@ -257,7 +263,8 @@ export const MyTripsPageStyle = styled.div({
 
   "& .create-description": {
     color: "#7b8d9a",
-    fontSize: "var(--page-font-size)",
+    fontSize: "16px",
+    fontWeight: 600,
     textAlign: "center",
   },
 

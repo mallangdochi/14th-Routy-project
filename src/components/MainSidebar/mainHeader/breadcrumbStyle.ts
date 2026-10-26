@@ -44,7 +44,8 @@ export const BreadcrumbStyle = styled.nav({
 
   "&& .breadcrumb-label": {
     display: "inline-block",
-    fontWeight: 500,
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
     textDecoration: "none",
   },
 

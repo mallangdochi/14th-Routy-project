@@ -13,7 +13,8 @@ export const DropdownStyle = styled.div({
     padding: "8px",
     borderRadius: "8px",
     color: "#40596c",
-    fontSize: "var(--page-font-size, 16px)",
+    fontSize: "16px",
+    fontWeight: 500,
     whiteSpace: "nowrap",
   },
 
