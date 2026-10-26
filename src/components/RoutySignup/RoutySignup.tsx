@@ -10,7 +10,7 @@ import {
 
 import routyLogo from "../../assets/루티1.svg";
 import DatePicker from "../pickers/DatePicker";
-
+import { checkUsername, signupWithEmail } from "../../api/auth";
 import {
   SignupForm,
   LeftContent,
@@ -79,10 +79,10 @@ function getLocalToday(): string {
 }
 
 function useSignupState({
-  onCheckUsername,
+  onCheckUsername = checkUsername,
   onSendVerification,
   onConfirmVerification,
-  onSignup,
+  onSignup = signupWithEmail,
   onCompleted,
 }: Omit<ProviderProps, "children">) {
   const [form, setForm] = useState<SignupData>({
@@ -297,11 +297,10 @@ function useSignupState({
       return;
     }
 
-    if (!phoneVerified) {
-      setFormMessage("휴대폰 본인 인증을 완료해주세요.");
+    if (!/^01[016789]\d{7,8}$/.test(form.phone.replace(/\D/g, ""))) {
+      setFormMessage("올바른 휴대폰 번호를 입력해주세요.");
       return;
     }
-
     if (!passwordValid || !passwordMatched) {
       setFormMessage("비밀번호 조건과 일치 여부를 확인해주세요.");
       return;
@@ -330,8 +329,10 @@ function useSignupState({
       };
       await onSignup(data);
       onCompleted();
-    } catch {
-      setFormMessage("회원가입에 실패했습니다.");
+    } catch (error) {
+      setFormMessage(
+        error instanceof Error ? error.message : "회원가입에 실패했습니다.",
+      );
     } finally {
       setBusy(false);
     }
@@ -484,7 +485,7 @@ export default function RoutySignup({
             />
           </Field>
 
-          <Field>
+          {/* <Field>
             <FieldLabel htmlFor="signup-phone">
               본인 인증
               <EnglishLabel>/ VERIFICATION</EnglishLabel>
@@ -542,6 +543,26 @@ export default function RoutySignup({
                 {s.phoneMessage}
               </StatusText>
             )}
+          </Field> */}
+
+          <Field>
+            <FieldLabel htmlFor="signup-phone">
+              휴대폰 번호
+              <EnglishLabel>/ PHONE</EnglishLabel>
+            </FieldLabel>
+
+            <Input
+              id="signup-phone"
+              name="phone"
+              form={FORM_ID}
+              type="tel"
+              placeholder="휴대폰 번호를 입력해주세요."
+              autoComplete="tel"
+              value={s.form.phone}
+              onChange={(e) => s.updateField("phone", e.target.value)}
+              disabled={disabled}
+              required
+            />
           </Field>
 
           <Field>

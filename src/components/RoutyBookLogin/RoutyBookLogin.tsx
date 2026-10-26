@@ -18,6 +18,7 @@ import {
   EyeClosed,
   LockKeyhole,
   Mail,
+  // UserRound,
 } from "lucide-react";
 
 import CoverFront from "./CoverFront";
@@ -107,13 +108,28 @@ type CoverPhase = "closed" | "opening" | "open" | "closing";
 
 type LoginErrors = { email: string; password: string };
 
-function validateLogin(email: string, password: string): LoginErrors {
+// function validateLogin(email: string, password: string): LoginErrors {
+//   return {
+//     email: !email.trim()
+//       ? "이메일을 입력해주세요."
+//       : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+//         ? "올바른 이메일 형식을 입력해주세요."
+//         : "",
+//     password: password ? "" : "비밀번호를 입력해주세요.",
+//   };
+// }
+
+function validateLogin(loginId: string, password: string): LoginErrors {
+  const value = loginId.trim();
+
   return {
-    email: !email.trim()
-      ? "이메일을 입력해주세요."
-      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-        ? "올바른 이메일 형식을 입력해주세요."
-        : "",
+    email: !value
+      ? "아이디를 입력해주세요."
+      : value.length < 4
+        ? "아이디는 4자 이상 입력해주세요."
+        : value.length > 30
+          ? "아이디는 30자 이하로 입력해주세요."
+          : "",
     password: password ? "" : "비밀번호를 입력해주세요.",
   };
 }
@@ -426,7 +442,7 @@ export default function RoutyBookLogin({
 
                 <LoginForm onSubmit={handleSubmit} noValidate>
                   {/* 이메일 */}
-                  <InputLabel htmlFor={`${fieldId}-email`}>이메일</InputLabel>
+                  {/* <InputLabel htmlFor={`${fieldId}-email`}>이메일</InputLabel>
 
                   <InputBox>
                     <InputIcon aria-hidden="true">
@@ -456,6 +472,53 @@ export default function RoutyBookLogin({
                   </InputBox>
                   <FieldMessage
                     id={`${fieldId}-email-error`}
+                    aria-live="polite"
+                  >
+                    {fieldErrors.email && (
+                      <>
+                        <CircleAlert aria-hidden="true" />
+                        <span>{fieldErrors.email}</span>
+                      </>
+                    )}
+                  </FieldMessage> */}
+
+                  <InputLabel htmlFor={`${fieldId}-login-id`}>
+                    아이디
+                  </InputLabel>
+
+                  <InputBox>
+                    <InputIcon aria-hidden="true">
+                      <Mail />
+                    </InputIcon>
+
+                    <TextInput
+                      id={`${fieldId}-login-id`}
+                      name="email"
+                      aria-invalid={Boolean(fieldErrors.email)}
+                      aria-describedby={`${fieldId}-login-id-error`}
+                      type="text"
+                      placeholder="아이디를 입력해주세요."
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      minLength={4}
+                      maxLength={30}
+                      value={email}
+                      onChange={(event) => {
+                        setEmail(event.target.value);
+                        setFieldErrors((previous) => ({
+                          ...previous,
+                          email: "",
+                        }));
+                        setLoginError("");
+                      }}
+                      disabled={loginDisabled || loginLoading}
+                      required
+                    />
+                  </InputBox>
+
+                  <FieldMessage
+                    id={`${fieldId}-login-id-error`}
                     aria-live="polite"
                   >
                     {fieldErrors.email && (
@@ -748,20 +811,6 @@ function MobileFlow({
       reducedMotion ? 60 : 850,
     );
   };
-
-  // useEffect(() => {
-  //   // 다른 화면으로 이동하거나 컴포넌트가 해제되면 타이머가 남지 않도록 정리합니다.
-  //   // 표지가 커지는 동안 로그인 주소로 바뀌어도 애니메이션은 유지합니다.
-  //   if (page === "login" && mobileOpeningPending.current) return;
-  //   if (page !== "cover") {
-  //     mobileOpeningPending.current = false;
-  //     // setMobileOpening(false);
-  //     if (mobileOpeningTimer.current !== null) {
-  //       window.clearTimeout(mobileOpeningTimer.current);
-  //       mobileOpeningTimer.current = null;
-  //     }
-  //   }
-  // }, [page]);
 
   useEffect(() => {
     if (page === "login" && mobileOpeningPending.current) return;
