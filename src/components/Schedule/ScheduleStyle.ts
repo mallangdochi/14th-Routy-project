@@ -1548,6 +1548,7 @@ export const MapToolbar = styled.div({
 });
 
 export const MapFilters = styled.div({
+  position: "relative",
   display: "flex",
   alignItems: "center",
   gap: "6px",
@@ -1589,8 +1590,15 @@ export const FilterButton = styled.button<{
   padding: "0 10px",
   border: "1px solid #DDE9E9",
   borderRadius: "7px",
-  backgroundColor: $active ? "#004F53" : "#FFFFFF",
+
+  position: "relative",
+  zIndex: 1,
+
+  backgroundColor: $active ? "#005259" : "#FFFFFF",
   color: $active ? "#FFFFFF" : "#283638",
+
+  transition:
+    "background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out",
   fontSize: "16px",
   fontWeight: 600,
   lineHeight: 1,
@@ -1598,7 +1606,7 @@ export const FilterButton = styled.button<{
   flexShrink: 0,
 
   "&:hover": {
-    backgroundColor: $active ? "#004F53" : "#EAF7F7",
+    backgroundColor: $active ? "#005259" : "#EAF7F7",
   },
 
   "@media (min-width: 1024px) and (max-width: 1199px)": {
@@ -1620,67 +1628,104 @@ export const FilterButton = styled.button<{
   },
 }));
 
-export const RouteToggle = styled.button({
-  ...CENTERED_FLEX,
-  gap: "5px",
-  height: "38px",
-  minHeight: "38px",
-  padding: "0 10px",
-  flexShrink: 0,
-  whiteSpace: "nowrap",
-  border: "1px solid #006D70",
-  borderRadius: "7px",
-  backgroundColor: "#FFFFFF",
-  color: "#000000",
-  fontSize: "16px",
-  fontWeight: 700,
-  lineHeight: 1,
-  boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+export const RouteToggle = styled.button<{ $active: boolean }>(
+  ({ $active }) => ({
+    ...CENTERED_FLEX,
+    gap: "5px",
+    height: "38px",
+    minHeight: "38px",
+    padding: "0 10px",
+    flexShrink: 0,
+    whiteSpace: "nowrap",
 
-  "&:hover": {
-    backgroundColor: "#EFF8F8",
-  },
+    border: "1px solid #006D70",
+    borderRadius: "7px",
 
-  "@media (min-width: 1024px) and (max-width: 1199px)": {
-    padding: "0 6px",
-    gap: "3px",
+    // 경로 표시 상태에 따른 배경색
+    backgroundColor: $active ? "#FFFFFF" : "#005259",
+    color: $active ? "#000000" : "#FFFFFF",
 
-    svg: {
-      width: "16px",
-      height: "16px",
-      flexShrink: 0,
-    },
-  },
+    fontSize: "16px",
+    fontWeight: 700,
+    lineHeight: 1,
 
-  "@media (max-width: 1023px)": {
-    height: "32px",
-    minHeight: "32px",
-    padding: "0 7px",
-    fontSize: "12px",
-    gap: "3px",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+    cursor: "pointer",
 
-    svg: {
-      width: "12px",
-      height: "12px",
-    },
-  },
+    // 버튼 애니메이션
+    transition:
+      "background-color 0.3s ease, " +
+      "color 0.3s ease, " +
+      "transform 0.25s ease, " +
+      "box-shadow 0.25s ease",
 
-  "@media (max-width: 767px)": {
-    flex: "0 0 auto",
-    height: "36px",
-    minHeight: "36px",
-    padding: "0 8px",
-    gap: "4px",
-    fontSize: "clamp(10px, 3vw, 12px)",
-    borderRadius: "8px",
-
+    // 아이콘 회전
     "& svg": {
-      width: "14px",
-      height: "14px",
-      flexShrink: 0,
+      transition: "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
+      transform: $active ? "rotate(0deg)" : "rotate(180deg)",
     },
-  },
-});
+
+    "&:hover": {
+      backgroundColor: $active ? "#EFF8F8" : "#003E43",
+      transform: "translateY(-2px)",
+      boxShadow: "0 4px 12px rgba(0,82,89,0.15)",
+    },
+
+    "&:active": {
+      transform: "scale(0.96)",
+    },
+
+    // PC 작은 화면
+    "@media (min-width: 1024px) and (max-width: 1199px)": {
+      padding: "0 6px",
+      gap: "3px",
+
+      svg: {
+        width: "16px",
+        height: "16px",
+        flexShrink: 0,
+      },
+    },
+
+    "@media (max-width: 1023px)": {
+      height: "32px",
+      minHeight: "32px",
+      padding: "0 7px",
+      fontSize: "12px",
+      gap: "3px",
+
+      svg: {
+        width: "12px",
+        height: "12px",
+      },
+    },
+
+    "@media (max-width: 767px)": {
+      flex: "0 0 auto",
+      height: "36px",
+      minHeight: "36px",
+      padding: "0 8px",
+      gap: "4px",
+      fontSize: "clamp(10px, 3vw, 12px)",
+      borderRadius: "8px",
+
+      "& svg": {
+        width: "14px",
+        height: "14px",
+        flexShrink: 0,
+      },
+    },
+
+    "@media (prefers-reduced-motion: reduce)": {
+      transition: "none",
+
+      "& svg": {
+        transition: "none",
+      },
+    },
+  }),
+);
+
 // 모바일 지도 카테고리 드롭다운
 export const MobileFilterWrapper = styled.div({
   display: "none",

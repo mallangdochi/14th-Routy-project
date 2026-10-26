@@ -1138,10 +1138,12 @@ export default function Schedule() {
 
                   <S.RouteToggle
                     type="button"
-                    onClick={() => setShowRoute((previous) => !previous)}
+                    $active={showRoute}
+                    onClick={() => setShowRoute((prev) => !prev)}
                   >
                     <Route size={17} />
-                    {showRoute ? "경로 숨기기" : "전체 경로 보기"}
+
+                    <span>{showRoute ? "경로 숨기기" : "전체 경로 보기"}</span>
                   </S.RouteToggle>
                 </S.MapToolbar>
 
