@@ -93,7 +93,7 @@ export const BreadcrumbArea = styled.div({
 
 export const PageTitle = styled.h1({
   margin: "0 0 18px",
-  fontSize: "35px",
+  fontSize: "32px",
   fontWeight: 800,
   lineHeight: 1.35,
   letterSpacing: "-0.8px",
