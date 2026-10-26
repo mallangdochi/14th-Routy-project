@@ -141,6 +141,8 @@ export const MainInner = styled.div({
   minWidth: 0,
   maxWidth: 1210,
   margin: "0 auto",
+
+  zoom: 0.8,
 });
 
 export const PageHeader = styled.header({

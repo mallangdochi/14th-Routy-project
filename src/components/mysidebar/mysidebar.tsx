@@ -8,6 +8,7 @@ import {
   Plane,
   LogOut,
   LogIn,
+  type LucideIcon,
 } from "lucide-react";
 
 import routyLogo from "../../assets/routy-logo.svg";
@@ -38,28 +39,39 @@ interface SidebarProps {
   onBack?: () => void;
 }
 
+interface MenuItem {
+  id: MenuId;
+  label: string;
+  icon: LucideIcon;
+  strokeWidth: number;
+}
+
 const menuItems = [
   {
     id: "profile",
     label: "프로필 관리",
     icon: UserRound,
+    strokeWidth: 1.5,
   },
   {
     id: "security",
     label: "계정 및 보안",
     icon: LockKeyhole,
+    strokeWidth: 1.5,
   },
   {
     id: "settings",
     label: "설정",
     icon: Settings,
+    strokeWidth: 1.5,
   },
   {
     id: "support",
     label: "고객센터",
     icon: Headset,
+    strokeWidth: 1.5,
   },
-] as const;
+] satisfies readonly MenuItem[];
 
 export default function Sidebar({
   profileImage = routyMascot,
@@ -154,7 +166,7 @@ export default function Sidebar({
       </UserSection>
 
       <Navigation aria-label="계정 메뉴">
-        {visibleMenuItems.map(({ id, label, icon: Icon }) => (
+        {visibleMenuItems.map(({ id, label, icon: Icon, strokeWidth }) => (
           <MenuButton
             key={id}
             type="button"
@@ -162,7 +174,11 @@ export default function Sidebar({
             aria-current={activeMenu === id ? "page" : undefined}
             onClick={() => handleMenuClick(id)}
           >
-            <Icon size={20} strokeWidth={1.9} aria-hidden="true" />
+            <Icon
+              size={20}
+              strokeWidth={strokeWidth + (activeMenu === id ? 0.8 : 0)}
+              aria-hidden="true"
+            />
             <span>{label}</span>
           </MenuButton>
         ))}
