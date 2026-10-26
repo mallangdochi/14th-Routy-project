@@ -11,6 +11,8 @@ import TripDaysPage from "./pages/travelTimetablePage/TimetablePage";
 import Search from "./components/search/Search";
 import Schedule from "./components/Schedule/Schedule";
 import TravelBudgetStatsPage from "./components/travelBudget/TravelBudgetStatsPage";
+import RoutyProfile from "./components/RoutyProfile/RoutyProfile";
+import { useAuth } from "./contexts/AuthContext";
 
 function CreateTripRoute() {
   const navigate = useNavigate();
@@ -22,6 +24,17 @@ function ScheduleRoute() {
   const { tripId } = useParams<{ tripId: string }>();
 
   return <Schedule key={tripId} />;
+}
+
+function ProfileSetupRoute() {
+  const { user, loading, error } = useAuth();
+
+  if (loading && !user)
+    return <main role="status">로그인 상태를 확인하고 있습니다.</main>;
+  if (error && !user) return <main role="alert">{error}</main>;
+  if (!user) return <Navigate to="/login" replace />;
+
+  return <RoutyProfile />;
 }
 
 export default function App() {
@@ -42,6 +55,7 @@ export default function App() {
       <Route path="/place/detail" element={<PlaceDetailPage />} />
       <Route path="/trips/:tripId" element={<TripDaysPage />} />
       <Route path="/search" element={<Search />} />
+      <Route path="/profile" element={<ProfileSetupRoute />} />
 
       <Route
         path="/mypage"

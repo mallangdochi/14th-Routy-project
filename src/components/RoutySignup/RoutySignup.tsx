@@ -11,6 +11,7 @@ import {
 import routyLogo from "../../assets/루티1.svg";
 import DatePicker from "../pickers/DatePicker";
 import { checkUsername, signupWithEmail } from "../../api/auth";
+import { markProfilePendingAfterSignup } from "../../utils/firstLoginProfile";
 import {
   SignupForm,
   LeftContent,
@@ -328,6 +329,7 @@ function useSignupState({
         username: form.username.trim(),
       };
       await onSignup(data);
+      markProfilePendingAfterSignup(data.email);
       onCompleted();
     } catch (error) {
       setFormMessage(

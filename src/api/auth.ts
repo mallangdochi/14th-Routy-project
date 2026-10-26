@@ -2,7 +2,7 @@ export async function loginWithEmail(
   loginId: string,
   password: string,
   remember: boolean,
-): Promise<void> {
+): Promise<AuthUser> {
   const response = await fetch("/api/auth/login", {
     method: "POST",
     credentials: "same-origin",
@@ -29,12 +29,45 @@ export async function loginWithEmail(
 
     throw new Error(message);
   }
+
+  if (
+    data === null ||
+    typeof data !== "object" ||
+    !("user" in data) ||
+    data.user === null ||
+    typeof data.user !== "object" ||
+    !("id" in data.user) ||
+    typeof data.user.id !== "string"
+  ) {
+    throw new Error("로그인 사용자 응답 형식이 올바르지 않습니다.");
+  }
+
+  const user = data.user;
+  if (typeof user.id !== "string") {
+    throw new Error("로그인 사용자 응답 형식이 올바르지 않습니다.");
+  }
+  return {
+    id: user.id,
+    email:
+      "email" in user && typeof user.email === "string"
+        ? user.email
+        : undefined,
+    username:
+      "username" in user && typeof user.username === "string"
+        ? user.username
+        : null,
+    profileCompleted:
+      "profileCompleted" in user && typeof user.profileCompleted === "boolean"
+        ? user.profileCompleted
+        : undefined,
+  };
 }
 
 export interface AuthUser {
   id: string;
   email?: string;
   username: string | null;
+  profileCompleted?: boolean;
 }
 export async function getCurrentUser(): Promise<AuthUser | null> {
   const response = await fetch("/api/auth/me", {
@@ -77,8 +110,44 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       "username" in user && typeof user.username === "string"
         ? user.username
         : null,
+    profileCompleted:
+      "profileCompleted" in user && typeof user.profileCompleted === "boolean"
+        ? user.profileCompleted
+        : undefined,
   };
 }
+
+export async function completeInitialProfile(nickname: string): Promise<void> {
+  const response = await fetch("/api/profile/setup", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname }),
+  });
+
+  const data: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      data !== null &&
+      typeof data === "object" &&
+      "message" in data &&
+      typeof data.message === "string"
+        ? data.message
+        : "프로필을 저장하지 못했습니다.";
+    throw new Error(message);
+  }
+
+  if (
+    data === null ||
+    typeof data !== "object" ||
+    !("success" in data) ||
+    data.success !== true
+  ) {
+    throw new Error("프로필 저장 결과가 올바르지 않습니다.");
+  }
+}
+
 export async function logout(): Promise<void> {
   const response = await fetch("/api/auth/logout", {
     method: "POST",

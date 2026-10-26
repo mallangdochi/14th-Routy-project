@@ -347,6 +347,7 @@ export default async function handler(
         id: data.user.id,
         email: data.user.email,
         username: profile.username,
+        profileCompleted: data.user.user_metadata?.profile_completed !== false,
       },
     });
   } catch (error) {

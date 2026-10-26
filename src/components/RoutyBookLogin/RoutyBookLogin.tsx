@@ -91,6 +91,7 @@ import {
 } from "./RoutyBookLoginStyle";
 import { useSignup } from "../RoutySignup/SignupContext";
 import { loginWithEmail } from "../../api/auth";
+import { destinationAfterLogin } from "../../utils/firstLoginProfile";
 import { useAuth } from "../../contexts/AuthContext";
 
 interface RoutyBookLoginProps extends SignupApiProps {
@@ -159,9 +160,13 @@ export default function RoutyBookLogin({
     password: string,
     remember: boolean,
   ): Promise<void> => {
-    await loginWithEmail(email, password, remember);
+    const user = await loginWithEmail(email, password, remember);
     await refreshUser();
-    navigate("/", { replace: true });
+    const destination = destinationAfterLogin(
+      user.email ?? "",
+      user.profileCompleted,
+    );
+    navigate(destination, { replace: true });
   };
 
   // 최초 진입 및 새로고침 시에는 항상 닫힌 여권부터 표시합니다.

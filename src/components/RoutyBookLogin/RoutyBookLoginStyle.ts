@@ -51,33 +51,14 @@ const hintGlow = keyframes({
 // 전체 배경
 // ====================================
 
-const loginErrorInput = {
-  caretColor: "#000000",
-  '&[aria-invalid="true"]': { borderColor: "#D94848" },
-  '&[aria-invalid="true"]:focus': {
-    borderColor: "#D94848",
-    boxShadow: "0 0 0 3px rgba(217,72,72,0.16)",
-  },
-};
-
-// export const Stage = styled.main({
-//   "--page-width": "700px",
-//   "--page-height": "870px",
-
-//   position: "relative",
-
-//   width: "100%",
-//   minWidth: "1440px",
-
 export const Stage = styled.main({
   "--page-width": "min(700px, calc((100vw - 64px) / 2))",
-  "--page-height": "870px",
-
-  position: "relative",
+  "--page-height": "min(870px, calc(100dvh - 64px))",
 
   width: "100%",
   minWidth: 0,
-  minHeight: "max(100dvh, 1040px)",
+  minHeight: "100dvh",
+  position: "relative",
 
   display: "flex",
   justifyContent: "center",
@@ -86,15 +67,20 @@ export const Stage = styled.main({
   backgroundColor: paper,
   color: teal,
 
+  fontFamily: '"Pretendard", "Noto Sans KR", sans-serif',
+
   fontSize: "16px",
 
+  "&, *, *::before, *::after": {
+    boxSizing: "border-box",
+  },
   // 태블릿: 화면 너비보다 큰 1440px 고정 레이아웃 해제
-  "@media (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     "--page-width": "min(470px, calc((100vw - 36px) / 2))",
     "--page-height": "min(640px, calc(100dvh - 52px))",
     width: "100%",
     minWidth: 0,
-    // height: "100dvh",
+    height: "100dvh",
     minHeight: "100dvh",
     overflowX: "hidden",
     overflowY: "auto",
@@ -127,7 +113,7 @@ export const Book = styled.div({
     transform: "translate(-50%, -50%)",
   },
   // 태블릿: 닫힌 여권은 살짝 왼쪽, 펼치면 정확히 정중앙
-  "@media  (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     transform: "translate(calc(-75% - 22px), -50%)",
     "&[data-open='true']": {
       transform: "translate(-50%, -50%)",
@@ -185,6 +171,7 @@ export const CoverFrontFace = styled.button({
   height: "100%",
 
   padding: 0,
+  margin: 0,
 
   border: "none",
   borderRadius: "6px",
@@ -192,6 +179,7 @@ export const CoverFrontFace = styled.button({
   backgroundColor: teal,
 
   overflow: "hidden",
+  cursor: "pointer",
 
   backfaceVisibility: "hidden",
   WebkitBackfaceVisibility: "hidden",
@@ -227,6 +215,7 @@ export const CoverInsideFace = styled.button({
   height: "100%",
 
   padding: "28px",
+  margin: 0,
 
   border: "none",
   borderRadius: "6px",
@@ -234,6 +223,7 @@ export const CoverInsideFace = styled.button({
   backgroundColor: teal,
 
   overflow: "hidden",
+  cursor: "pointer",
 
   backfaceVisibility: "hidden",
   WebkitBackfaceVisibility: "hidden",
@@ -245,7 +235,7 @@ export const CoverInsideFace = styled.button({
   "&:disabled": {
     pointerEvents: "none",
   },
-  "@media  (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     padding: "18px",
   },
 });
@@ -331,7 +321,7 @@ export const LoginFace = styled.div({
   overflowY: "auto",
   scrollbarWidth: "thin",
   // 태블릿: 좌우 입력창에 충분한 공간 확보
-  "@media (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     padding: "24px 28px",
     borderWidth: "7px",
     overflowY: "auto",
@@ -367,7 +357,7 @@ export const SignupLeftFace = styled.div({
     "-4px 8px 22px rgba(0,0,0,0.12)",
 
   overflow: "hidden",
-  "@media  (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     borderWidth: "7px",
     borderRight: "none",
     // 기존 RoutySignup의 왼쪽 폼에만 적용
@@ -407,7 +397,7 @@ export const SignupRightPage = styled.div({
   overflow: "hidden",
 
   boxShadow: "4px 8px 22px rgba(0,0,0,0.1)",
-  "@media (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     borderWidth: "7px",
     // 기존 RoutySignup의 오른쪽 폼을 압축하고 내부 스크롤 유지
     "& > form": {
@@ -434,7 +424,7 @@ export const LoginHeading = styled.h1({
   lineHeight: 1.3,
 
   textAlign: "center",
-  "@media  (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     fontSize: "27px",
     marginBottom: "24px",
   },
@@ -449,11 +439,6 @@ export const LoginForm = styled.form({
   flexDirection: "column",
 
   width: "100%",
-
-  gap: 8,
-  "@media  (max-width: 1024px)": {
-    gap: 6,
-  },
 });
 
 // ====================================
@@ -480,6 +465,10 @@ export const InputBox = styled.div({
   position: "relative",
 
   width: "100%",
+  marginBottom: "26px",
+  "@media (min-width: 768px) and (max-width: 1024px)": {
+    marginBottom: "18px",
+  },
 });
 
 // ====================================
@@ -513,7 +502,6 @@ export const InputIcon = styled.span({
 // ====================================
 
 export const TextInput = styled.input({
-  ...loginErrorInput,
   display: "block",
 
   width: "100%",
@@ -528,6 +516,7 @@ export const TextInput = styled.input({
   backgroundColor: "#FFFFFF",
   color: "#243E46",
 
+  fontFamily: "inherit",
   fontSize: "16px",
 
   outline: "none",
@@ -546,7 +535,7 @@ export const TextInput = styled.input({
   "&:disabled": {
     cursor: "not-allowed",
   },
-  "@media (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     height: "46px",
     fontSize: "16px",
   },
@@ -577,6 +566,7 @@ export const PasswordToggle = styled.button({
   backgroundColor: "transparent",
 
   color: "#8E9EAD",
+  cursor: "pointer",
 
   svg: {
     width: "21px",
@@ -597,7 +587,7 @@ export const RememberLabel = styled.label({
   alignItems: "center",
 
   gap: "10px",
-  marginBottom: "20px",
+  marginBottom: "28px",
 
   color: teal,
 
@@ -605,14 +595,19 @@ export const RememberLabel = styled.label({
   fontWeight: 600,
   lineHeight: 1.4,
 
+  cursor: "pointer",
+
   input: {
     width: "18px",
     height: "18px",
 
+    margin: 0,
+
     accentColor: teal,
+    cursor: "pointer",
   },
-  "@media (max-width: 1024px)": {
-    marginBottom: "13px",
+  "@media (min-width: 768px) and (max-width: 1024px)": {
+    marginBottom: "20px",
   },
 });
 
@@ -635,8 +630,11 @@ export const SubmitButton = styled.button({
 
   color: "#FFFFFF",
 
+  fontFamily: "inherit",
   fontSize: "18px",
   fontWeight: 700,
+
+  cursor: "pointer",
 
   "&:hover:not(:disabled)": {
     filter: "brightness(1.1)",
@@ -646,7 +644,7 @@ export const SubmitButton = styled.button({
     opacity: 0.65,
     cursor: "not-allowed",
   },
-  "@media (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     height: "48px",
     fontSize: "17px",
   },
@@ -656,25 +654,27 @@ export const SubmitButton = styled.button({
 // 로그인 오류 메시지
 // ====================================
 
-export const FieldMessage = styled.p({
-  display: "flex",
-  alignItems: "center",
-  gap: "6px",
-  minHeight: "24px",
-  // marginTop: "4px",
-  // marginBottom: "6px",
-  color: "#D94848",
-  fontSize: "16px",
-  lineHeight: "24px",
-  overflowWrap: "anywhere",
-  "& svg": {
-    width: "15px",
-    height: "15px",
-    flexShrink: 0,
-    //  marginTop: "3px"
-  },
-  "@media  (max-width: 1023px)": { fontSize: "14px" },
+export const Feedback = styled.p({
+  margin: "14px 0 0",
+
+  color: "#BD4146",
+
+  fontSize: "15px",
+  fontWeight: 500,
+  lineHeight: 1.5,
 });
+
+// ====================================
+// 입력 필드 안내 / 오류 메시지
+// ====================================
+
+export const FieldMessage = styled.p<{ $error?: boolean }>(({ $error }) => ({
+  margin: "6px 0 0",
+  color: $error ? "#D85A5A" : "#778D90",
+  fontSize: "15px",
+  fontWeight: 500,
+  lineHeight: 1.5,
+}));
 
 // ====================================
 // 로그인 아래쪽 메뉴
@@ -697,7 +697,7 @@ export const AccountLinks = styled.nav({
   span: {
     color: "#8D9B9D",
   },
-  "@media  (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     marginTop: "23px",
     columnGap: "8px",
   },
@@ -715,10 +715,12 @@ export const TextButton = styled.button({
 
   color: "#243B40",
 
+  fontFamily: "inherit",
   fontSize: "15px",
   fontWeight: 500,
 
   whiteSpace: "nowrap",
+  cursor: "pointer",
 
   "&:hover:not(:disabled)": {
     textDecoration: "underline",
@@ -758,9 +760,12 @@ export const Hint = styled.button({
   transform: "translateY(-50%) scale(1)",
 
   padding: "12px 8px",
+  margin: 0,
 
   border: "none",
   backgroundColor: "transparent",
+
+  fontFamily: "inherit",
 
   // 글자 크기
   fontSize: "40px",
@@ -784,6 +789,8 @@ export const Hint = styled.button({
   backgroundClip: "text",
   WebkitBackgroundClip: "text",
   WebkitTextFillColor: "transparent",
+
+  cursor: "pointer",
 
   // 기본 상태에서는 숨김
   opacity: 0,
@@ -883,7 +890,7 @@ export const Hint = styled.button({
     },
   },
   // 태블릿 닫힌 여권 오른쪽에서 글자가 잘리지 않게 조정
-  "@media  (max-width: 1024px)": {
+  "@media (min-width: 768px) and (max-width: 1024px)": {
     left: "calc(50% + var(--page-width) / 2 + 16px)",
     fontSize: "17px",
     fontWeight: 800,
@@ -914,12 +921,13 @@ export const MobileShell = styled.main({
     height: "100dvh",
     minHeight: "100dvh",
     overflowX: "hidden",
-
+    boxSizing: "border-box",
     backgroundColor: "#FBFAF6",
     color: teal,
-
+    fontFamily: '"Pretendard", "Noto Sans KR", sans-serif',
     fontSize: "18px",
     // 모바일 전체 하위 요소도 padding과 border를 너비에 포함
+    "& *, & *::before, & *::after": { boxSizing: "border-box" },
     "& .picker-trigger": {
       minHeight: "58px",
       fontSize: "18px",
@@ -967,6 +975,7 @@ export const MobileBack = styled.button({
   border: "none",
   backgroundColor: "transparent",
   color: teal,
+  cursor: "pointer",
 });
 
 export const MobileContent = styled.section({
@@ -977,7 +986,7 @@ export const MobileContent = styled.section({
   minWidth: 0,
   width: "100%",
   maxWidth: "100%",
-
+  boxSizing: "border-box",
   padding: "24px 27px 26px",
   overflowX: "hidden",
   overflowY: "auto",
@@ -1035,7 +1044,7 @@ export const MobileCoverOverlay = styled.section({
   width: "100%",
   maxWidth: "100%",
   padding: "24px 27px",
-
+  boxSizing: "border-box",
   backgroundColor: "#FBFAF6",
   // 여권을 크게 확대해도 모바일 화면 밖으로 삐져나오지 않도록 합니다.
   overflow: "hidden",
@@ -1055,7 +1064,7 @@ export const MobileCoverButton = styled.button({
   width: "100%",
   height: "100%",
   padding: 0,
-
+  margin: 0,
   border: "none",
   borderRadius: "4px",
   overflow: "hidden",
@@ -1070,7 +1079,7 @@ export const MobileCoverButton = styled.button({
     "opacity 260ms ease-in 440ms",
   willChange: "transform, opacity",
   backfaceVisibility: "hidden",
-
+  cursor: "pointer",
   "&[data-opening='true']": {
     transform: "scale(5.2)",
     opacity: 0,
@@ -1122,14 +1131,8 @@ export const MobileForm = styled.form({
   width: "100%",
   minWidth: 0,
   maxWidth: "100%",
-
+  boxSizing: "border-box",
   "&[data-signup='true']": { flex: 1, minHeight: 0, gap: 0 },
-  "&[data-login='true']": {
-    gap: "10px",
-    "& > div": { gap: 0 },
-    "& label[for]": { marginBottom: "10px" },
-    // "& > div + div": { marginTop: "-10px" },
-  },
 });
 
 export const MobileField = styled.div({
@@ -1138,6 +1141,7 @@ export const MobileField = styled.div({
   gap: "13px",
   width: "100%",
   minWidth: 0,
+  boxSizing: "border-box",
 });
 
 export const MobileLabel = styled.label({
@@ -1148,22 +1152,21 @@ export const MobileLabel = styled.label({
 });
 
 export const MobileInput = styled.input({
-  ...loginErrorInput,
   display: "block",
   flex: "none",
   width: "100%",
   minWidth: 0,
   maxWidth: "100%",
-
-  // height: "58px",
-  minHeight: "48px",
+  boxSizing: "border-box",
+  height: "58px",
+  minHeight: "58px",
   padding: "0 14px",
   border: "1px solid #DCE5E6",
   borderRadius: "6px",
   outline: "none",
   backgroundColor: "#FFFFFF",
   color: teal,
-
+  fontFamily: "inherit",
   fontSize: "19px",
   "&::placeholder": { color: "#A1AAAC", fontSize: "17px" },
   "&:focus": { borderColor: teal, boxShadow: "0 0 0 2px rgba(10,65,75,0.08)" },
@@ -1192,10 +1195,10 @@ export const MobileMiniButton = styled.button({
   borderRadius: "6px",
   backgroundColor: teal,
   color: "white",
-
+  fontFamily: "inherit",
   fontSize: "17px",
   fontWeight: 700,
-
+  cursor: "pointer",
   "&:disabled": { opacity: 0.55, cursor: "not-allowed" },
 });
 
@@ -1204,8 +1207,8 @@ export const MobilePasswordBox = styled.div({
   width: "100%",
   minWidth: 0,
   maxWidth: "100%",
-
-  input: { width: "100%", paddingRight: "54px" },
+  boxSizing: "border-box",
+  input: { width: "100%", boxSizing: "border-box", paddingRight: "54px" },
 });
 
 export const MobileEyeButton = styled.button({
@@ -1221,9 +1224,11 @@ export const MobileEyeButton = styled.button({
   border: "none",
   backgroundColor: "transparent",
   color: "#778D90",
+  cursor: "pointer",
 });
 
 export const MobileHelp = styled.p({
+  margin: 0,
   color: "#718588",
   fontSize: "18px",
   lineHeight: 1.55,
@@ -1233,7 +1238,7 @@ export const MobileStatus = styled.p({
   display: "flex",
   alignItems: "center",
   gap: "6px",
-
+  margin: 0,
   color: "#C55252",
   fontSize: "17px",
   lineHeight: 1.5,
@@ -1247,7 +1252,7 @@ export const MobileCheck = styled.label({
   color: teal,
   fontSize: "18px",
   lineHeight: 1.5,
-
+  cursor: "pointer",
   input: {
     width: "18px",
     height: "18px",
@@ -1271,22 +1276,20 @@ export const MobileAction = styled.div({
 export const MobilePrimary = styled.button({
   width: "100%",
   maxWidth: "100%",
-
+  boxSizing: "border-box",
   minHeight: "58px",
   padding: "12px 20px",
   border: "none",
   borderRadius: "6px",
   backgroundColor: teal,
   color: "#FFFFFF",
-
+  fontFamily: "inherit",
   fontSize: "19px",
   fontWeight: 800,
-  marginBottom: 20,
-
+  cursor: "pointer",
   "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
   "@media (max-width: 767px)": {
-    //   transform: "translateY(-20px)",
-    marginBottom: 10,
+    transform: "translateY(-20px)",
   },
 });
 
@@ -1306,9 +1309,9 @@ export const MobileTextButton = styled.button({
   padding: 0,
   backgroundColor: "transparent",
   color: teal,
-
+  fontFamily: "inherit",
   fontSize: "16px",
-
+  cursor: "pointer",
   "&:disabled": { opacity: 0.4, cursor: "not-allowed" },
 });
 
