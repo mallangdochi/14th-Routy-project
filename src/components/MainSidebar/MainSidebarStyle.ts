@@ -10,9 +10,9 @@ export const SidebarShell = styled.div({
   display: "flex",
   flexShrink: 0,
 
-  zoom: 1.1,
-  height: "calc(100dvh / 1.1)",
-  minHeight: "calc(100dvh / 1.1)",
+  // zoom: 1.1,
+  height: "calc(100dvh / 1.0)",
+  minHeight: "calc(100dvh / 1.0)",
 
   '&[data-collapsed="true"]': {
     zoom: 0.9,
@@ -56,21 +56,26 @@ export const SidebarContainer = styled.aside({
         objectFit: "contain",
       },
     },
-
     "& [data-profile-button]": {
       justifyContent: "center",
-      padding: "10px 6px",
-      gap: "4px",
+      padding: "5px",
+      gap: 0,
     },
+
+    "& [data-profile-image]": {
+      width: "60px",
+      height: "60px",
+    },
+
+    "& [data-profile-arrow]": {
+      display: "none",
+    },
+
     "& [data-profile-name], & [data-menu-label], & [data-create-label], & [data-sidebar-banner]":
       {
         display: "none",
       },
-    "& [data-profile-arrow]": {
-      marginLeft: 0,
-      flexShrink: 0,
-      "& svg": { width: "18px", height: "18px" },
-    },
+
     "& [data-create-button]": {
       width: "56px",
       height: "56px",

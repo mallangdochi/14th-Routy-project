@@ -6,10 +6,9 @@ interface MenuButtonProps {
 }
 
 export const SidebarContainer = styled.aside({
-  width: "230px",
-  minWidth: "230px",
-  height: "calc(100dvh / 0.9)",
-  zoom: 0.9,
+  width: "207px",
+  minWidth: "207px",
+  height: "100dvh",
 
   position: "sticky",
   top: 0,
@@ -17,7 +16,7 @@ export const SidebarContainer = styled.aside({
   flexShrink: 0,
   overflowY: "auto",
   zIndex: 10,
-  padding: "16px 16px 17px",
+  padding: "14.4px 14.4px 15.3px",
 
   display: "flex",
   flexDirection: "column",
@@ -29,15 +28,27 @@ export const SidebarContainer = styled.aside({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 80,
-    height: 80,
+    width: 72,
+    height: 72,
     flexShrink: 0,
     borderRadius: "50%",
     backgroundColor: "#E8F6F2",
     color: "#8FBDBB",
+
+    "& svg": {
+      width: "39.6px",
+      height: "39.6px",
+    },
   },
 
   "@media (max-width: 767px)": {
+    position: "relative",
+    width: "100%",
+    minWidth: 0,
+    height: "100%",
+    minHeight: 0,
+    alignSelf: "stretch",
+
     '&[data-logged-in="false"]': {
       display: "none",
     },
@@ -45,25 +56,27 @@ export const SidebarContainer = styled.aside({
 });
 
 export const LogoArea = styled(Link)({
-  height: "36px",
-  paddingLeft: "6px",
+  height: "40px",
+  paddingLeft: "5.4px",
   display: "flex",
   alignItems: "center",
   alignSelf: "flex-start",
   flexShrink: 0,
-  borderRadius: "4px",
+  borderRadius: "3.6px",
+  margin: "18px 0",
 
   "&:focus-visible": {
-    outline: "3px solid #ffffff",
-    outlineOffset: "4px",
+    outline: "2.7px solid #ffffff",
+    outlineOffset: "3.6px",
   },
 });
 
 export const Logo = styled.img({
-  width: "88px",
-  height: "auto",
+  width: "auto",
+  height: "100%",
   display: "block",
   objectFit: "contain",
+  flexShrink: 0,
   filter: "brightness(0) invert(1)",
 });
 
@@ -71,48 +84,49 @@ export const UserSection = styled.div({
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  marginTop: "17px",
+  paddingTop: "15.3px",
   flexShrink: 0,
 });
 
 export const Avatar = styled.img({
-  width: "90px",
-  height: "90px",
+  width: "81px",
+  height: "81px",
   borderRadius: "50%",
   objectFit: "cover",
 });
 
 export const UserName = styled.span({
-  marginTop: "18px",
+  marginTop: "16.2px",
   color: "#ffffff",
-  fontSize: "20px",
+  fontSize: "18px",
   fontWeight: 700,
-  lineHeight: "28px",
+  lineHeight: "25.2px",
   textAlign: "center",
 });
 
 export const Navigation = styled.nav({
   display: "flex",
   flexDirection: "column",
-  gap: "5px",
-  marginTop: "28px",
+  gap: "4.5px",
+  marginTop: "25.2px",
+  flexShrink: 0,
 });
 
 export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
   width: "100%",
-  height: "48px",
-  padding: "0 16px",
+  height: "43.2px",
+  padding: "0 14.4px",
 
   display: "flex",
   alignItems: "center",
-  gap: "13px",
+  gap: "11.7px",
   flexShrink: 0,
 
-  borderRadius: "9px",
+  borderRadius: "8.1px",
   background: $active ? "#edf8f5" : "transparent",
   color: $active ? "#005044" : "#ffffff",
 
-  fontSize: "16px",
+  fontSize: "14.4px",
   fontWeight: $active ? 700 : 500,
   textAlign: "left",
   whiteSpace: "nowrap",
@@ -120,6 +134,8 @@ export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
   transition: "background 0.2s, color 0.2s",
 
   "& svg": {
+    width: "18px",
+    height: "18px",
     flexShrink: 0,
   },
 
@@ -130,38 +146,41 @@ export const MenuButton = styled.button<MenuButtonProps>(({ $active }) => ({
 
 export const Footer = styled.div({
   marginTop: "auto",
+  paddingTop: "25.2px",
   display: "flex",
   flexDirection: "column",
-  gap: "3px",
+  gap: "2.7px",
   flexShrink: 0,
 
   "@media (max-height: 520px)": {
-    marginTop: "28px",
+    marginTop: "25.2px",
+    paddingTop: 0,
   },
 });
 
 export const Divider = styled.div({
   width: "100%",
-  height: "2px",
-  marginBottom: "14px",
+  height: "1.8px",
+  marginBottom: "12.6px",
   background: "rgba(255, 255, 255, 0.35)",
+  flexShrink: 0,
 });
 
 export const FooterButton = styled.button({
   width: "100%",
-  minHeight: "48px",
-  padding: "0 16px",
+  minHeight: "43.2px",
+  padding: "0 14.4px",
 
   display: "flex",
   alignItems: "center",
-  gap: "13px",
+  gap: "11.7px",
   flexShrink: 0,
 
-  borderRadius: "8px",
+  borderRadius: "7.2px",
   background: "transparent",
-
   color: "#ffffff",
-  fontSize: "16px",
+
+  fontSize: "14.4px",
   fontWeight: 500,
   textAlign: "left",
   whiteSpace: "nowrap",
@@ -169,7 +188,14 @@ export const FooterButton = styled.button({
   transition: "background 0.2s",
 
   "& svg": {
+    width: "18.9px",
+    height: "18.9px",
     flexShrink: 0,
+  },
+
+  "& svg.lucide-plane": {
+    width: "19.8px",
+    height: "19.8px",
   },
 
   "&:hover": {
