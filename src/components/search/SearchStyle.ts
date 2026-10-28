@@ -250,7 +250,7 @@ export const CategoryButton = styled.button<{
   ...menuAnimation.button,
   fontFamily: "inherit",
   fontSize: "16px",
-  fontWeight: 500,
+  fontWeight: 700,
   letterSpacing: "-0.01em",
   whiteSpace: "nowrap",
   cursor: "pointer",
@@ -403,15 +403,17 @@ export const ResultsToolbar = styled.div({
 
 export const ResultsCount = styled.p({
   margin: 0,
-  fontSize: "13px",
+  fontSize: "14px",
+  fontWeight: 400,
+  letterSpacing: "-0.01em",
   color: "#53658A",
 
   "& strong": {
-    fontWeight: 700,
+    fontWeight: 600,
   },
 
   "@media (max-width: 767px)": {
-    fontSize: "12px",
+    fontSize: "14px",
   },
 });
 
@@ -422,6 +424,13 @@ export const ResultsCount = styled.p({
 export const SortArea = styled.div({
   position: "relative",
   zIndex: 5,
+
+  // 검색 페이지의 정렬 버튼(추천순)만 변경
+  // 공통 DropdownStyle의 반응형 규칙보다 우선하도록 지정
+  "&& .sort-trigger": {
+    fontSize: "14px",
+    fontWeight: 500,
+  },
 
   "& .sort-dropdown": {
     left: "auto",
