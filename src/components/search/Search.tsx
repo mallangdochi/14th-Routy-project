@@ -6,6 +6,7 @@ import {
   useRef,
   type FormEvent,
 } from "react";
+import { Link, useNavigate } from "react-router";
 import {
   House,
   Search as SearchIcon,
@@ -21,6 +22,7 @@ import AddPlaceModal, {
   type AddPlaceResult,
 } from "../modal/addPlace/AddPlaceModal";
 import SearchMascot from "../../assets/SearchMascot.webp";
+import TourPlaceImage, { type SearchPlace } from "./TourPlaceImage";
 import MainSidebar from "../MainSidebar/MainSidebar";
 import MobileHeader from "../mobileBanner/MobileHeader";
 import MobileNav from "../mobileBanner/MobileFooter";
@@ -55,6 +57,8 @@ type KakaoSearchPlace = {
   road_address_name?: string;
   x: string;
   y: string;
+  phone?: string;
+  place_url?: string;
 };
 
 type KakaoSearchClient = {
@@ -71,7 +75,7 @@ type SearchTask = {
 };
 
 type SearchState = {
-  results: SavedPlace[];
+  results: SearchPlace[];
   loading: boolean;
   error: string;
 };
@@ -178,7 +182,9 @@ function getSearchPlan(rawKeyword: string, category: Category) {
   return { region, tasks };
 }
 
-function toSavedPlace(place: KakaoSearchPlace): SavedPlace {
+function toSavedPlace(
+  place: KakaoSearchPlace,
+): SearchPlace & { phone?: string; placeUrl?: string; categoryName?: string } {
   const code = place.category_group_code;
   const category: PlaceCategory =
     code === "FD6"
@@ -197,6 +203,11 @@ function toSavedPlace(place: KakaoSearchPlace): SavedPlace {
     description: place.category_name || `${category} · 카카오맵 장소 검색 결과`,
     image: FALLBACK_PLACE_IMAGE,
     savedAt: new Date().toISOString(),
+    lat: Number(place.y),
+    lng: Number(place.x),
+    phone: place.phone || "",
+    placeUrl: place.place_url || "",
+    categoryName: place.category_name || "",
   };
 }
 
@@ -224,6 +235,7 @@ function keywordSearch(
 }
 
 export default function Search() {
+  const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
   const [submittedKeyword, setSubmittedKeyword] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category>("전체");
@@ -300,7 +312,7 @@ export default function Search() {
           );
         }
 
-        const unique = new Map<string, SavedPlace>();
+        const unique = new Map<string, SearchPlace>();
         successful.forEach(({ value }) => {
           value.forEach((item) => {
             const addr = item.road_address_name || item.address_name || "";
@@ -344,6 +356,21 @@ export default function Search() {
       active = false;
     };
   }, [submittedKeyword, selectedCategory]);
+
+  const detailUrl = (place: SearchPlace) => {
+    const query = new URLSearchParams({
+      id: place.id,
+      name: place.name,
+      address: place.address,
+      category: place.category,
+    });
+    if (Number.isFinite(place.lat)) query.set("lat", String(place.lat));
+    if (Number.isFinite(place.lng)) query.set("lng", String(place.lng));
+    return `/place/detail?${query.toString()}`;
+  };
+  const openDetail = (place: SearchPlace) => {
+    navigate(detailUrl(place), { state: { place } });
+  };
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -528,16 +555,32 @@ export default function Search() {
                     const isAdded = Boolean(addedPlaces[place.id]);
 
                     return (
-                      <S.PlaceCard key={place.id}>
-                        <S.PlaceImage
-                          src={place.image}
-                          alt="장소 사진 대신 표시하는 루티 안내 이미지"
-                          loading="lazy"
-                        />
+                      <S.PlaceCard
+                        key={place.id}
+                        style={{ cursor: "pointer" }}
+                        onClick={(event) => {
+                          if (
+                            !(event.target as HTMLElement).closest("button,a")
+                          )
+                            openDetail(place);
+                        }}
+                      >
+                        <TourPlaceImage place={place} />
 
                         <S.PlaceContent>
                           <S.PlaceHeading>
-                            <S.PlaceName>{place.name}</S.PlaceName>
+                            <S.PlaceName>
+                              <Link
+                                to={detailUrl(place)}
+                                state={{ place }}
+                                style={{
+                                  color: "inherit",
+                                  textDecoration: "none",
+                                }}
+                              >
+                                {place.name}
+                              </Link>
+                            </S.PlaceName>
                             <S.CategoryTag>{place.category}</S.CategoryTag>
                           </S.PlaceHeading>
 

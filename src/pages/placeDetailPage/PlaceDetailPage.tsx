@@ -1,158 +1,262 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   Bookmark,
   CalendarDays,
-  CarFront,
-  ChevronDown,
   ChevronRight,
-  Clock3,
   FileText,
   Image as ImageIcon,
   MapPin,
   MessageSquareText,
-  Pencil,
-  Star,
-  Ticket,
+  Phone,
+  ExternalLink,
+  Navigation,
+  Search,
 } from "lucide-react";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 import MobileFooter from "../../components/mobileBanner/MobileFooter";
-import placeDetailImage from "../../assets/placeDetailSample.jpg";
+import AddPlaceModal, {
+  type AddPlaceResult,
+} from "../../components/modal/addPlace/AddPlaceModal";
+import KakaoPlaceDetailMap from "../../components/placeDetail/KakaoPlaceDetailMap";
+import SearchMascot from "../../assets/SearchMascot.webp";
+import {
+  findNearbyPlaces,
+  findPlaceDetail,
+  type KakaoPlaceInfo,
+} from "../../api/kakao/placeDetails";
 import { PlaceDetailPageStyle } from "./PlaceDetailPageStyle";
 
-type DetailTab = "intro" | "nearby" | "reviews";
-type PlaceCategory = "전체" | "관광지" | "맛집" | "카페" | "숙소";
-type ReviewSort = "recent" | "rating";
+type Tab = "intro" | "nearby" | "reviews";
+type NearCategory = "전체" | "관광지" | "맛집" | "카페" | "숙소";
+export type DetailPlace = {
+  id: string;
+  name: string;
+  address: string;
+  category: string;
+  categoryName?: string;
+  phone?: string;
+  placeUrl?: string;
+  lat?: number;
+  lng?: number;
+  image?: string;
+  description?: string;
+};
 
-const tabs: { id: DetailTab; label: string; Icon: typeof FileText }[] = [
+type NavigationState = { place?: DetailPlace } | null;
+const tabs: { id: Tab; label: string; Icon: typeof FileText }[] = [
   { id: "intro", label: "소개", Icon: FileText },
   { id: "nearby", label: "주변 장소", Icon: MapPin },
   { id: "reviews", label: "후기", Icon: MessageSquareText },
 ];
+const categories: NearCategory[] = ["전체", "관광지", "맛집", "카페", "숙소"];
 
-const categories: PlaceCategory[] = ["전체", "관광지", "맛집", "카페", "숙소"];
+function finiteCoordinate(input: string | null): number | undefined {
+  if (!input?.trim()) return undefined;
+  const value = Number(input);
+  return Number.isFinite(value) ? value : undefined;
+}
 
-const nearbyPlaces: {
-  id: number;
-  name: string;
-  category: Exclude<PlaceCategory, "전체">;
-  description: string;
-  rating: string;
-  count: string;
-}[] = [
-  {
-    id: 1,
-    name: "고궁 산책길",
-    category: "관광지",
-    description: "연못을 따라 조용히 걷기 좋은 산책 코스예요.",
-    rating: "4.7",
-    count: "1,248",
-  },
-  {
-    id: 2,
-    name: "서촌 다락 카페",
-    category: "카페",
-    description: "고즈넉한 창가에서 차 한 잔을 즐길 수 있어요.",
-    rating: "4.6",
-    count: "892",
-  },
-  {
-    id: 3,
-    name: "궁담 한상",
-    category: "맛집",
-    description: "정갈한 한식과 따뜻한 식사를 즐길 수 있는 공간이에요.",
-    rating: "4.5",
-    count: "1,120",
-  },
-  {
-    id: 4,
-    name: "북촌 작은 정원",
-    category: "관광지",
-    description: "골목 사이로 한옥의 운치를 느낄 수 있는 장소예요.",
-    rating: "4.6",
-    count: "756",
-  },
-  {
-    id: 5,
-    name: "종로 스테이",
-    category: "숙소",
-    description: "도심의 편리함과 아늑한 분위기를 함께 누릴 수 있어요.",
-    rating: "4.4",
-    count: "528",
-  },
-  {
-    id: 6,
-    name: "돌담길 티룸",
-    category: "카페",
-    description: "궁궐 산책을 마친 뒤 잠시 쉬어 가기 좋아요.",
-    rating: "4.8",
-    count: "643",
-  },
-];
+function fromKakao(item: KakaoPlaceInfo): DetailPlace {
+  const code = item.category_group_code;
+  return {
+    id: `kakao-${item.id}`,
+    name: item.place_name,
+    address: item.road_address_name || item.address_name,
+    category:
+      code === "FD6"
+        ? "음식점"
+        : code === "CE7"
+          ? "카페"
+          : code === "AD5"
+            ? "숙소"
+            : "관광",
+    categoryName: item.category_name,
+    phone: item.phone,
+    placeUrl: item.place_url,
+    lat: Number(item.y),
+    lng: Number(item.x),
+  };
+}
 
-const reviews = [
-  {
-    id: 1,
-    author: "고궁산책",
-    initials: "궁",
-    date: "2026. 10. 12.",
-    rating: 5,
-    text: "연못에 비친 정자가 정말 아름다웠어요. 조용히 둘러보면서 가을 풍경을 즐기기 좋았습니다. 사진으로 보는 것보다 직접 봤을 때 분위기가 더 좋았어요!",
-    hasPhoto: true,
-  },
-  {
-    id: 2,
-    author: "서울나들이",
-    initials: "서",
-    date: "2026. 10. 08.",
-    rating: 5,
-    text: "산책로가 잘 정돈되어 있어서 여유롭게 걸었어요. 주변 풍경이 아기자기하고 예쁜 곳이 많아 다음에는 가족과 함께 다시 오고 싶어요.",
-    hasPhoto: true,
-  },
-  {
-    id: 3,
-    author: "주말여행자",
-    initials: "주",
-    date: "2026. 09. 21.",
-    rating: 4,
-    text: "사람이 많을 때도 있지만 잠깐 기다렸다가 둘러보니 괜찮았어요. 날씨 좋은 날 천천히 걷는 코스로 추천해요.",
-    hasPhoto: false,
-  },
-  {
-    id: 4,
-    author: "초록빛",
-    initials: "초",
-    date: "2026. 08. 29.",
-    rating: 5,
-    text: "고궁의 단청과 자연 풍경이 잘 어울려요. 근처에서 식사하고 들르기에도 좋은 위치라 하루 일정에 넣기 편했습니다.",
-    hasPhoto: true,
-  },
-];
+function getDetailLink(place: DetailPlace) {
+  const params = new URLSearchParams({
+    id: place.id,
+    name: place.name,
+    address: place.address,
+    category: place.category,
+  });
+  if (Number.isFinite(place.lat)) params.set("lat", String(place.lat));
+  if (Number.isFinite(place.lng)) params.set("lng", String(place.lng));
+  return `/place/detail?${params.toString()}`;
+}
+
+function safeKakaoUrl(place: DetailPlace) {
+  if (place.placeUrl) {
+    try {
+      const url = new URL(place.placeUrl);
+      if (
+        url.protocol === "https:" &&
+        (url.hostname === "place.map.kakao.com" ||
+          url.hostname === "map.kakao.com")
+      )
+        return url.toString();
+    } catch {
+      /* discard malformed URL */
+    }
+  }
+  const id = place.id.replace(/^kakao-/, "");
+  return /^\d+$/.test(id) ? `https://place.map.kakao.com/${id}` : null;
+}
 
 export default function PlaceDetailPage() {
-  const [activeTab, setActiveTab] = useState<DetailTab>("intro");
-  const [category, setCategory] = useState<PlaceCategory>("전체");
-  const [reviewSort, setReviewSort] = useState<ReviewSort>("recent");
-  const [photoOnly, setPhotoOnly] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const urlKey = params.toString();
+  const statePlace = (location.state as NavigationState)?.place;
+  const request = useMemo(
+    () => ({
+      id: params.get("id") || "",
+      name: params.get("name") || "",
+      address: params.get("address") || "",
+      category: params.get("category") || "관광",
+      lat: finiteCoordinate(params.get("lat")),
+      lng: finiteCoordinate(params.get("lng")),
+    }),
+    [params],
+  );
+  const initialPlace: DetailPlace | null = request.name
+    ? {
+        ...request,
+        ...(statePlace?.name === request.name ? statePlace : {}),
+      }
+    : null;
+  const [resolved, setResolved] = useState<{
+    key: string;
+    place: DetailPlace;
+  } | null>(null);
+  const place = resolved?.key === urlKey ? resolved.place : initialPlace;
+  const [apiError, setApiError] = useState("");
+  const [activeTab, setActiveTab] = useState<Tab>("intro");
+  const [category, setCategory] = useState<NearCategory>("전체");
+  const [nearby, setNearby] = useState<KakaoPlaceInfo[]>([]);
+  const [nearbyError, setNearbyError] = useState("");
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [photo, setPhoto] = useState<{
+    key: string;
+    url: string | null;
+  } | null>(null);
+  const [brokenPhotoKey, setBrokenPhotoKey] = useState<string | null>(null);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [added, setAdded] = useState<AddPlaceResult | null>(null);
   const tabsId = useId();
 
-  const filteredPlaces = nearbyPlaces.filter(
-    (place) => category === "전체" || place.category === category,
-  );
-  const filteredReviews = reviews
-    .filter((review) => !photoOnly || review.hasPhoto)
-    .sort((a, b) =>
-      reviewSort === "rating"
-        ? b.rating - a.rating || a.id - b.id
-        : a.id - b.id,
-    );
+  // Kakao Places: fetch the actual metadata rather than reusing hard-coded detail mockups.
+  useEffect(() => {
+    if (!request.name) return;
+    let active = true;
+    void findPlaceDetail(request)
+      .then((record) => {
+        if (!active) return;
+        setApiError("");
+        if (record) {
+          setResolved({
+            key: urlKey,
+            place: { ...initialPlace, ...fromKakao(record) },
+          });
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active)
+          setApiError(
+            reason instanceof Error
+              ? reason.message
+              : "장소 정보를 불러오지 못했습니다.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+    // Use URL fields to recover the place on refresh; navigation state is a fast initial display.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlKey]);
+
+  const photoName = place?.name ?? "";
+  const photoAddress = place?.address ?? "";
+  const photoLat = place?.lat;
+  const photoLng = place?.lng;
+  const photoKey = `${photoName}|${photoAddress}|${photoLat ?? ""}|${photoLng ?? ""}`;
+  useEffect(() => {
+    if (!photoName || !photoAddress) return;
+    let active = true;
+    const search = new URLSearchParams({
+      name: photoName,
+      address: photoAddress,
+    });
+    if (Number.isFinite(photoLat)) search.set("lat", String(photoLat));
+    if (Number.isFinite(photoLng)) search.set("lng", String(photoLng));
+    void fetch(`/api/tour/photos?${search.toString()}`)
+      .then(async (response) =>
+        response.ok ? ((await response.json()) as { image?: unknown }) : {},
+      )
+      .then((data) => {
+        const candidate = typeof data.image === "string" ? data.image : null;
+        if (active)
+          setPhoto({
+            key: photoKey,
+            url: candidate?.startsWith("https://") ? candidate : null,
+          });
+      })
+      .catch(() => {
+        if (active) setPhoto({ key: photoKey, url: null });
+      });
+    return () => {
+      active = false;
+    };
+  }, [photoKey, photoName, photoAddress, photoLat, photoLng]);
+
+  const nearbyId = place?.id;
+  const nearbyLat = place?.lat;
+  const nearbyLng = place?.lng;
+  useEffect(() => {
+    if (
+      activeTab !== "nearby" ||
+      !Number.isFinite(nearbyLat) ||
+      !Number.isFinite(nearbyLng)
+    )
+      return;
+    let active = true;
+    void findNearbyPlaces(nearbyLat!, nearbyLng!, category)
+      .then((results) => {
+        if (!active) return;
+        setNearby(results.filter((item) => `kakao-${item.id}` !== nearbyId));
+        setNearbyError("");
+        setNearbyLoading(false);
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setNearbyError(
+            reason instanceof Error
+              ? reason.message
+              : "주변 장소를 불러오지 못했습니다.",
+          );
+          setNearbyLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeTab, nearbyId, nearbyLat, nearbyLng, category]);
 
   const onTabKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
     index: number,
   ) => {
-    const nextIndex =
+    const next =
       event.key === "ArrowRight"
         ? (index + 1) % tabs.length
         : event.key === "ArrowLeft"
@@ -161,326 +265,321 @@ export default function PlaceDetailPage() {
             ? 0
             : event.key === "End"
               ? tabs.length - 1
-              : null;
-
-    if (nextIndex === null) return;
+              : -1;
+    if (next === -1) return;
     event.preventDefault();
-    setActiveTab(tabs[nextIndex].id);
-    const buttons =
-      event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
-        '[role="tab"]',
-      );
-    buttons?.[nextIndex]?.focus();
+    setActiveTab(tabs[next].id);
+    event.currentTarget.parentElement
+      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+      [next]?.focus();
   };
+
+  const kakaoUrl = place ? safeKakaoUrl(place) : null;
+  const picture =
+    photo?.key === photoKey && brokenPhotoKey !== photoKey ? photo.url : null;
 
   return (
     <PlaceDetailPageStyle>
       <aside className="page-sidebar">
         <MainSidebar />
       </aside>
-
       <div className="page-mobile-header">
         <MobileHeader />
       </div>
-
       <main className="page-content">
         <div className="detail-inner">
           <nav className="breadcrumb" aria-label="현재 위치">
-            <span>검색</span>
+            <Link to="/search">검색</Link>
             <ChevronRight size={17} aria-hidden="true" />
             <span aria-current="page">장소 상세</span>
           </nav>
-
-          <section className="hero-section" aria-label="장소 기본 정보">
-            <div className="hero-image-card">
-              <img
-                src={placeDetailImage}
-                alt="연못과 가을 단풍 사이에 자리한 전통 정자"
-              />
-            </div>
-
-            <div className="summary-column">
-              <section className="summary-card">
-                <div className="tag-row">
-                  <span className="tag-chip">관광지</span>
-                  <span className="tag-chip">서울</span>
-                  <span className="tag-chip">추천 체류 1~2시간</span>
-                </div>
-
-                <h1>경복궁 향원정</h1>
-                <div className="location-row">
-                  <MapPin
-                    size={18}
-                    fill="currentColor"
-                    strokeWidth={2.2}
-                    aria-hidden="true"
-                  />
-                  <span>서울특별시 종로구 사직로 161</span>
-                </div>
-                <div className="rating-row">
-                  <Star
-                    size={32}
-                    fill="currentColor"
-                    strokeWidth={1.4}
-                    aria-hidden="true"
-                  />
-                  <strong>4.8</strong>
-                  <span>(2,431)</span>
-                </div>
-
-                <div className="action-row">
-                  <button className="primary-action-button" type="button">
-                    <CalendarDays
-                      size={23}
-                      strokeWidth={1.9}
-                      aria-hidden="true"
+          {!place ? (
+            <section className="content-card missing-place">
+              <Search size={32} />
+              <h1>표시할 장소가 없습니다.</h1>
+              <p>검색 결과에서 장소 이름이나 사진을 클릭해 주세요.</p>
+              <Link to="/search">여행지 검색으로 돌아가기</Link>
+            </section>
+          ) : (
+            <>
+              <section className="hero-section" aria-label="장소 기본 정보">
+                <div className="hero-image-card">
+                  {picture ? (
+                    <img
+                      src={picture}
+                      alt={`${place.name} 사진 (한국관광공사)`}
+                      onError={() => setBrokenPhotoKey(photoKey)}
                     />
-                    <span>일정에 추가</span>
-                  </button>
-                  <button
-                    className="icon-outline-button"
-                    type="button"
-                    aria-label="장소 저장"
-                  >
-                    <Bookmark size={25} strokeWidth={2} aria-hidden="true" />
-                  </button>
-                </div>
-              </section>
-
-              <section className="info-card">
-                <h2>방문 정보</h2>
-                <ul className="info-list">
-                  <li>
-                    <span className="info-label">
-                      <Ticket aria-hidden="true" />
-                      <strong>입장 요금</strong>
-                    </span>
-                    <span className="info-value">방문 전 확인</span>
-                  </li>
-                  <li>
-                    <span className="info-label">
-                      <Clock3 aria-hidden="true" />
-                      <strong>추천 체류 시간</strong>
-                    </span>
-                    <span className="info-value">1~2시간</span>
-                  </li>
-                  <li>
-                    <span className="info-label">
-                      <CarFront aria-hidden="true" />
-                      <strong>주차 정보</strong>
-                    </span>
-                    <span className="info-value">인근 주차장 확인</span>
-                  </li>
-                </ul>
-              </section>
-            </div>
-          </section>
-
-          <div className="tab-card" role="tablist" aria-label="장소 상세 정보">
-            {tabs.map(({ id, label, Icon }, index) => (
-              <button
-                key={id}
-                type="button"
-                className={`tab-item${activeTab === id ? " is-active" : ""}`}
-                id={`${tabsId}-${id}-tab`}
-                role="tab"
-                aria-selected={activeTab === id}
-                aria-controls={`${tabsId}-panel`}
-                tabIndex={activeTab === id ? 0 : -1}
-                onClick={() => setActiveTab(id)}
-                onKeyDown={(event) => onTabKeyDown(event, index)}
-              >
-                <Icon size={23} strokeWidth={1.9} aria-hidden="true" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div
-            id={`${tabsId}-panel`}
-            role="tabpanel"
-            aria-labelledby={`${tabsId}-${activeTab}-tab`}
-            className="tab-content"
-          >
-            {activeTab === "intro" && (
-              <section className="content-card intro-section">
-                <div className="section-heading">
-                  <h2>경복궁 향원정 소개</h2>
-                </div>
-                <p className="section-description">
-                  향원정은 고요한 연못과 나무들에 둘러싸인 아름다운 정자입니다.
-                  계절마다 달라지는 자연 풍경과 고궁의 분위기를 함께 느낄 수
-                  있어요. 천천히 산책하며 여유로운 시간을 보내거나, 한적한
-                  풍경을 사진으로 남기기에도 좋은 장소입니다.
-                </p>
-                <div className="gallery-grid">
-                  {Array.from({ length: 4 }, (_, index) => (
-                    <div className="gallery-item" key={index}>
-                      <img
-                        src={placeDetailImage}
-                        alt={`경복궁 향원정 풍경 예시 ${index + 1}`}
-                      />
+                  ) : (
+                    <div className="photo-placeholder">
+                      <ImageIcon size={50} />
+                      <span>{place.name}</span>
+                      <small>등록된 관광지 사진이 없습니다</small>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </section>
-            )}
-
-            {activeTab === "nearby" && (
-              <section className="content-card nearby-section">
-                <div
-                  className="filter-row"
-                  role="group"
-                  aria-label="주변 장소 분류"
-                >
-                  {categories.map((item) => (
-                    <button
-                      className={`filter-chip${category === item ? " is-active" : ""}`}
-                      type="button"
-                      key={item}
-                      aria-pressed={category === item}
-                      onClick={() => setCategory(item)}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-                <div className="nearby-grid">
-                  {filteredPlaces.map((place) => (
-                    <article className="nearby-card" key={place.id}>
-                      <div className="nearby-image">
-                        <img
-                          src={placeDetailImage}
-                          alt={`${place.name} 예시 이미지`}
-                        />
-                        <span className="place-category">{place.category}</span>
-                      </div>
-                      <div className="nearby-body">
-                        <div className="nearby-name-row">
-                          <h3>{place.name}</h3>
-                          <span className="nearby-category-inline">
-                            {place.category}
-                          </span>
-                        </div>
-                        <p>{place.description}</p>
-                        <div className="nearby-meta">
-                          <span className="nearby-rating">
-                            <Star
-                              size={20}
-                              fill="currentColor"
-                              strokeWidth={1.4}
-                              aria-hidden="true"
-                            />
-                            <strong>{place.rating}</strong>
-                            <span>({place.count})</span>
-                          </span>
-                          <button
-                            className="nearby-details-button"
-                            type="button"
-                          >
-                            <Bookmark size={17} aria-hidden="true" />
-                            <span>상세 보기</span>
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {activeTab === "reviews" && (
-              <section className="content-card reviews-section">
-                <div className="review-toolbar">
-                  <div className="review-score">
-                    <Star
-                      size={36}
-                      fill="currentColor"
-                      strokeWidth={1.4}
-                      aria-hidden="true"
-                    />
-                    <strong>4.8</strong>
-                    <span>(2,431)</span>
-                  </div>
-                  <div className="review-actions">
-                    <button
-                      type="button"
-                      className={`review-filter-button${photoOnly ? " is-active" : ""}`}
-                      aria-pressed={photoOnly}
-                      onClick={() => setPhotoOnly((current) => !current)}
-                    >
-                      <ImageIcon
-                        size={19}
-                        strokeWidth={1.8}
-                        aria-hidden="true"
-                      />
-                      <span>전체 포토 후기</span>
-                    </button>
-                    <label className="review-sort">
-                      <span className="sr-only">후기 정렬</span>
-                      <select
-                        value={reviewSort}
-                        onChange={(event) =>
-                          setReviewSort(event.target.value as ReviewSort)
-                        }
-                      >
-                        <option value="recent">최신순</option>
-                        <option value="rating">평점순</option>
-                      </select>
-                      <ChevronDown size={17} aria-hidden="true" />
-                    </label>
-                    <button className="write-review-button" type="button">
-                      <Pencil size={19} strokeWidth={1.8} aria-hidden="true" />
-                      후기 작성
-                    </button>
-                  </div>
-                </div>
-
-                <div className="review-grid">
-                  {filteredReviews.map((review) => (
-                    <article className="review-card" key={review.id}>
-                      <div className="review-user-row">
-                        <span className="review-avatar">{review.initials}</span>
-                        <div className="review-identity">
-                          <strong>{review.author}</strong>
-                          <span
-                            className="review-stars"
-                            aria-label={`평점 ${review.rating}점`}
-                          >
-                            {Array.from(
-                              { length: review.rating },
-                              (_, index) => (
-                                <Star
-                                  size={16}
-                                  key={index}
-                                  fill="currentColor"
-                                  strokeWidth={1.3}
-                                  aria-hidden="true"
-                                />
-                              ),
-                            )}
-                          </span>
-                        </div>
-                        <time>{review.date}</time>
-                      </div>
-                      <p className="review-text">{review.text}</p>
-                      {review.hasPhoto && (
-                        <div className="review-photos">
-                          <img
-                            src={placeDetailImage}
-                            alt={`${review.author} 후기 예시 사진`}
-                          />
-                        </div>
+                <div className="summary-column">
+                  <section className="summary-card">
+                    <div className="tag-row">
+                      <span className="tag-chip">{place.category}</span>
+                      {place.categoryName && (
+                        <span className="tag-chip">{place.categoryName}</span>
                       )}
-                    </article>
-                  ))}
+                    </div>
+                    <h1>{place.name}</h1>
+                    <div className="location-row">
+                      <MapPin size={18} />
+                      <span>{place.address}</span>
+                    </div>
+                    <p className="verified-detail">
+                      카카오맵 장소 검색 정보를 기준으로 표시합니다.
+                    </p>
+                    {apiError && (
+                      <p className="inline-warning" role="status">
+                        추가 정보 조회 실패: {apiError}
+                      </p>
+                    )}
+                    <div className="action-row">
+                      <button
+                        className="primary-action-button"
+                        type="button"
+                        onClick={() => setAddOpen(true)}
+                      >
+                        <CalendarDays size={23} />
+                        <span>{added ? "일정 추가됨" : "일정에 추가"}</span>
+                      </button>
+                      <button
+                        className="icon-outline-button"
+                        type="button"
+                        aria-label="장소 저장"
+                        aria-pressed={bookmarked}
+                        onClick={() => setBookmarked((value) => !value)}
+                      >
+                        <Bookmark
+                          size={25}
+                          fill={bookmarked ? "currentColor" : "none"}
+                        />
+                      </button>
+                    </div>
+                  </section>
+                  <section className="info-card">
+                    <h2>장소 정보</h2>
+                    <ul className="info-list">
+                      <li>
+                        <span className="info-label">
+                          <MapPin />
+                          <strong>주소</strong>
+                        </span>
+                        <span className="info-value">{place.address}</span>
+                      </li>
+                      <li>
+                        <span className="info-label">
+                          <Phone />
+                          <strong>전화번호</strong>
+                        </span>
+                        <span className="info-value">
+                          {place.phone ? (
+                            <a
+                              href={`tel:${place.phone.replace(/[^\d+]/g, "")}`}
+                            >
+                              {place.phone}
+                            </a>
+                          ) : (
+                            "정보 없음"
+                          )}
+                        </span>
+                      </li>
+                      <li>
+                        <span className="info-label">
+                          <FileText />
+                          <strong>분류</strong>
+                        </span>
+                        <span className="info-value">
+                          {place.categoryName || place.category}
+                        </span>
+                      </li>
+                    </ul>
+                  </section>
                 </div>
               </section>
-            )}
-          </div>
+              <div
+                className="tab-card"
+                role="tablist"
+                aria-label="장소 상세 정보"
+              >
+                {tabs.map(({ id, label, Icon }, index) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`tab-item${activeTab === id ? " is-active" : ""}`}
+                    id={`${tabsId}-${id}-tab`}
+                    role="tab"
+                    aria-selected={activeTab === id}
+                    aria-controls={`${tabsId}-panel`}
+                    tabIndex={activeTab === id ? 0 : -1}
+                    onClick={() => {
+                      setActiveTab(id);
+                      if (id === "nearby") setNearbyLoading(true);
+                    }}
+                    onKeyDown={(event) => onTabKeyDown(event, index)}
+                  >
+                    <Icon size={23} />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+              <div
+                id={`${tabsId}-panel`}
+                role="tabpanel"
+                aria-labelledby={`${tabsId}-${activeTab}-tab`}
+                className="tab-content"
+              >
+                {activeTab === "intro" && (
+                  <section className="content-card intro-section">
+                    <div className="section-heading">
+                      <h2>{place.name} 소개</h2>
+                    </div>
+                    <p className="section-description">
+                      {place.name}의 위치와 기본 정보입니다.{" "}
+                      {place.categoryName
+                        ? `분류: ${place.categoryName}. `
+                        : ""}
+                      주소는 {place.address}입니다. 상세 운영 시간과 이용 후기는
+                      카카오맵에서 확인해 주세요.
+                    </p>
+                    <h3 className="detail-subheading">지도에서 위치 확인</h3>
+                    {Number.isFinite(place.lat) &&
+                    Number.isFinite(place.lng) ? (
+                      <KakaoPlaceDetailMap
+                        name={place.name}
+                        lat={place.lat!}
+                        lng={place.lng!}
+                      />
+                    ) : (
+                      <p className="inline-warning">
+                        좌표 정보가 없어 지도를 표시할 수 없습니다.
+                      </p>
+                    )}
+                    {kakaoUrl && (
+                      <a
+                        className="external-map-link"
+                        href={kakaoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Navigation size={18} />
+                        카카오맵에서 상세정보 확인
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
+                  </section>
+                )}
+                {activeTab === "nearby" && (
+                  <section className="content-card nearby-section">
+                    <div
+                      className="filter-row"
+                      role="group"
+                      aria-label="주변 장소 분류"
+                    >
+                      {categories.map((item) => (
+                        <button
+                          className={`filter-chip${category === item ? " is-active" : ""}`}
+                          type="button"
+                          key={item}
+                          aria-pressed={category === item}
+                          onClick={() => {
+                            setCategory(item);
+                            setNearbyLoading(true);
+                          }}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                    {nearbyError && (
+                      <p role="alert" className="inline-warning">
+                        {nearbyError}
+                      </p>
+                    )}
+                    {nearbyLoading && (
+                      <p role="status">주변 장소를 검색 중입니다…</p>
+                    )}
+                    {!nearbyLoading && !nearbyError && nearby.length === 0 && (
+                      <p>주변에 등록된 장소가 없습니다.</p>
+                    )}
+                    <div className="nearby-grid">
+                      {!nearbyLoading &&
+                        nearby.map((item) => {
+                          const next = fromKakao(item);
+                          return (
+                            <article className="nearby-card" key={item.id}>
+                              <div className="nearby-body">
+                                <h3>{next.name}</h3>
+                                <p>{next.address}</p>
+                                <p>{next.categoryName || next.category}</p>
+                                <div className="nearby-meta">
+                                  <button
+                                    className="nearby-details-button"
+                                    type="button"
+                                    onClick={() => {
+                                      navigate(getDetailLink(next), {
+                                        state: { place: next },
+                                      });
+                                      setActiveTab("intro");
+                                    }}
+                                  >
+                                    상세 보기 <ChevronRight size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </article>
+                          );
+                        })}
+                    </div>
+                  </section>
+                )}
+                {activeTab === "reviews" && (
+                  <section className="content-card reviews-section">
+                    <div className="section-heading">
+                      <h2>이용 후기</h2>
+                    </div>
+                    <p className="section-description">
+                      카카오 장소 검색 API는 평점과 후기 본문을 제공하지
+                      않습니다. 실제 이용 후기는 카카오맵에서 확인할 수
+                      있습니다.
+                    </p>
+                    {kakaoUrl && (
+                      <a
+                        className="external-map-link"
+                        href={kakaoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        카카오맵 후기 확인 <ExternalLink size={16} />
+                      </a>
+                    )}
+                  </section>
+                )}
+              </div>
+              <AddPlaceModal
+                open={addOpen}
+                place={{
+                  id: place.id,
+                  name: place.name,
+                  address: place.address,
+                  category: place.category,
+                  image: picture || SearchMascot,
+                }}
+                onClose={() => setAddOpen(false)}
+                onAdd={(result) => {
+                  setAdded(result);
+                  setAddOpen(false);
+                }}
+              />
+            </>
+          )}
         </div>
       </main>
-
       <div className="page-mobile-footer">
         <MobileFooter />
       </div>

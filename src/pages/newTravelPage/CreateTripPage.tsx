@@ -1086,6 +1086,9 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
         value={selectedRegion ?? REGIONS[0]}
         onClose={() => setRegionModalOpen(false)}
         onConfirm={setSelectedRegion}
+        renderMap={({ selectedRegion: previewRegion }) => (
+          <KakaoRegionPreview region={previewRegion} />
+        )}
       />
       <TripPreviewModal
         open={sheetOpen}
