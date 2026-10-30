@@ -11,6 +11,16 @@ import * as S from "./MainSidebarStyle";
 import smallRouty from "../../../public/favicon.svg";
 
 import ProfileImage from "../../assets/profile.webp";
+import profileAvatar1 from "../../assets/profileAvatars/P1.webp";
+import profileAvatar2 from "../../assets/profileAvatars/P2.webp";
+import profileAvatar3 from "../../assets/profileAvatars/P3.webp";
+import profileAvatar7 from "../../assets/profileAvatars/P7.webp";
+import profileAvatar8 from "../../assets/profileAvatars/P8.webp";
+import profileAvatar9 from "../../assets/profileAvatars/P9.webp";
+import profileAvatar10 from "../../assets/profileAvatars/p10.webp";
+import profileAvatar11 from "../../assets/profileAvatars/P11.webp";
+import profileAvatar12 from "../../assets/profileAvatars/P12.webp";
+import profileAvatar13 from "../../assets/profileAvatars/P13.webp";
 import Side1 from "../../assets/lunch.webp";
 import Side2 from "../../assets/morning.webp";
 import Side3 from "../../assets/dinner.webp";
@@ -94,6 +104,37 @@ const getSidebarImage = () => {
   return Side3;
 };
 
+const DEFAULT_PROFILE_IMAGES: Record<string, string> = {
+  P1: profileAvatar1,
+  P2: profileAvatar2,
+  P3: profileAvatar3,
+  P7: profileAvatar7,
+  P8: profileAvatar8,
+  P9: profileAvatar9,
+  P10: profileAvatar10,
+  P11: profileAvatar11,
+  P12: profileAvatar12,
+  P13: profileAvatar13,
+};
+
+function getProfileImage(avatarUrl?: string | null): string {
+  if (!avatarUrl) return ProfileImage;
+
+  // 저장된 기본 이미지 ID를 실제 이미지로 연결
+  if (avatarUrl.startsWith("default:")) {
+    const avatarId = avatarUrl.slice("default:".length);
+
+    return DEFAULT_PROFILE_IMAGES[avatarId] ?? ProfileImage;
+  }
+
+  // 직접 업로드한 이미지의 공개 URL
+  if (avatarUrl.startsWith("https://")) {
+    return avatarUrl;
+  }
+
+  return ProfileImage;
+}
+
 const MainSidebar = () => {
   const navigate = useNavigate();
   const { user, loading, error, refreshUser } = useAuth();
@@ -106,15 +147,34 @@ const MainSidebar = () => {
         ? `${user.username?.trim() || "회원"}님`
         : "로그인";
 
+  // const [isCollapsed, setIsCollapsed] = useState(() => {
+  //   if (typeof window === "undefined") return false;
+
+  //   try {
+  //     return (
+  //       window.localStorage.getItem("routy-main-sidebar-collapsed") === "true"
+  //     );
+  //   } catch {
+  //     return false;
+  //   }
+  // });
+
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
 
+    const isTablet = window.matchMedia(
+      "(min-width: 768px) and (max-width: 1023px)",
+    ).matches;
+
     try {
-      return (
-        window.localStorage.getItem("routy-main-sidebar-collapsed") === "true"
-      );
+      const saved = window.localStorage.getItem("routy-main-sidebar-collapsed");
+
+      if (saved === "true") return true;
+      if (saved === "false") return false;
+
+      return isTablet;
     } catch {
-      return false;
+      return isTablet;
     }
   });
 
@@ -504,9 +564,19 @@ const MainSidebar = () => {
               >
                 {user ? (
                   <S.ProfileImage
+                    key={`${user.id}:${user.avatarUrl ?? ""}`}
                     data-profile-image=""
-                    src={ProfileImage}
-                    alt="기본 프로필 이미지"
+                    src={getProfileImage(user.avatarUrl)}
+                    alt={`${user.username?.trim() || "회원"}님의 프로필 이미지`}
+                    onError={(event) => {
+                      const image = event.currentTarget;
+
+                      // 이미지 로딩 실패 시 대체 이미지는 한 번만 적용
+                      if (image.dataset.fallbackApplied === "true") return;
+
+                      image.dataset.fallbackApplied = "true";
+                      image.src = ProfileImage;
+                    }}
                   />
                 ) : (
                   <UserRound size={23} strokeWidth={1.5} aria-hidden="true" />
@@ -516,15 +586,6 @@ const MainSidebar = () => {
                   {profileLabel}
                 </S.ProfileName>
 
-                {/* {user && (
-                  <S.ProfileArrow data-profile-arrow="" $isOpen={isProfileOpen}>
-                    <ChevronDown
-                      size={23}
-                      strokeWidth={1.5}
-                      aria-hidden="true"
-                    />
-                  </S.ProfileArrow>
-                )} */}
                 {user && !isCollapsed && (
                   <S.ProfileArrow data-profile-arrow="" $isOpen={isProfileOpen}>
                     <ChevronDown

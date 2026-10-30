@@ -86,16 +86,16 @@ import {
 } from "./RoutyProfileStyle";
 
 const DEFAULT_PROFILE_AVATARS = [
-  profileAvatar1,
-  profileAvatar2,
-  profileAvatar3,
-  profileAvatar7,
-  profileAvatar8,
-  profileAvatar9,
-  profileAvatar10,
-  profileAvatar11,
-  profileAvatar12,
-  profileAvatar13,
+  { id: "P1", src: profileAvatar1 },
+  { id: "P2", src: profileAvatar2 },
+  { id: "P3", src: profileAvatar3 },
+  { id: "P7", src: profileAvatar7 },
+  { id: "P8", src: profileAvatar8 },
+  { id: "P9", src: profileAvatar9 },
+  { id: "P10", src: profileAvatar10 },
+  { id: "P11", src: profileAvatar11 },
+  { id: "P12", src: profileAvatar12 },
+  { id: "P13", src: profileAvatar13 },
 ];
 
 type ProfilePayload = {
@@ -172,7 +172,10 @@ export default function RoutyProfile({
       if (onSaveProfile) {
         await onSaveProfile({ nickname: value, avatarFile });
       }
-      await completeInitialProfile(value);
+      await completeInitialProfile(
+        value,
+        avatarFile ? { avatarFile } : { defaultAvatarId: randomAvatar.id },
+      );
       markCurrentProfileCompleted();
       await refreshUser();
       setNickname(value);
@@ -188,7 +191,7 @@ export default function RoutyProfile({
     }
   };
 
-  const avatarSrc = avatarPreview ?? randomAvatar;
+  const avatarSrc = avatarPreview ?? randomAvatar.src;
 
   const avatar = (
     <AvatarFrame>

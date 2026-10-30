@@ -3,22 +3,47 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type FormEvent,
+  type SubmitEvent,
 } from "react";
+
 import { useLocation, useNavigate } from "react-router";
+
 import {
   Image as ImageIcon,
   ChevronLeft,
   Menu,
   CircleAlert,
 } from "lucide-react";
-import Settings, {
-  type SettingsData,
-} from "../../components/settings/settings";
+
+import Settings from "../../components/settings/settings";
 import Sidebar from "../../components/mysidebar/mysidebar";
 import Support from "../../components/support/support";
+
+import MyLoginRequired from "../../components/emptyUI/myLoginRequired/MyLoginRequired";
+
+import { useAuth } from "../../contexts/AuthContext";
+
+import {
+  completeInitialProfile,
+  getCurrentUser,
+  type AuthUser,
+  type ProfileSaveOptions,
+} from "../../api/auth";
+
+import {
+  DEFAULT_SETTINGS,
+  MyPageApiError,
+  changePassword,
+  formatPhone,
+  saveAccount,
+  saveSettings,
+  withdrawAccount,
+  type MyPageSettings,
+} from "../../api/mypage";
+
 import profileAvatar from "../../assets/profile.webp";
 import routyLogo from "../../assets/routy-logo.svg";
+
 import avatarP1 from "../../assets/profileAvatars/P1.webp";
 import avatarP2 from "../../assets/profileAvatars/P2.webp";
 import avatarP3 from "../../assets/profileAvatars/P3.webp";
@@ -29,18 +54,150 @@ import avatarP10 from "../../assets/profileAvatars/p10.webp";
 import avatarP11 from "../../assets/profileAvatars/P11.webp";
 import avatarP12 from "../../assets/profileAvatars/P12.webp";
 import avatarP13 from "../../assets/profileAvatars/P13.webp";
+
 import * as S from "./myPageStyle";
-import { useAuth } from "../../contexts/AuthContext";
-import MyLoginRequired from "../../components/emptyUI/myLoginRequired/MyLoginRequired";
 
 type PageId = "profile" | "security" | "settings" | "support";
+
 type PasswordFieldId = "current" | "new" | "confirm";
 
-type PasswordEyeIconProps = {
-  visible: boolean;
+interface ProfileData {
+  nickname: string;
+  image: string;
+}
+
+interface AccountData {
+  name: string;
+  phone: string;
+  email: string;
+}
+
+const DEFAULT_PROFILE_IMAGES: Record<string, string> = {
+  P1: avatarP1,
+  P2: avatarP2,
+  P3: avatarP3,
+  P7: avatarP7,
+  P8: avatarP8,
+  P9: avatarP9,
+  P10: avatarP10,
+  P11: avatarP11,
+  P12: avatarP12,
+  P13: avatarP13,
 };
 
-function PasswordEyeIcon({ visible }: PasswordEyeIconProps) {
+const defaultAvatars = Object.entries(DEFAULT_PROFILE_IMAGES);
+
+const pageText: Record<PageId, { title: string; description: string }> = {
+  profile: {
+    title: "프로필 관리",
+    description: "나의 프로필을 관리해요.",
+  },
+  security: {
+    title: "계정 및 보안",
+    description: "계정 정보를 안전하게 관리하세요.",
+  },
+  settings: {
+    title: "설정",
+    description: "설정을 관리해요.",
+  },
+  support: {
+    title: "고객지원",
+    description: "필요한 도움을 빠르게 찾아보세요.",
+  },
+};
+
+const passwordFields = [
+  {
+    id: "current",
+    label: "현재 비밀번호",
+    placeholder: "현재 비밀번호를 입력해 주세요.",
+    autoComplete: "current-password",
+  },
+  {
+    id: "new",
+    label: "새 비밀번호",
+    placeholder: "새 비밀번호를 입력해 주세요.",
+    autoComplete: "new-password",
+  },
+  {
+    id: "confirm",
+    label: "새 비밀번호 확인",
+    placeholder: "새 비밀번호를 다시 입력해 주세요.",
+    autoComplete: "new-password",
+  },
+] as const;
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function resolveProfileImage(avatarUrl?: string | null): string {
+  if (!avatarUrl) {
+    return profileAvatar;
+  }
+
+  if (avatarUrl.startsWith("default:")) {
+    const avatarId = avatarUrl.slice("default:".length);
+
+    return DEFAULT_PROFILE_IMAGES[avatarId] ?? profileAvatar;
+  }
+
+  if (avatarUrl.startsWith("https://")) {
+    return avatarUrl;
+  }
+
+  return profileAvatar;
+}
+
+function getProfileData(user: AuthUser): ProfileData {
+  return {
+    nickname: user.username ?? "",
+    image: resolveProfileImage(user.avatarUrl),
+  };
+}
+
+function getAccountData(user: AuthUser): AccountData {
+  return {
+    name: user.fullName ?? `${user.lastName ?? ""}${user.firstName ?? ""}`,
+    phone: user.phone ?? "",
+    email: user.email ?? "",
+  };
+}
+
+function getSettingsData(user: AuthUser): MyPageSettings {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...user.settings,
+
+    locationServiceAllowed:
+      user.settings?.locationServiceAllowed ?? user.agreeLocation ?? false,
+
+    marketingAllowed:
+      user.settings?.marketingAllowed ?? user.agreeMarketing ?? false,
+  };
+}
+
+function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
+  }
+
+  return formatPhone(phone);
+}
+
+function maskEmail(email: string): string {
+  const atIndex = email.indexOf("@");
+
+  if (atIndex < 1) {
+    return email;
+  }
+
+  return `${email[0]}***${email.slice(atIndex)}`;
+}
+
+function PasswordEyeIcon({ visible }: { visible: boolean }) {
   if (visible) {
     return (
       <svg
@@ -90,121 +247,32 @@ function PasswordEyeIcon({ visible }: PasswordEyeIconProps) {
   );
 }
 
-type ProfileData = {
-  nickname: string;
-  image: string;
-};
-
-type AccountData = {
-  name: string;
-  phone: string;
-  email: string;
-};
-
-const initialProfile: ProfileData = {
-  nickname: "홍길동",
-  image: profileAvatar,
-};
-
-const initialAccount: AccountData = {
-  name: "김나은",
-  phone: "010-1234-5678",
-  email: "naeun@example.com",
-};
-
-const initialSettings: SettingsData = {
-  inviteNotifications: true,
-  itineraryNotifications: true,
-  tripStartNotifications: false,
-  locationServiceAllowed: true,
-  marketingAllowed: false,
-  defaultItineraryView: "schedule",
-};
-
-const passwordFields = [
-  {
-    id: "current",
-    label: "현재 비밀번호",
-    placeholder: "현재 비밀번호를 입력해 주세요.",
-    autoComplete: "current-password",
-  },
-  {
-    id: "new",
-    label: "새 비밀번호",
-    placeholder: "새 비밀번호를 입력해 주세요.",
-    autoComplete: "new-password",
-  },
-  {
-    id: "confirm",
-    label: "새 비밀번호 확인",
-    placeholder: "새 비밀번호를 다시 입력해 주세요.",
-    autoComplete: "new-password",
-  },
-] as const;
-
-const defaultAvatars = [
-  avatarP1,
-  avatarP2,
-  avatarP3,
-  avatarP7,
-  avatarP8,
-  avatarP9,
-  avatarP10,
-  avatarP11,
-  avatarP12,
-  avatarP13,
-];
-
-const pageText: Record<PageId, { title: string; description: string }> = {
-  profile: {
-    title: "프로필 관리",
-    description: "나의 프로필을 관리해요.",
-  },
-  security: {
-    title: "계정 및 보안",
-    description: "계정 정보를 안전하게 관리하세요.",
-  },
-  settings: {
-    title: "설정",
-    description: "설정을 관리해요.",
-  },
-  support: {
-    title: "고객지원",
-    description: "필요한 도움을 빠르게 찾아보세요.",
-  },
-};
-
-function maskPhone(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
-  }
-
-  return phone;
-}
-
-function maskEmail(email: string) {
-  const atIndex = email.indexOf("@");
-
-  if (atIndex < 1) return email;
-
-  return `${email[0]}***${email.slice(atIndex)}`;
-}
-
-type ProfileViewProps = {
+interface ProfileViewProps {
   savedProfile: ProfileData;
-  onSave: (profile: ProfileData) => void;
-};
+  onSave: (profile: ProfileData, options: ProfileSaveOptions) => Promise<void>;
+}
 
 function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
   const [nickname, setNickname] = useState(savedProfile.nickname);
   const [profileImage, setProfileImage] = useState(savedProfile.image);
+
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
+
   const [imageError, setImageError] = useState("");
   const [nameError, setNameError] = useState("");
+  const [saveError, setSaveError] = useState("");
+
+  const [isReadingImage, setIsReadingImage] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const savingRef = useRef(false);
+  const imageReadVersionRef = useRef(0);
+
+  const isBusy = isReadingImage || isSaving;
 
   const isEditing =
     nickname !== savedProfile.nickname || profileImage !== savedProfile.image;
@@ -212,63 +280,135 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
-    if (!file) return;
+    event.target.value = "";
+
+    if (!file || isBusy) {
+      return;
+    }
 
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       setImageError("JPG, PNG, WEBP 이미지만 선택할 수 있어요.");
-      event.target.value = "";
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       setImageError("5MB 이하의 이미지를 선택해 주세요.");
-      event.target.value = "";
       return;
     }
 
+    imageReadVersionRef.current += 1;
+
+    const readVersion = imageReadVersionRef.current;
     const reader = new FileReader();
 
+    setIsReadingImage(true);
+    setImageError("");
+    setSaveError("");
+
     reader.onload = () => {
+      if (readVersion !== imageReadVersionRef.current) {
+        return;
+      }
+
       if (typeof reader.result === "string") {
         setProfileImage(reader.result);
-        setImageError("");
+        setAvatarFile(file);
+      } else {
+        setImageError("이미지를 불러오지 못했어요.");
       }
+
+      setIsReadingImage(false);
     };
 
     reader.onerror = () => {
+      if (readVersion !== imageReadVersionRef.current) {
+        return;
+      }
+
       setImageError("이미지를 불러오지 못했어요.");
+      setIsReadingImage(false);
     };
 
     reader.readAsDataURL(file);
-    event.target.value = "";
   };
 
   const handleOpenPicker = () => {
-    setSelectedAvatar(
-      defaultAvatars.find((avatar) => avatar === profileImage) ?? null,
-    );
+    if (isBusy) {
+      return;
+    }
+
+    const current = defaultAvatars.find(([, image]) => image === profileImage);
+
+    setSelectedAvatarId(current?.[0] ?? null);
     setIsPickerOpen(true);
   };
 
   const handleReset = () => {
-    setNickname(savedProfile.nickname);
-    setProfileImage(savedProfile.image);
-    setImageError("");
-    setNameError("");
-  };
-
-  const handleSave = () => {
-    const trimmed = nickname.trim();
-
-    if (trimmed.length < 2 || trimmed.length > 20) {
-      setNameError("이름은 2~20자로 입력해 주세요.");
+    if (isBusy) {
       return;
     }
 
-    setNickname(trimmed);
+    setNickname(savedProfile.nickname);
+    setProfileImage(savedProfile.image);
+    setAvatarFile(null);
+    setImageError("");
     setNameError("");
-    onSave({ nickname: trimmed, image: profileImage });
+    setSaveError("");
   };
+
+  const handleSave = async () => {
+    if (savingRef.current || isReadingImage) {
+      return;
+    }
+
+    const trimmed = nickname.trim();
+
+    if (trimmed.length < 2 || trimmed.length > 12) {
+      setNameError("닉네임은 2~12자로 입력해 주세요.");
+      return;
+    }
+
+    const options: ProfileSaveOptions = {};
+
+    if (profileImage !== savedProfile.image) {
+      if (avatarFile) {
+        options.avatarFile = avatarFile;
+      } else {
+        const selected = defaultAvatars.find(
+          ([, image]) => image === profileImage,
+        );
+
+        if (!selected) {
+          setSaveError("프로필 이미지를 다시 선택해주세요.");
+          return;
+        }
+
+        options.defaultAvatarId = selected[0];
+      }
+    }
+
+    savingRef.current = true;
+
+    setIsSaving(true);
+    setNameError("");
+    setSaveError("");
+
+    try {
+      await onSave(
+        {
+          nickname: trimmed,
+          image: profileImage,
+        },
+        options,
+      );
+    } catch (error) {
+      setSaveError(getErrorMessage(error, "프로필을 저장하지 못했습니다."));
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
+  };
+
   return (
     <S.ProfileCard>
       <S.CardTitle>프로필 정보</S.CardTitle>
@@ -284,22 +424,33 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 hidden
+                disabled={isBusy}
                 onChange={handleFileChange}
               />
 
               <S.ImageChangeButton
                 type="button"
+                disabled={isBusy}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <ImageIcon size={20} strokeWidth={2} aria-hidden="true" />
                 이미지 변경
               </S.ImageChangeButton>
 
-              <S.DefaultImageButton type="button" onClick={handleOpenPicker}>
+              <S.DefaultImageButton
+                type="button"
+                disabled={isBusy}
+                onClick={handleOpenPicker}
+              >
                 기본 이미지로 변경
               </S.DefaultImageButton>
 
-              <S.ImageHelp>JPG, PNG, WEBP · 최대 5MB</S.ImageHelp>
+              <S.ImageHelp>
+                {isReadingImage
+                  ? "이미지를 불러오고 있어요."
+                  : "JPG, PNG, WEBP · 최대 5MB"}
+              </S.ImageHelp>
+
               {imageError && (
                 <S.ImageError role="alert">{imageError}</S.ImageError>
               )}
@@ -308,36 +459,45 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
         </S.ImageColumn>
 
         <S.InputColumn>
-          <S.FieldLabel htmlFor="profile-nickname">이름</S.FieldLabel>
+          <S.FieldLabel htmlFor="profile-nickname">닉네임</S.FieldLabel>
 
           <S.InputBox>
             <S.NameInput
               id="profile-nickname"
               value={nickname}
-              maxLength={20}
+              maxLength={12}
+              disabled={isBusy}
               onChange={(event) => {
                 setNickname(event.target.value);
                 setNameError("");
+                setSaveError("");
               }}
             />
-            <S.CharacterCount>{nickname.length}/20</S.CharacterCount>
+
+            <S.CharacterCount>{nickname.length}/12</S.CharacterCount>
           </S.InputBox>
 
-          <S.InputHelp>2~20자로 입력해 주세요.</S.InputHelp>
+          <S.InputHelp>2~12자로 입력해 주세요.</S.InputHelp>
 
           {nameError && <S.NameError role="alert">{nameError}</S.NameError>}
         </S.InputColumn>
       </S.ProfileContent>
 
+      {saveError && <S.NameError role="alert">{saveError}</S.NameError>}
+
       <S.ActionRow>
         {isEditing && (
-          <S.CancelButton type="button" onClick={handleReset}>
+          <S.CancelButton type="button" disabled={isBusy} onClick={handleReset}>
             초기화
           </S.CancelButton>
         )}
 
-        <S.SaveButton type="button" onClick={handleSave}>
-          변경사항 저장
+        <S.SaveButton
+          type="button"
+          disabled={isBusy}
+          onClick={() => void handleSave()}
+        >
+          {isSaving ? "저장 중..." : "변경사항 저장"}
         </S.SaveButton>
       </S.ActionRow>
 
@@ -359,16 +519,16 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
             </S.AvatarModalHelp>
 
             <S.AvatarGrid>
-              {defaultAvatars.map((avatar, index) => (
+              {defaultAvatars.map(([id, image], index) => (
                 <S.AvatarOption
-                  key={avatar}
+                  key={id}
                   type="button"
-                  $selected={selectedAvatar === avatar}
+                  $selected={selectedAvatarId === id}
                   aria-label={`기본 이미지 ${index + 1} 선택`}
-                  aria-pressed={selectedAvatar === avatar}
-                  onClick={() => setSelectedAvatar(avatar)}
+                  aria-pressed={selectedAvatarId === id}
+                  onClick={() => setSelectedAvatarId(id)}
                 >
-                  <img src={avatar} alt="" />
+                  <img src={image} alt="" />
                 </S.AvatarOption>
               ))}
             </S.AvatarGrid>
@@ -377,10 +537,13 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
               <S.ModalConfirmButton
                 type="button"
                 onClick={() => {
-                  if (selectedAvatar) {
-                    setProfileImage(selectedAvatar);
+                  if (selectedAvatarId) {
+                    setProfileImage(DEFAULT_PROFILE_IMAGES[selectedAvatarId]);
+                    setAvatarFile(null);
                     setImageError("");
+                    setSaveError("");
                   }
+
                   setIsPickerOpen(false);
                 }}
               >
@@ -394,14 +557,14 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
   );
 }
 
-type BasicInfoCardProps = {
+interface BasicInfoCardProps {
   account: AccountData;
   editing: boolean;
   onEdit: () => void;
-  onSave: (account: AccountData) => void;
+  onSave: (account: AccountData) => Promise<void>;
   mobileEditLayout?: boolean;
   onCancel?: () => void;
-};
+}
 
 function BasicInfoCard({
   account,
@@ -412,6 +575,10 @@ function BasicInfoCard({
   onCancel,
 }: BasicInfoCardProps) {
   const [draft, setDraft] = useState<AccountData>(account);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const savingRef = useRef(false);
 
   const fields = [
     { id: "name", label: "이름", type: "text" },
@@ -425,6 +592,47 @@ function BasicInfoCard({
     email: maskEmail(account.email),
   };
 
+  const handleSave = async () => {
+    if (savingRef.current) {
+      return;
+    }
+
+    const next: AccountData = {
+      name: draft.name.trim(),
+      phone: draft.phone.replace(/\D/g, ""),
+      email: draft.email.trim(),
+    };
+
+    if (!next.name || next.name.length > 100) {
+      setSaveError("이름은 1~100자로 입력해주세요.");
+      return;
+    }
+
+    if (!/^01[016789]\d{7,8}$/.test(next.phone)) {
+      setSaveError("핸드폰번호를 확인해주세요.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next.email)) {
+      setSaveError("이메일 형식을 확인해주세요.");
+      return;
+    }
+
+    savingRef.current = true;
+
+    setIsSaving(true);
+    setSaveError("");
+
+    try {
+      await onSave(next);
+    } catch (error) {
+      setSaveError(getErrorMessage(error, "회원 정보를 저장하지 못했습니다."));
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
+  };
+
   return (
     <S.SecurityCard>
       <S.SecurityCardHeader>
@@ -433,15 +641,16 @@ function BasicInfoCard({
         {!mobileEditLayout && (
           <S.SecurityActionButton
             type="button"
+            disabled={isSaving}
             onClick={() => {
               if (editing) {
-                onSave(draft);
+                void handleSave();
               } else {
                 onEdit();
               }
             }}
           >
-            {editing ? "저장" : "수정"}
+            {isSaving ? "저장 중..." : editing ? "저장" : "수정"}
           </S.SecurityActionButton>
         )}
       </S.SecurityCardHeader>
@@ -459,30 +668,55 @@ function BasicInfoCard({
               <S.SecurityInput
                 id={`account-${field.id}`}
                 type={field.type}
-                value={draft[field.id]}
-                onChange={(event) =>
+                disabled={isSaving}
+                inputMode={field.id === "phone" ? "tel" : undefined}
+                maxLength={field.id === "phone" ? 13 : undefined}
+                value={
+                  field.id === "phone"
+                    ? formatPhone(draft.phone)
+                    : draft[field.id]
+                }
+                onChange={(event) => {
+                  const value =
+                    field.id === "phone"
+                      ? event.target.value.replace(/\D/g, "").slice(0, 11)
+                      : event.target.value;
+
                   setDraft((previous) => ({
                     ...previous,
-                    [field.id]: event.target.value,
-                  }))
-                }
+                    [field.id]: value,
+                  }));
+
+                  setSaveError("");
+                }}
               />
             ) : (
               <S.SecurityInfoValue>
-                {displayValue[field.id]}
+                {displayValue[field.id] || "등록된 정보 없음"}
               </S.SecurityInfoValue>
             )}
           </S.SecurityInfoRow>
         ))}
       </S.SecurityInfoList>
 
+      {saveError && <S.NameError role="alert">{saveError}</S.NameError>}
+
       {mobileEditLayout && (
         <S.PasswordActionRow>
-          <S.PasswordCancelButton type="button" onClick={onCancel}>
+          <S.PasswordCancelButton
+            type="button"
+            disabled={isSaving}
+            onClick={onCancel}
+          >
             취소
           </S.PasswordCancelButton>
-          <S.PasswordSubmitButton type="button" onClick={() => onSave(draft)}>
-            저장
+
+          <S.PasswordSubmitButton
+            type="button"
+            disabled={isSaving}
+            onClick={() => void handleSave()}
+          >
+            {isSaving ? "저장 중..." : "저장"}
           </S.PasswordSubmitButton>
         </S.PasswordActionRow>
       )}
@@ -490,56 +724,69 @@ function BasicInfoCard({
   );
 }
 
-type PasswordEditViewProps = {
+interface PasswordEditViewProps {
   onBack: () => void;
-};
+  onSaved: () => void;
+}
 
-function PasswordEditView({ onBack }: PasswordEditViewProps) {
+function PasswordEditView({ onBack, onSaved }: PasswordEditViewProps) {
   const [passwords, setPasswords] = useState<Record<PasswordFieldId, string>>({
     current: "",
     new: "",
     confirm: "",
   });
+
   const [visible, setVisible] = useState<Record<PasswordFieldId, boolean>>({
     current: false,
     new: false,
     confirm: false,
   });
-  const [showNotice, setShowNotice] = useState(false);
+
+  const [isSaving, setIsSaving] = useState(false);
+
   const [validationError, setValidationError] = useState<{
     field: PasswordFieldId;
     message: string;
     attempt: number;
   } | null>(null);
+
   const inputRefs = useRef<Record<PasswordFieldId, HTMLInputElement | null>>({
     current: null,
     new: null,
     confirm: null,
   });
+
   const attemptRef = useRef(0);
+  const savingRef = useRef(false);
 
   useEffect(() => {
-    if (!validationError) return;
+    if (!validationError) {
+      return;
+    }
+
     inputRefs.current[validationError.field]?.focus();
   }, [validationError]);
 
-  const toggleVisibility = (id: PasswordFieldId) => {
-    setVisible((previous) => ({
-      ...previous,
-      [id]: !previous[id],
-    }));
-  };
-
   const showValidation = (field: PasswordFieldId, message: string) => {
     attemptRef.current += 1;
-    setValidationError({ field, message, attempt: attemptRef.current });
-    setShowNotice(false);
+
+    setValidationError({
+      field,
+      message,
+      attempt: attemptRef.current,
+    });
   };
 
-  const handlePasswordSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const emptyField = passwordFields.find(({ id }) => !passwords[id].trim());
+    if (savingRef.current) {
+      return;
+    }
+
+    const emptyField = passwordFields.find(
+      ({ id }) => passwords[id].length === 0,
+    );
 
     if (emptyField) {
       showValidation(emptyField.id, "이 입력란을 작성하세요.");
@@ -551,8 +798,48 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
       return;
     }
 
+    if (passwords.current === passwords.new) {
+      showValidation("new", "현재 비밀번호와 다른 새 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    savingRef.current = true;
+
+    setIsSaving(true);
     setValidationError(null);
-    setShowNotice(true);
+
+    try {
+      await changePassword(passwords.current, passwords.new, passwords.confirm);
+
+      setPasswords({
+        current: "",
+        new: "",
+        confirm: "",
+      });
+
+      onSaved();
+    } catch (error) {
+      let field: PasswordFieldId = "current";
+
+      if (error instanceof MyPageApiError) {
+        if (error.code === "CONFIRM_MISMATCH") {
+          field = "confirm";
+        } else if (
+          error.code === "SAME_PASSWORD" ||
+          error.code === "PASSWORD_UPDATE_FAILED"
+        ) {
+          field = "new";
+        }
+      }
+
+      showValidation(
+        field,
+        getErrorMessage(error, "비밀번호를 변경하지 못했습니다."),
+      );
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -565,7 +852,7 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
         계정 보안을 위해 비밀번호를 변경할 수 있어요.
       </S.PasswordDescription>
 
-      <S.PasswordForm noValidate onSubmit={handlePasswordSubmit}>
+      <S.PasswordForm noValidate onSubmit={handleSubmit}>
         {passwordFields.map((field) => {
           const hasError = validationError?.field === field.id;
 
@@ -589,6 +876,7 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
                   value={passwords[field.id]}
                   placeholder={field.placeholder}
                   autoComplete={field.autoComplete}
+                  disabled={isSaving}
                   spellCheck={false}
                   aria-invalid={hasError}
                   aria-describedby={
@@ -599,23 +887,31 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
                       ...previous,
                       [field.id]: event.target.value,
                     }));
-                    if (hasError) setValidationError(null);
-                    setShowNotice(false);
+
+                    if (hasError) {
+                      setValidationError(null);
+                    }
                   }}
                 />
 
                 <S.PasswordVisibilityButton
                   type="button"
+                  disabled={isSaving}
                   aria-label={`${field.label} ${
                     visible[field.id] ? "숨기기" : "표시"
                   }`}
                   aria-pressed={visible[field.id]}
-                  onClick={() => toggleVisibility(field.id)}
+                  onClick={() => {
+                    setVisible((previous) => ({
+                      ...previous,
+                      [field.id]: !previous[field.id],
+                    }));
+                  }}
                 >
                   <PasswordEyeIcon visible={visible[field.id]} />
                 </S.PasswordVisibilityButton>
 
-                {hasError && (
+                {hasError && validationError && (
                   <S.ValidationMessage
                     id={`password-${field.id}-error`}
                     role="alert"
@@ -629,18 +925,17 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
           );
         })}
 
-        {showNotice && (
-          <S.PasswordNotice role="status">
-            현재는 화면 시안으로 실제 비밀번호가 변경되지 않습니다.
-          </S.PasswordNotice>
-        )}
-
         <S.PasswordActionRow>
-          <S.PasswordCancelButton type="button" onClick={onBack}>
+          <S.PasswordCancelButton
+            type="button"
+            disabled={isSaving}
+            onClick={onBack}
+          >
             취소
           </S.PasswordCancelButton>
-          <S.PasswordSubmitButton type="submit">
-            변경하기
+
+          <S.PasswordSubmitButton type="submit" disabled={isSaving}>
+            {isSaving ? "변경 중..." : "변경하기"}
           </S.PasswordSubmitButton>
         </S.PasswordActionRow>
       </S.PasswordForm>
@@ -648,14 +943,14 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
   );
 }
 
-type SecurityViewProps = {
+interface SecurityViewProps {
   account: AccountData;
   editingAccount: boolean;
   onEditAccount: () => void;
-  onSaveAccount: (account: AccountData) => void;
+  onSaveAccount: (account: AccountData) => Promise<void>;
   onChangePassword: () => void;
   onWithdraw: () => void;
-};
+}
 
 function SecurityView({
   account,
@@ -677,6 +972,7 @@ function SecurityView({
       <S.SecuritySimpleCard>
         <S.SecuritySimpleText>
           <S.SecurityCardTitle>비밀번호</S.SecurityCardTitle>
+
           <S.SecurityCardDescription>
             계정 보안을 위해 비밀번호를 변경할 수 있어요.
           </S.SecurityCardDescription>
@@ -690,6 +986,7 @@ function SecurityView({
       <S.SecuritySimpleCard>
         <S.SecuritySimpleText>
           <S.SecurityCardTitle>계정 삭제</S.SecurityCardTitle>
+
           <S.SecurityCardDescription>
             탈퇴 전 여행 데이터 처리 내용을 확인해 주세요.
           </S.SecurityCardDescription>
@@ -704,68 +1001,50 @@ function SecurityView({
 }
 
 export default function MyPage() {
-  const { user } = useAuth();
-  const isLoggedIn = Boolean(user);
+  const { user, loading, error, refreshUser } = useAuth();
+
+  // 기존 사용자가 있으면 재조회 중에도 본문을 유지합니다.
+  if (!user && (loading || error)) {
+    return (
+      <S.PageLayout>
+        <S.PageMain>
+          <S.MainInner>
+            <S.EmptyCard role={error ? "alert" : "status"}>
+              {error ? (
+                <>
+                  <p>{error}</p>
+
+                  <button type="button" onClick={() => void refreshUser()}>
+                    다시 불러오기
+                  </button>
+                </>
+              ) : (
+                "사용자 정보를 불러오고 있어요."
+              )}
+            </S.EmptyCard>
+          </S.MainInner>
+        </S.PageMain>
+      </S.PageLayout>
+    );
+  }
+
+  return <MyPageContent key={user?.id ?? "guest"} />;
+}
+
+function MyPageContent() {
+  const { user, refreshUser } = useAuth();
+
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [withdrawError, setWithdrawError] = useState("");
+
+  const withdrawingRef = useRef(false);
+  const isLoggedIn = Boolean(user);
 
   const pathParts = pathname.split("/");
   const section = pathParts[2];
   const detail = pathParts[3];
-
-  const [savedProfile, setSavedProfile] = useState<ProfileData>(initialProfile);
-  const [account, setAccount] = useState<AccountData>(initialAccount);
-  const [toastVersion, setToastVersion] = useState(0);
-  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobileViewport, setIsMobileViewport] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.matchMedia("(max-width: 767px)").matches,
-  );
-
-  const [savedSettings, setSavedSettings] =
-    useState<SettingsData>(initialSettings);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-    const updateViewport = (event: MediaQueryListEvent) => {
-      setIsMobileViewport(event.matches);
-      if (!event.matches) setIsMobileMenuOpen(false);
-    };
-
-    mediaQuery.addEventListener("change", updateViewport);
-    return () => mediaQuery.removeEventListener("change", updateViewport);
-  }, []);
-
-  useEffect(() => {
-    if (!isLoggedIn || !isMobileViewport || !isMobileMenuOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsMobileMenuOpen(false);
-    };
-
-    document.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isLoggedIn, isMobileViewport, isMobileMenuOpen]);
-
-  useEffect(() => {
-    if (toastVersion === 0) return;
-
-    const timer = window.setTimeout(() => setToastVersion(0), 2500);
-    return () => window.clearTimeout(timer);
-  }, [toastVersion]);
-
-  const showSavedToast = () => {
-    setToastVersion((version) => version + 1);
-  };
 
   const currentPage: PageId =
     section === "security" || section === "settings" || section === "support"
@@ -774,6 +1053,258 @@ export default function MyPage() {
 
   const { title, description } = pageText[currentPage];
 
+  const [savedProfile, setSavedProfile] = useState<ProfileData>(() =>
+    user
+      ? getProfileData(user)
+      : {
+          nickname: "",
+          image: profileAvatar,
+        },
+  );
+
+  const [account, setAccount] = useState<AccountData>(() =>
+    user
+      ? getAccountData(user)
+      : {
+          name: "",
+          phone: "",
+          email: "",
+        },
+  );
+
+  const [savedSettings, setSavedSettings] = useState<MyPageSettings>(() =>
+    user ? getSettingsData(user) : { ...DEFAULT_SETTINGS },
+  );
+
+  const [toastVersion, setToastVersion] = useState(0);
+  const [toastMessage, setToastMessage] = useState("");
+
+  const [settingsVersion, setSettingsVersion] = useState(0);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
+
+  const settingsSavingRef = useRef(false);
+
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 767px)").matches,
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+
+    const updateViewport = (event: MediaQueryListEvent) => {
+      setIsMobileViewport(event.matches);
+
+      if (!event.matches) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    mediaQuery.addEventListener("change", updateViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn || !isMobileViewport || !isMobileMenuOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isLoggedIn, isMobileViewport, isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (toastVersion === 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setToastVersion(0);
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [toastVersion]);
+
+  const showSavedToast = (message = "저장되었습니다.") => {
+    setToastMessage(message);
+    setToastVersion((version) => version + 1);
+  };
+
+  const loadLatestUser = async (): Promise<AuthUser> => {
+    const latest = await getCurrentUser();
+
+    if (!latest) {
+      throw new Error(
+        "저장 후 로그인 상태를 확인하지 못했습니다. 다시 로그인해주세요.",
+      );
+    }
+
+    return latest;
+  };
+
+  const handleProfileSave = async (
+    nextProfile: ProfileData,
+    options: ProfileSaveOptions,
+  ) => {
+    await completeInitialProfile(nextProfile.nickname, options);
+
+    let latest: AuthUser;
+
+    try {
+      latest = await loadLatestUser();
+    } catch {
+      throw new Error(
+        "프로필은 저장되었지만 최신 정보를 불러오지 못했습니다. 새로고침 후 확인해주세요.",
+      );
+    }
+
+    setSavedProfile(getProfileData(latest));
+
+    await refreshUser();
+
+    showSavedToast("프로필이 저장되었습니다.");
+  };
+
+  const handleAccountSave = async (nextAccount: AccountData) => {
+    const result = await saveAccount(nextAccount);
+
+    let latest: AuthUser;
+
+    try {
+      latest = await loadLatestUser();
+    } catch {
+      throw new Error(
+        "회원 정보는 저장되었지만 최신 정보를 불러오지 못했습니다. 새로고침 후 확인해주세요.",
+      );
+    }
+
+    setAccount(getAccountData(latest));
+
+    await refreshUser();
+
+    navigate("/mypage/security");
+
+    showSavedToast(
+      result.message ??
+        (result.emailPending
+          ? "이름과 핸드폰번호가 저장되었습니다. 이메일 변경은 확인 메일 인증 후 반영됩니다."
+          : "회원 정보가 저장되었습니다."),
+    );
+  };
+
+  // 기존 Settings의 onSave에는 동기 함수를 전달합니다.
+  // 내부에서 비동기 요청과 오류를 모두 처리합니다.
+  const handleSettingsSave = (nextSettings: MyPageSettings): void => {
+    if (settingsSavingRef.current) {
+      return;
+    }
+
+    const isSame =
+      nextSettings.inviteNotifications === savedSettings.inviteNotifications &&
+      nextSettings.itineraryNotifications ===
+        savedSettings.itineraryNotifications &&
+      nextSettings.tripStartNotifications ===
+        savedSettings.tripStartNotifications &&
+      nextSettings.locationServiceAllowed ===
+        savedSettings.locationServiceAllowed &&
+      nextSettings.marketingAllowed === savedSettings.marketingAllowed &&
+      nextSettings.defaultItineraryView === savedSettings.defaultItineraryView;
+
+    if (isSame) {
+      return;
+    }
+
+    settingsSavingRef.current = true;
+
+    setIsSavingSettings(true);
+    setSettingsError("");
+
+    // 요청 시작 시점의 값을 복사해 저장합니다.
+    const next: MyPageSettings = {
+      ...nextSettings,
+    };
+
+    const persist = async () => {
+      try {
+        await saveSettings(next);
+
+        setSavedSettings(next);
+        showSavedToast("설정이 저장되었습니다.");
+
+        // 다른 화면도 변경된 동의 값을 사용하도록 갱신합니다.
+        try {
+          await refreshUser();
+        } catch {
+          showSavedToast(
+            "설정은 저장되었습니다. 다른 화면에 반영되지 않으면 새로고침해주세요.",
+          );
+        }
+      } catch (error) {
+        setSettingsError(getErrorMessage(error, "설정을 저장하지 못했습니다."));
+
+        // Settings 내부의 임시 선택값도 저장 전 상태로 복구합니다.
+        setSettingsVersion((version) => version + 1);
+      } finally {
+        settingsSavingRef.current = false;
+        setIsSavingSettings(false);
+      }
+    };
+
+    void persist();
+  };
+  const handleWithdraw = async () => {
+    if (withdrawingRef.current) {
+      return;
+    }
+
+    withdrawingRef.current = true;
+
+    setIsWithdrawing(true);
+    setWithdrawError("");
+
+    try {
+      await withdrawAccount();
+    } catch (error) {
+      setWithdrawError(
+        getErrorMessage(error, "회원탈퇴를 완료하지 못했습니다."),
+      );
+
+      withdrawingRef.current = false;
+      setIsWithdrawing(false);
+
+      return;
+    }
+
+    // 전체 페이지를 이동해 기존 AuthContext 상태도 초기화합니다.
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+
+    window.location.replace(isMobile ? "/login" : "/");
+  };
   const renderContent = () => {
     if (!isLoggedIn && currentPage !== "support") {
       return <MyLoginRequired />;
@@ -782,74 +1313,96 @@ export default function MyPage() {
     if (currentPage === "profile") {
       return (
         <ProfileView
+          key={JSON.stringify([savedProfile.nickname, savedProfile.image])}
           savedProfile={savedProfile}
-          onSave={(nextProfile) => {
-            setSavedProfile(nextProfile);
-            showSavedToast();
-          }}
+          onSave={handleProfileSave}
         />
       );
     }
 
     if (currentPage === "security") {
       if (detail === "password") {
-        return <PasswordEditView onBack={() => navigate("/mypage/security")} />;
+        return (
+          <PasswordEditView
+            onBack={() => {
+              navigate("/mypage/security");
+            }}
+            onSaved={() => {
+              navigate("/mypage/security");
+              showSavedToast("비밀번호가 변경되었습니다.");
+            }}
+          />
+        );
       }
 
       if (detail === "edit" && isMobileViewport) {
         return (
           <BasicInfoCard
-            key="mobile-basic-info-edit"
+            key={JSON.stringify(["mobile-edit", account])}
             account={account}
             editing
             mobileEditLayout
-            onCancel={() => navigate("/mypage/security")}
-            onEdit={() => navigate("/mypage/security/edit")}
-            onSave={(next) => {
-              setAccount(next);
+            onCancel={() => {
               navigate("/mypage/security");
-              showSavedToast();
             }}
+            onEdit={() => {
+              navigate("/mypage/security/edit");
+            }}
+            onSave={handleAccountSave}
           />
         );
       }
 
       return (
         <SecurityView
-          key={detail ?? "overview"}
+          key={JSON.stringify([detail ?? "overview", account])}
           account={account}
           editingAccount={detail === "edit"}
-          onEditAccount={() => navigate("/mypage/security/edit")}
-          onSaveAccount={(next) => {
-            setAccount(next);
-            navigate("/mypage/security");
-            showSavedToast();
+          onEditAccount={() => {
+            navigate("/mypage/security/edit");
           }}
-          onChangePassword={() => navigate("/mypage/security/password")}
-          onWithdraw={() => setIsWithdrawOpen(true)}
+          onSaveAccount={handleAccountSave}
+          onChangePassword={() => {
+            navigate("/mypage/security/password");
+          }}
+          onWithdraw={() => {
+            setWithdrawError("");
+            setIsWithdrawOpen(true);
+          }}
         />
       );
     }
 
     if (currentPage === "settings") {
       return (
-        <Settings
-          savedSettings={savedSettings}
-          onSave={(nextSettings) => {
-            setSavedSettings(nextSettings);
-            showSavedToast();
-          }}
-        />
+        <>
+          <S.SettingsSaveBoundary
+            disabled={isSavingSettings}
+            aria-busy={isSavingSettings}
+          >
+            <Settings
+              key={settingsVersion}
+              savedSettings={savedSettings}
+              onSave={handleSettingsSave}
+            />
+          </S.SettingsSaveBoundary>
+
+          {isSavingSettings && (
+            <S.SaveFeedback role="status">
+              설정을 저장하고 있어요.
+            </S.SaveFeedback>
+          )}
+
+          {settingsError && (
+            <S.SaveErrorMessage role="alert">
+              {settingsError}
+            </S.SaveErrorMessage>
+          )}
+        </>
       );
     }
 
-    if (currentPage === "support") {
-      return <Support />;
-    }
-
-    return (
-      <S.EmptyCard>이 화면은 다음 단계에서 추가할 예정이에요.</S.EmptyCard>
-    );
+    return <Support />;
   };
 
   return (
@@ -858,22 +1411,26 @@ export default function MyPage() {
         <S.MobileTopBack
           type="button"
           aria-label="뒤로 가기"
-          onClick={() =>
+          onClick={() => {
             navigate(
               currentPage === "security" && detail ? "/mypage/security" : "/",
-            )
-          }
+            );
+          }}
         >
           <ChevronLeft size={26} strokeWidth={1.8} aria-hidden="true" />
         </S.MobileTopBack>
+
         <S.MobileTopLogo src={routyLogo} alt="Routy" />
+
         {isLoggedIn && (
           <S.MobileMenuToggle
             type="button"
             aria-label="계정 메뉴 열기"
             aria-controls="mypage-sidebar"
             aria-expanded={isMobileMenuOpen}
-            onClick={() => setIsMobileMenuOpen(true)}
+            onClick={() => {
+              setIsMobileMenuOpen(true);
+            }}
           >
             <Menu size={26} strokeWidth={1.9} aria-hidden="true" />
           </S.MobileMenuToggle>
@@ -884,7 +1441,9 @@ export default function MyPage() {
         <S.MobileDrawerBackdrop
           $open={isMobileMenuOpen}
           aria-hidden="true"
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={() => {
+            setIsMobileMenuOpen(false);
+          }}
         />
       )}
 
@@ -919,6 +1478,7 @@ export default function MyPage() {
                 >
                   {title}
                 </S.PageTitle>
+
                 <S.PageDescription>{description}</S.PageDescription>
               </S.PageHeader>
             )}
@@ -928,10 +1488,10 @@ export default function MyPage() {
       </S.PageMain>
 
       {isLoggedIn && toastVersion > 0 && (
-        <S.SaveToast role="status">저장되었습니다.</S.SaveToast>
+        <S.SaveToast role="status">{toastMessage}</S.SaveToast>
       )}
 
-      {isLoggedIn && isWithdrawOpen && (
+      {/* {isLoggedIn && isWithdrawOpen && (
         <S.AvatarModalBackdrop>
           <S.WithdrawConfirmDialog
             role="dialog"
@@ -948,10 +1508,63 @@ export default function MyPage() {
             </S.WithdrawConfirmDescription>
 
             <S.WithdrawConfirmActions>
-              <S.WithdrawYesButton type="button">네</S.WithdrawYesButton>
+              <S.WithdrawYesButton
+                type="button"
+                disabled
+                title="회원 탈퇴 기능은 아직 연결되지 않았습니다."
+              >
+                네
+              </S.WithdrawYesButton>
+
               <S.WithdrawNoButton
                 type="button"
-                onClick={() => setIsWithdrawOpen(false)}
+                onClick={() => {
+                  setIsWithdrawOpen(false);
+                }}
+              >
+                아니요
+              </S.WithdrawNoButton>
+            </S.WithdrawConfirmActions>
+          </S.WithdrawConfirmDialog>
+        </S.AvatarModalBackdrop>
+      )} */}
+      {isLoggedIn && isWithdrawOpen && (
+        <S.AvatarModalBackdrop>
+          <S.WithdrawConfirmDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="withdraw-title"
+            aria-describedby="withdraw-description"
+            aria-busy={isWithdrawing}
+          >
+            <S.WithdrawConfirmTitle id="withdraw-title">
+              정말 회원탈퇴 하시겠습니까?
+            </S.WithdrawConfirmTitle>
+
+            <S.WithdrawConfirmDescription id="withdraw-description">
+              계정과 회원 프로필이 삭제되며 복구할 수 없습니다.
+            </S.WithdrawConfirmDescription>
+
+            {withdrawError && (
+              <S.NameError role="alert">{withdrawError}</S.NameError>
+            )}
+
+            <S.WithdrawConfirmActions>
+              <S.WithdrawYesButton
+                type="button"
+                disabled={isWithdrawing}
+                onClick={() => void handleWithdraw()}
+              >
+                {isWithdrawing ? "탈퇴 처리 중..." : "네"}
+              </S.WithdrawYesButton>
+
+              <S.WithdrawNoButton
+                type="button"
+                disabled={isWithdrawing}
+                onClick={() => {
+                  setWithdrawError("");
+                  setIsWithdrawOpen(false);
+                }}
               >
                 아니요
               </S.WithdrawNoButton>

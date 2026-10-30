@@ -1367,3 +1367,48 @@ export const ValidationMessage = styled.div({
     padding: "8px 10px",
   },
 });
+export const SettingsSaveBoundary = styled.fieldset({
+  display: "block",
+
+  width: "100%",
+  minWidth: 0,
+
+  margin: 0,
+  padding: 0,
+  border: 0,
+
+  "&:disabled": {
+    cursor: "progress",
+  },
+});
+
+export const SaveFeedback = styled.p({
+  marginTop: "12px",
+  color: "#596D75",
+  fontSize: "16px",
+  lineHeight: 1.5,
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    fontSize: "15px",
+  },
+
+  "@media (max-width: 767px)": {
+    fontSize: "14px",
+  },
+});
+
+export const SaveErrorMessage = styled.p({
+  marginTop: "12px",
+  color: "#D9523A",
+  fontSize: "16px",
+  lineHeight: 1.5,
+  overflowWrap: "anywhere",
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    fontSize: "15px",
+  },
+
+  "@media (max-width: 767px)": {
+    fontSize: "14px",
+  },
+});
