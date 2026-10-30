@@ -70,6 +70,24 @@ interface ProviderProps extends SignupApiProps {
 
 const FORM_ID = "routy-signup-form";
 
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+
+  if (digits.length <= 3) return digits;
+
+  if (digits.length <= 7) {
+    return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  }
+
+  const middleEnd = digits.length === 11 ? 7 : 6;
+
+  return [
+    digits.slice(0, 3),
+    digits.slice(3, middleEnd),
+    digits.slice(middleEnd),
+  ].join("-");
+}
+
 // UTC가 아닌 사용자의 현지 날짜를 최대 선택 날짜로 사용합니다.
 function getLocalToday(): string {
   const now = new Date();
@@ -487,66 +505,6 @@ export default function RoutySignup({
             />
           </Field>
 
-          {/* <Field>
-            <FieldLabel htmlFor="signup-phone">
-              본인 인증
-              <EnglishLabel>/ VERIFICATION</EnglishLabel>
-            </FieldLabel>
-
-            <InputGroup>
-              <Input
-                id="signup-phone"
-                name="phone"
-                form={FORM_ID}
-                type="tel"
-                placeholder="휴대폰 번호를 입력해주세요."
-                autoComplete="tel"
-                value={s.form.phone}
-                onChange={(e) => s.updateField("phone", e.target.value)}
-                disabled={disabled}
-                required
-              />
-
-              <SmallButton
-                type="button"
-                onClick={s.sendCode}
-                disabled={disabled}
-              >
-                인증번호 발송
-              </SmallButton>
-            </InputGroup>
-
-            <InputGroup>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="인증번호를 입력해주세요."
-                name="verificationCode"
-                form={FORM_ID}
-                autoComplete="one-time-code"
-                aria-label="휴대폰 인증번호"
-                value={s.verificationCode}
-                onChange={(e) => s.setVerificationCode(e.target.value)}
-                disabled={disabled || !s.codeSent || s.phoneVerified}
-              />
-
-              <SmallButton
-                type="button"
-                onClick={s.verifyCode}
-                disabled={disabled || !s.codeSent || s.phoneVerified}
-              >
-                인증 확인
-              </SmallButton>
-            </InputGroup>
-
-            {s.phoneMessage && (
-              <StatusText data-valid={s.phoneVerified} role="status">
-                {s.phoneVerified ? <CheckCircle2 /> : <CircleAlert />}
-                {s.phoneMessage}
-              </StatusText>
-            )}
-          </Field> */}
-
           <Field>
             <FieldLabel htmlFor="signup-phone">
               휴대폰 번호
@@ -558,10 +516,17 @@ export default function RoutySignup({
               name="phone"
               form={FORM_ID}
               type="tel"
-              placeholder="휴대폰 번호를 입력해주세요."
+              inputMode="tel"
+              placeholder="010-0000-0000"
               autoComplete="tel"
-              value={s.form.phone}
-              onChange={(e) => s.updateField("phone", e.target.value)}
+              maxLength={13}
+              value={formatPhone(s.form.phone)}
+              onChange={(event) =>
+                s.updateField(
+                  "phone",
+                  event.target.value.replace(/\D/g, "").slice(0, 11),
+                )
+              }
               disabled={disabled}
               required
             />

@@ -14,6 +14,17 @@ import {
 import routyLogo from "../../assets/routy-logo.svg";
 import routyMascot from "../../assets/profile.webp";
 
+import profileAvatar1 from "../../assets/profileAvatars/P1.webp";
+import profileAvatar2 from "../../assets/profileAvatars/P2.webp";
+import profileAvatar3 from "../../assets/profileAvatars/P3.webp";
+import profileAvatar7 from "../../assets/profileAvatars/P7.webp";
+import profileAvatar8 from "../../assets/profileAvatars/P8.webp";
+import profileAvatar9 from "../../assets/profileAvatars/P9.webp";
+import profileAvatar10 from "../../assets/profileAvatars/p10.webp";
+import profileAvatar11 from "../../assets/profileAvatars/P11.webp";
+import profileAvatar12 from "../../assets/profileAvatars/P12.webp";
+import profileAvatar13 from "../../assets/profileAvatars/P13.webp";
+
 import {
   SidebarContainer,
   LogoArea,
@@ -44,6 +55,38 @@ interface MenuItem {
   label: string;
   icon: LucideIcon;
   strokeWidth: number;
+}
+
+const DEFAULT_PROFILE_IMAGES: Record<string, string> = {
+  P1: profileAvatar1,
+  P2: profileAvatar2,
+  P3: profileAvatar3,
+  P7: profileAvatar7,
+  P8: profileAvatar8,
+  P9: profileAvatar9,
+  P10: profileAvatar10,
+  P11: profileAvatar11,
+  P12: profileAvatar12,
+  P13: profileAvatar13,
+};
+
+function getProfileImage(
+  avatarUrl: string | null | undefined,
+  fallbackImage: string,
+): string {
+  if (!avatarUrl) return fallbackImage;
+
+  if (avatarUrl.startsWith("default:")) {
+    const avatarId = avatarUrl.slice("default:".length);
+
+    return DEFAULT_PROFILE_IMAGES[avatarId] ?? fallbackImage;
+  }
+
+  if (avatarUrl.startsWith("https://")) {
+    return avatarUrl;
+  }
+
+  return fallbackImage;
 }
 
 const menuItems = [
@@ -84,6 +127,8 @@ export default function Sidebar({
 
   const isLoggedIn = Boolean(user);
   const profileName = user?.username?.trim() || "회원";
+
+  const avatarSrc = getProfileImage(user?.avatarUrl, profileImage);
 
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [logoutError, setLogoutError] = useState("");
@@ -153,7 +198,19 @@ export default function Sidebar({
 
       <UserSection>
         {isLoggedIn ? (
-          <Avatar src={profileImage} alt="프로필" />
+          <Avatar
+            key={`${user?.id}:${avatarSrc}`}
+            src={avatarSrc}
+            alt={`${profileName}님의 프로필 이미지`}
+            onError={(event) => {
+              const image = event.currentTarget;
+
+              if (image.dataset.fallbackApplied === "true") return;
+
+              image.dataset.fallbackApplied = "true";
+              image.src = routyMascot;
+            }}
+          />
         ) : (
           <div className="guest-avatar" aria-hidden="true">
             <UserRound size={44} strokeWidth={1.7} />
