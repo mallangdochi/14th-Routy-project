@@ -38,7 +38,6 @@ export const TripCardStyle = styled.article({
   "& .trip-menu": {
     "& .sort-trigger": {
       justifyContent: "center",
-      width: "30px",
       height: "30px",
       padding: 0,
       borderRadius: "6px",
@@ -116,7 +115,7 @@ export const TripCardStyle = styled.article({
     flexDirection: "column",
     gap: "4px",
     minWidth: 0,
-    padding: "14px",
+    padding: "12px 16px",
   },
 
   "& .trip-content h2": {
@@ -155,7 +154,7 @@ export const TripCardStyle = styled.article({
   "& .trip-stats span": {
     display: "inline-flex",
     alignItems: "center",
-    gap: "5px",
+    gap: "6px",
     whiteSpace: "nowrap",
   },
 

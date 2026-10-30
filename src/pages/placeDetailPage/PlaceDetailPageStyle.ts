@@ -24,6 +24,54 @@ const center = {
 };
 
 export const PlaceDetailPageStyle = styled.div({
+  "& .photo-placeholder": {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    minHeight: 558,
+    height: "100%",
+    background: "#ecf3f2",
+    color: "#0A414B",
+    borderRadius: 11,
+    textAlign: "center",
+    padding: 24,
+    fontSize: 20,
+    fontWeight: 600,
+  },
+  "& .photo-placeholder small": { fontSize: 15, fontWeight: 400 },
+  "& .verified-detail": { marginTop: 16, fontSize: 15, color: "#697d8f" },
+  "& .inline-warning": { margin: "12px 0", fontSize: 15, color: "#9c5428" },
+  "& .detail-subheading": {
+    fontSize: 20,
+    fontWeight: 700,
+    margin: "24px 0 12px",
+  },
+  "& .external-map-link": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 18,
+    padding: "12px 16px",
+    border: "1px solid #0A414B",
+    borderRadius: 9,
+    color: "#0A414B",
+    fontSize: 16,
+    fontWeight: 600,
+    textDecoration: "none",
+  },
+  "& .missing-place": {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 14,
+    padding: 70,
+    textAlign: "center",
+  },
+  "& .missing-place h1": { fontSize: 24 },
+  "& .missing-place p, & .missing-place a": { fontSize: 16 },
+
   display: "flex",
   minHeight: "100vh",
   backgroundColor: colors.soft,
@@ -245,7 +293,8 @@ export const PlaceDetailPageStyle = styled.div({
   },
 
   "& .info-value": {
-    flexShrink: 0,
+    flexShrink: 1,
+    overflowWrap: "anywhere",
     textAlign: "right",
     fontSize: "15px",
     fontWeight: 500,
@@ -369,6 +418,7 @@ export const PlaceDetailPageStyle = styled.div({
   },
 
   "& .nearby-card": {
+    paddingTop: 6,
     minWidth: 0,
     overflow: "hidden",
     border: `1px solid ${colors.line}`,

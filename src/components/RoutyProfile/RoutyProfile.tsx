@@ -12,7 +12,16 @@ import { markCurrentProfileCompleted } from "../../utils/firstLoginProfile";
 import { useAuth } from "../../contexts/AuthContext";
 
 import routyLogo from "../../assets/루티2.svg";
-import sampleAvatar from "../../assets/profileimg.png";
+import profileAvatar1 from "../../assets/profileAvatars/P1.webp";
+import profileAvatar2 from "../../assets/profileAvatars/P2.webp";
+import profileAvatar3 from "../../assets/profileAvatars/P3.webp";
+import profileAvatar7 from "../../assets/profileAvatars/P7.webp";
+import profileAvatar8 from "../../assets/profileAvatars/P8.webp";
+import profileAvatar9 from "../../assets/profileAvatars/P9.webp";
+import profileAvatar10 from "../../assets/profileAvatars/p10.webp";
+import profileAvatar11 from "../../assets/profileAvatars/P11.webp";
+import profileAvatar12 from "../../assets/profileAvatars/P12.webp";
+import profileAvatar13 from "../../assets/profileAvatars/P13.webp";
 import routyMascot from "../../assets/ROUTY2.svg";
 
 import {
@@ -76,6 +85,19 @@ import {
   MobileStatusText,
 } from "./RoutyProfileStyle";
 
+const DEFAULT_PROFILE_AVATARS = [
+  { id: "P1", src: profileAvatar1 },
+  { id: "P2", src: profileAvatar2 },
+  { id: "P3", src: profileAvatar3 },
+  { id: "P7", src: profileAvatar7 },
+  { id: "P8", src: profileAvatar8 },
+  { id: "P9", src: profileAvatar9 },
+  { id: "P10", src: profileAvatar10 },
+  { id: "P11", src: profileAvatar11 },
+  { id: "P12", src: profileAvatar12 },
+  { id: "P13", src: profileAvatar13 },
+];
+
 type ProfilePayload = {
   nickname: string;
   avatarFile: File | null;
@@ -98,6 +120,12 @@ export default function RoutyProfile({
   const [nickname, setNickname] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [randomAvatar] = useState(
+    () =>
+      DEFAULT_PROFILE_AVATARS[
+        Math.floor(Math.random() * DEFAULT_PROFILE_AVATARS.length)
+      ],
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -144,7 +172,10 @@ export default function RoutyProfile({
       if (onSaveProfile) {
         await onSaveProfile({ nickname: value, avatarFile });
       }
-      await completeInitialProfile(value);
+      await completeInitialProfile(
+        value,
+        avatarFile ? { avatarFile } : { defaultAvatarId: randomAvatar.id },
+      );
       markCurrentProfileCompleted();
       await refreshUser();
       setNickname(value);
@@ -160,7 +191,7 @@ export default function RoutyProfile({
     }
   };
 
-  const avatarSrc = avatarPreview ?? sampleAvatar;
+  const avatarSrc = avatarPreview ?? randomAvatar.src;
 
   const avatar = (
     <AvatarFrame>

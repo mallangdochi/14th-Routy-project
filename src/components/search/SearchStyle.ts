@@ -59,20 +59,20 @@ export const Container = styled.div({
   minWidth: 0,
   minHeight: "100vh",
   margin: "0 auto",
-  padding: "26px 30px 50px",
+  padding: "32px 32px 0",
 
   "@media (max-width: 1199px)": {
-    padding: "24px 20px 40px",
+    padding: "32px 32px 0",
   },
 
   "@media (min-width: 768px) and (max-width: 1023px)": {
-    padding: "22px 18px 36px",
+    padding: "32px 32px 0",
   },
 
   "@media (max-width: 767px)": {
     maxWidth: "100%",
     minHeight: "100dvh",
-    padding: "96px 16px calc(110px + env(safe-area-inset-bottom, 0px))",
+    padding: "96px 32px calc(110px + env(safe-area-inset-bottom, 0px))",
   },
 });
 
@@ -84,7 +84,7 @@ export const BreadcrumbArea = styled.div({
   display: "flex",
   alignItems: "center",
   minHeight: "24px",
-  marginBottom: "24px",
+  marginBottom: "32px", // 내 여행 > 검색 → 여행지 검색 : 32px
 
   "@media (max-width: 767px)": {
     display: "none",
@@ -92,22 +92,22 @@ export const BreadcrumbArea = styled.div({
 });
 
 export const PageTitle = styled.h1({
-  margin: "0 0 18px",
-  fontSize: "35px",
-  fontWeight: 800,
+  margin: "0 0 16px", // 여행지 검색 → 검색창 : 16px
+  fontSize: "32px",
+  fontWeight: 700,
   lineHeight: 1.35,
-  letterSpacing: "-0.8px",
+  letterSpacing: "-0.02em",
   color: "#142D4A",
 
   "@media (min-width: 768px) and (max-width: 1023px)": {
-    fontSize: "24px",
+    fontSize: "32px",
     marginBottom: "16px",
   },
 
   "@media (max-width: 767px)": {
-    fontSize: "23px",
-    margin: "0 0 12px",
-    letterSpacing: "-0.6px",
+    fontSize: "32px",
+    margin: "0 0 16px",
+    letterSpacing: "-0.02em",
   },
 });
 
@@ -123,11 +123,18 @@ export const SearchForm = styled.form({
   height: "49px",
   padding: "0 16px",
   border: "1px solid #E1E6EB",
-  borderRadius: "9px",
+  borderRadius: "10px", // 검색창 라운드 : 10px
   backgroundColor: "#FFFFFF",
   boxShadow: "0 2px 5px rgba(22, 42, 53, 0.035)",
   color: "#31486C",
   transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+
+  // Search.tsx의 SearchIcon size 값보다 우선 적용됩니다.
+  "& > svg": {
+    width: "20px",
+    height: "20px",
+    flexShrink: 0,
+  },
 
   "&:focus-within": {
     borderColor: "#005259",
@@ -157,7 +164,8 @@ export const SearchInput = styled.input({
   backgroundColor: "transparent",
   color: "#172C40",
   fontFamily: "inherit",
-  fontSize: "15px",
+  fontSize: "16px",
+  fontWeight: 600,
 
   "&::placeholder": {
     color: "#9BA5B7",
@@ -168,7 +176,7 @@ export const SearchInput = styled.input({
   },
 
   "@media (max-width: 767px)": {
-    fontSize: "13px",
+    fontSize: "16px",
   },
 });
 
@@ -177,11 +185,15 @@ export const ClearButton = styled.button({
   alignItems: "center",
   justifyContent: "center",
   flexShrink: 0,
-  width: "28px",
-  height: "28px",
+  width: "36px", // 지우기 클릭 영역 : 36px
+  height: "36px",
   padding: 0,
   border: 0,
   borderRadius: "50%",
+  "& svg": {
+    width: "18px", // X 아이콘 : 18px
+    height: "18px",
+  },
   backgroundColor: "transparent",
   color: "#8190A6",
   cursor: "pointer",
@@ -199,20 +211,22 @@ export const ClearButton = styled.button({
 export const CategoryList = styled.div({
   display: "flex",
   alignItems: "stretch",
-  gap: "0",
+  gap: "16px", // 카테고리 사이 간격 : 16px
   width: "100%",
-  marginTop: "30px", // 검색창과 카테고리 사이 간격
+  marginTop: "24px", // 검색창 → 카테고리 : 24px
   borderBottom: "1px solid #DCE4E7",
   position: "relative",
 
   "@media (min-width: 768px) and (max-width: 1023px)": {
-    marginTop: "26px",
+    marginTop: "24px",
   },
 
   "@media (max-width: 767px)": {
     marginTop: "24px",
-    gap: "0",
-    overflowX: "hidden",
+    gap: "16px",
+    overflowX: "auto",
+    scrollbarWidth: "none",
+    "&::-webkit-scrollbar": { display: "none" },
   },
 });
 
@@ -223,10 +237,10 @@ export const CategoryButton = styled.button<{
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  flex: "0 0 105px",
+  flex: "0 0 auto",
   minWidth: 0,
   height: "48px",
-  padding: "0 12px",
+  padding: "0 8px",
   border: 0,
   borderRadius: 0,
   backgroundColor: "transparent",
@@ -235,8 +249,9 @@ export const CategoryButton = styled.button<{
   borderBottom: "none",
   ...menuAnimation.button,
   fontFamily: "inherit",
-  fontSize: "15px",
-  fontWeight: $active ? 700 : 500,
+  fontSize: "16px",
+  fontWeight: 700,
+  letterSpacing: "-0.01em",
   whiteSpace: "nowrap",
   cursor: "pointer",
 
@@ -250,16 +265,15 @@ export const CategoryButton = styled.button<{
   },
 
   "@media (min-width: 768px) and (max-width: 1023px)": {
-    flexBasis: "90px",
     height: "44px",
-    fontSize: "13px",
+    fontSize: "16px",
   },
 
   "@media (max-width: 767px)": {
-    flex: "1 1 0",
+    flex: "0 0 auto",
     height: "43px",
-    padding: "0 2px",
-    fontSize: "12px",
+    padding: "0 8px",
+    fontSize: "16px",
   },
 }));
 
@@ -292,70 +306,52 @@ export const EmptyIcon = styled.div({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  width: "220px",
-  height: "220px",
-  marginBottom: "20px",
+  width: "300px", // 마스코트 영역 : 300px
+  maxWidth: "100%", // 좁은 모바일에서는 화면 너비에 맞춰 축소
+  aspectRatio: "1 / 1",
+  flexShrink: 0,
+  marginBottom: "16px", // 마스코트 → 제목 : 16px
   color: "#8D9BB6",
-
-  "@media (min-width: 768px) and (max-width: 1023px)": {
-    width: "190px",
-    height: "190px",
-    marginBottom: "18px",
-  },
-
-  "@media (max-width: 767px)": {
-    width: "170px",
-    height: "170px",
-    marginBottom: "16px",
-  },
 });
 
 export const MascotImage = styled.img({
-  width: "300px",
-  height: "300x",
+  display: "block",
+  width: "100%",
+  height: "100%", // 기존 300x 오타 수정
   objectFit: "contain",
-
-  "@media (min-width: 768px) and (max-width: 1023px)": {
-    width: "240px",
-    height: "240px",
-  },
-
-  "@media (max-width: 767px)": {
-    width: "210px",
-    height: "210px",
-  },
 });
 
 export const EmptyTitle = styled.h2({
-  margin: "0 0 10px",
-  fontSize: "28px",
-  fontWeight: 800,
+  margin: "0 0 8px", // 제목 → 설명 : 8px
+  fontSize: "24px",
+  fontWeight: 600,
   lineHeight: 1.4,
-  letterSpacing: "-0.6px",
+  letterSpacing: "-0.015em",
   color: "#152D4B",
 
   "@media (min-width: 768px) and (max-width: 1023px)": {
-    fontSize: "25px",
+    fontSize: "24px",
   },
 
   "@media (max-width: 767px)": {
-    fontSize: "19px",
+    fontSize: "24px",
     marginBottom: "8px",
   },
 });
 
 export const EmptyDescription = styled.p({
   margin: 0,
-  fontSize: "18px",
+  fontSize: "16px",
+  fontWeight: 400,
   lineHeight: 1.6,
   color: "#7D8BA4",
 
   "@media (min-width: 768px) and (max-width: 1023px)": {
-    fontSize: "15px",
+    fontSize: "16px",
   },
 
   "@media (max-width: 767px)": {
-    fontSize: "12px",
+    fontSize: "16px",
   },
 });
 
@@ -407,15 +403,17 @@ export const ResultsToolbar = styled.div({
 
 export const ResultsCount = styled.p({
   margin: 0,
-  fontSize: "13px",
+  fontSize: "14px",
+  fontWeight: 400,
+  letterSpacing: "-0.01em",
   color: "#53658A",
 
   "& strong": {
-    fontWeight: 700,
+    fontWeight: 600,
   },
 
   "@media (max-width: 767px)": {
-    fontSize: "12px",
+    fontSize: "14px",
   },
 });
 
@@ -426,6 +424,13 @@ export const ResultsCount = styled.p({
 export const SortArea = styled.div({
   position: "relative",
   zIndex: 5,
+
+  // 검색 페이지의 정렬 버튼(추천순)만 변경
+  // 공통 DropdownStyle의 반응형 규칙보다 우선하도록 지정
+  "&& .sort-trigger": {
+    fontSize: "14px",
+    fontWeight: 500,
+  },
 
   "& .sort-dropdown": {
     left: "auto",
