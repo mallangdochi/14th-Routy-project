@@ -208,23 +208,31 @@ export default function TimetableShareModal({
   onClose,
   days,
 }: TimetableShareModalProps) {
+  if (!isOpen) return null;
+
+  return <TimetableShareModalContent onClose={onClose} days={days} />;
+}
+
+type TimetableShareModalContentProps = Omit<TimetableShareModalProps, "isOpen">;
+
+function TimetableShareModalContent({
+  onClose,
+  days,
+}: TimetableShareModalContentProps) {
   const [copied, setCopied] = useState<"text" | "image" | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (isOpen) setCopied(null);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
 
   const scheduleText = createScheduleText(days);
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -247,7 +255,6 @@ export default function TimetableShareModal({
         throw new Error("이미지 복사를 지원하지 않습니다.");
       }
 
-      // 브라우저가 지원하는 경우 이미지 생성과 복사를 한 번에 처리
       const imagePromise = createScheduleImage(days);
 
       await navigator.clipboard.write([
@@ -263,8 +270,6 @@ export default function TimetableShareModal({
       setBusy(false);
     }
   };
-
-  if (!isOpen) return null;
 
   return (
     <S.ShareOverlay onClick={onClose}>

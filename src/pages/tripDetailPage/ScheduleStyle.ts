@@ -316,6 +316,13 @@ export const MemberAvatar = styled.div({
   border: "2px solid white",
   backgroundColor: "#E7F2EF",
   fontSize: "17px",
+  overflow: "hidden",
+  flexShrink: 0,
+
+  "& img": {
+    objectFit: "cover",
+    borderRadius: "inherit",
+  },
 });
 
 export const MemberAdd = styled.button({
@@ -374,7 +381,7 @@ export const HeaderActions = styled.div({
       minHeight: "28px",
       padding: 0,
       border: "none",
-      backgroundColor: "transparent",
+      // backgroundColor: "transparent",
     },
 
     "& > button svg": {
@@ -449,6 +456,10 @@ export const ScheduleButton = styled.button({
 
   "&:hover": {
     backgroundColor: "#003E43",
+  },
+
+  "@media (max-width:767px)": {
+    span: { display: "none" },
   },
 });
 
@@ -2188,3 +2199,210 @@ export const MobileEditAction = styled.div({
     flexShrink: 0,
   },
 });
+export const TripNameEditor = styled.div({
+  flex: "1 1 auto",
+  minWidth: 0,
+  maxWidth: "100%",
+
+  "& .trip-name-controls": {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    minWidth: 0,
+  },
+
+  "& input": {
+    flex: "1 1 0",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "420px",
+    padding: "3px 6px",
+    border: "1px solid #527F79",
+    borderRadius: "8px",
+    backgroundColor: "#fff",
+    color: "#0D3E41",
+    fontFamily: "inherit",
+    fontSize: "22px",
+    fontWeight: 700,
+    lineHeight: 1.4,
+
+    "&:focus-visible": {
+      outline: "2px solid #527F79",
+      outlineOffset: "2px",
+    },
+
+    '&[aria-invalid="true"]': {
+      borderColor: "#C74435",
+    },
+
+    "&:disabled": {
+      opacity: 0.65,
+    },
+  },
+
+  "& button.trip-name-confirm, & button.trip-name-cancel": {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    width: "34px",
+    height: "34px",
+    padding: "7px",
+    border: "1px solid transparent",
+    borderRadius: "8px",
+    transition:
+      "background-color 180ms ease, color 180ms ease, border-color 180ms ease",
+
+    "& svg": {
+      width: "18px",
+      height: "18px",
+      strokeWidth: 2.2,
+    },
+
+    "&:focus-visible": {
+      outline: "2px solid currentColor",
+      outlineOffset: "3px",
+    },
+
+    "&:disabled": {
+      cursor: "wait",
+      opacity: 0.5,
+    },
+  },
+
+  "& button.trip-name-confirm": {
+    color: "#237348",
+    backgroundColor: "#E8F5EC",
+    borderColor: "#C6E5D1",
+  },
+
+  "& button.trip-name-cancel": {
+    color: "#C74435",
+    backgroundColor: "#FDEDEB",
+    borderColor: "#F3CCC6",
+  },
+
+  "@media (hover: hover) and (pointer: fine)": {
+    "& button.trip-name-confirm:hover:not(:disabled)": {
+      color: "#fff",
+      backgroundColor: "#237348",
+      borderColor: "#237348",
+    },
+
+    "& button.trip-name-cancel:hover:not(:disabled)": {
+      color: "#fff",
+      backgroundColor: "#C74435",
+      borderColor: "#C74435",
+    },
+  },
+
+  "& .trip-name-error": {
+    margin: "8px 0 0",
+    color: "#C74435",
+    fontSize: "16px",
+    lineHeight: 1.5,
+    overflowWrap: "anywhere",
+  },
+
+  "@media (max-width: 1023px)": {
+    "& input": {
+      fontSize: "20px",
+    },
+
+    "& .trip-name-error": {
+      fontSize: "15px",
+    },
+  },
+
+  "@media (max-width: 767px)": {
+    "& input": {
+      fontSize: "18px",
+    },
+
+    "& .trip-name-error": {
+      fontSize: "14px",
+    },
+  },
+});
+
+// 일정이 없는 날짜의 빈 상태
+export const EmptyState = styled.div`
+  grid-column: 1 / -1;
+  width: 100%;
+  ${CENTERED_FLEX};
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px 16px 40px;
+  text-align: center;
+  @media (min-width: 768px) {
+    padding: 40px 24px 48px;
+  }
+`;
+export const Illustration = styled.img`
+  display: block;
+  width: min(100%, 320px);
+  height: 190px;
+  object-fit: contain;
+  @media (max-width: 767px) {
+    height: 150px;
+    width: min(100%, 250px);
+  }
+`;
+export const Title = styled.h3`
+  color: #00545b;
+  font-size: 20px;
+  font-weight: 700;
+  @media (min-width: 768px) {
+    font-size: 24px;
+  }
+  @media (min-width: 1024px) {
+    font-size: 28px;
+  }
+`;
+export const Description = styled.p`
+  color: #667b84;
+  font-size: 16px;
+  @media (min-width: 768px) {
+    font-size: 17px;
+  }
+  @media (min-width: 1024px) {
+    font-size: 18px;
+  }
+`;
+export const AddButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 48px;
+  min-width: 220px;
+  padding: 12px 24px;
+  margin-top: 8px;
+  border-radius: 12px;
+  background: #00565e;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+  @media (min-width: 1024px) {
+    font-size: 17px;
+  }
+  @media (hover: hover) {
+    &:hover {
+      background: #00727b;
+      transform: translateY(-2px);
+    }
+  }
+  &:active {
+    transform: translateY(0);
+  }
+  &:focus-visible {
+    outline: 3px solid #67cbd0;
+    outline-offset: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;

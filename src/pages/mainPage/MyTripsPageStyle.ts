@@ -83,6 +83,9 @@ export const MyTripsPageStyle = styled.div({
     fontWeight: 600,
     letterSpacing: "-0.01em",
   },
+  "& .schedule-button-icon": {
+    display: "none",
+  },
 
   "& .trips-toolbar": {
     display: "flex",
@@ -232,7 +235,7 @@ export const MyTripsPageStyle = styled.div({
     alignItems: "center",
     justifyContent: "center",
     gap: "14px",
-    minHeight: "286px",
+    minHeight: "250px",
     padding: "22px",
     border: "1px dashed #c9dce0",
     borderRadius: "13px",
@@ -295,6 +298,41 @@ export const MyTripsPageStyle = styled.div({
     },
   },
 
+  "@media (max-width: 1440px)": {
+    "& .trips-header": {
+      gap: "10px",
+      marginBottom: "40px",
+    },
+
+    "& .trips-header h1": {
+      fontSize: "30px",
+    },
+
+    "& .trips-header p": {
+      fontSize: "17px",
+    },
+
+    "& .schedule-button": {
+      fontSize: "16px",
+    },
+
+    "& .trips-tabs": {
+      "& button": {
+        fontSize: "17px",
+      },
+    },
+
+    "& .trips-controls": {
+      display: "flex",
+      alignItems: "center",
+      gap: "13px",
+      paddingBottom: "7px",
+    },
+
+    "& .create-description": {
+      fontWeight: 400,
+    },
+  },
   "@media (max-width: 1023px)": {
     "--page-font-size": "15px",
 
@@ -315,18 +353,6 @@ export const MyTripsPageStyle = styled.div({
 
       "& button": {
         padding: "0 7px",
-      },
-    },
-
-    "& .trips-grid": {
-      gap: "10px",
-    },
-
-    "& .create-trip-card": {
-      minHeight: "200px",
-
-      "& strong": {
-        fontSize: "var(--page-font-size)",
       },
     },
   },
@@ -371,7 +397,7 @@ export const MyTripsPageStyle = styled.div({
 
     "& .trips-controls": {
       marginLeft: 0,
-      justifyContent: "space-between",
+      justifyContent: "flex-end",
       padding: "0 0 4px",
     },
   },
@@ -392,7 +418,7 @@ export const MyTripsPageStyle = styled.div({
       width: "100%",
       minHeight: 0,
     },
-
+    "& .view-switch": { display: "none" },
     "& .trips-page-inner": {
       padding: "80px 14px calc(84px + env(safe-area-inset-bottom))",
     },
@@ -412,14 +438,22 @@ export const MyTripsPageStyle = styled.div({
     },
 
     "& .schedule-button": {
-      display: "inline-flex",
+      display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      width: "auto",
-      minWidth: "100px",
-      minHeight: "36px",
-      padding: "8px 12px",
-      whiteSpace: "nowrap",
+
+      minWidth: "40px",
+      height: "40px",
+      padding: 0,
+      flexShrink: 0,
+    },
+    "& .schedule-button-label": {
+      display: "none",
+    },
+
+    "& .schedule-button-icon": {
+      display: "block",
+      flexShrink: 0,
     },
 
     "& .trips-content-region": {
@@ -427,7 +461,7 @@ export const MyTripsPageStyle = styled.div({
     },
 
     "& .trips-grid": {
-      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
       gap: "12px",
 
       "&.view-list": {

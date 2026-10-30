@@ -260,6 +260,7 @@ const MainSidebar = () => {
           });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const [isLogoutClosing, setIsLogoutClosing] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const logoutPendingRef = useRef(false);
@@ -384,18 +385,17 @@ const MainSidebar = () => {
   };
 
   useEffect(() => {
-    if (!isLogoutOpen) return;
+    if (!isLogoutOpen || isLogoutClosing) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsLogoutOpen(false);
-        profileButtonRef.current?.focus();
-      }
+      if (event.key !== "Escape" || logoutPendingRef.current) return;
+      event.preventDefault();
+      setIsLogoutClosing(true);
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isLogoutOpen]);
+  }, [isLogoutOpen, isLogoutClosing]);
 
   const handleNavigate = (path: string) => {
     setIsProfileOpen(false);
@@ -445,7 +445,8 @@ const MainSidebar = () => {
         onClick={() => {
           setIsProfileOpen(false);
           setTooltip(null);
-          setIsLogoutOpen(true);
+          setIsLogoutClosing(false);
+    setIsLogoutOpen(true);
           setLogoutError("");
         }}
       >
@@ -754,6 +755,15 @@ const MainSidebar = () => {
         createPortal(
           <S.LogoutBackdrop>
             <S.LogoutDialog
+              data-open={!isLogoutClosing}
+              onAnimationEnd={(event) => {
+                if (event.target !== event.currentTarget || !isLogoutClosing) return;
+
+                setIsLogoutOpen(false);
+                setIsLogoutClosing(false);
+                setLogoutError("");
+                profileButtonRef.current?.focus();
+              }}
               role="dialog"
               aria-modal="true"
               aria-labelledby="main-sidebar-logout-title"
@@ -775,11 +785,10 @@ const MainSidebar = () => {
                 <S.LogoutCancelButton
                   type="button"
                   autoFocus
-                  disabled={logoutLoading}
+                  disabled={logoutLoading || isLogoutClosing}
                   onClick={() => {
-                    setLogoutError("");
-                    setIsLogoutOpen(false);
-                    profileButtonRef.current?.focus();
+                    if (logoutPendingRef.current || isLogoutClosing) return;
+                    setIsLogoutClosing(true);
                   }}
                 >
                   취소
@@ -787,7 +796,7 @@ const MainSidebar = () => {
 
                 <S.LogoutConfirmButton
                   type="button"
-                  disabled={logoutLoading}
+                  disabled={logoutLoading || isLogoutClosing}
                   aria-busy={logoutLoading}
                   onClick={() => void handleLogout()}
                 >
