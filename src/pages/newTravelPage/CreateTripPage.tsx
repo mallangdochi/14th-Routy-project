@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import {
   Banknote,
   CircleAlert,
@@ -37,7 +37,14 @@ import DateRangePicker from "../../components/pickers/DateRangePicker";
 import TimePicker from "../../components/pickers/TimePicker";
 import RegionSelectModal from "../../components/modal/travel-region-selector/RegionSelectModal";
 import { REGIONS, type TravelRegion } from "../../data/regions";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
+
+import {
+  saveTrip,
+  type CreateTripInput,
+  type SavedTrip,
+} from "../../api/trips";
+
 const styleOptions = [
   { value: "food", label: "맛집", Icon: Utensils },
   { value: "nature", label: "자연", Icon: Mountain },
@@ -339,23 +346,19 @@ function TravelStyleDropdown({
   );
 }
 
-type TripData = {
-  name?: string;
-  region: string;
-  startDate: string;
-  endDate: string;
-  startTime: string;
-  transport?: string;
-  people?: number;
-  styles?: string[];
-  budget?: number;
-};
 type Props = {
   onCancel?: () => void;
-  onCreate?: (trip: TripData) => void;
+  onCreate?: (trip: SavedTrip) => void;
 };
 
 export default function CreateTripPage({ onCancel, onCreate }: Props) {
+  const navigate = useNavigate();
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  // 리렌더링 전 연속 클릭도 차단
+  const savingRef = useRef(false);
   const [name, setName] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<TravelRegion | null>(
     null,
@@ -502,21 +505,14 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
       </p>
     );
   };
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (savingRef.current) return;
+
+    setSaveError("");
     setHasSubmitted(true);
-    // if (regionError || datesError || timeError) {
-    //   if (isCompact && step !== "basic") setStep("basic");
-    //   const form = event.currentTarget;
-    //   const field = regionError ? "region" : datesError ? "dates" : "time";
-    //   requestAnimationFrame(() => {
-    //     const control = form.querySelector<HTMLElement>(
-    //       `[data-required-field="${field}"] button, [data-required-field="${field}"] input:not([type="hidden"])`,
-    //     );
-    //     control?.focus();
-    //   });
-    //   return;
-    // }
+
     if (regionError || datesError || timeError) {
       if (isCompact && step !== "basic") setStep("basic");
 
@@ -570,10 +566,23 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
       setSheetOpen(true);
       return;
     }
-    createTrip();
+    void createTrip();
   };
-  const createTrip = () => {
-    const trip: TripData = {
+  const createTrip = async () => {
+    if (savingRef.current) return;
+
+    if (regionError || datesError || timeError) {
+      setHasSubmitted(true);
+      setSaveError("필수 입력 항목을 확인해주세요.");
+
+      if (isCompact) {
+        changeStep("basic");
+      }
+
+      return;
+    }
+
+    const input: CreateTripInput = {
       region,
       startDate,
       endDate,
@@ -584,8 +593,39 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
       ...(styles.length > 0 ? { styles: [...styles] } : {}),
       ...(budget !== "" ? { budget: Number(budget) } : {}),
     };
-    onCreate?.(trip);
+
+    savingRef.current = true;
+    setIsSaving(true);
+    setSaveError("");
+
+    let savedTrip: SavedTrip;
+
+    try {
+      savedTrip = await saveTrip(input);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "여행 저장 중 오류가 발생했습니다.",
+      );
+
+      savingRef.current = false;
+      setIsSaving(false);
+
+      return;
+    }
+
+    savingRef.current = false;
+    setIsSaving(false);
+
+    if (onCreate) {
+      onCreate(savedTrip);
+    } else {
+      // 별도 완료 콜백이 없으면 내 여행으로 이동
+      navigate("/");
+    }
   };
+
   const [startHour, startMinute] = startTime.split(":");
   const previewStartTime = startTime
     ? `${Number(startHour) < 12 ? "오전" : "오후"} ${Number(startHour) % 12 || 12}:${startMinute}`
@@ -1048,30 +1088,50 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
               </div>
             </section>
 
+            {saveError && (
+              <p className="save-error" role="alert">
+                <CircleAlert aria-hidden="true" />
+                <span>{saveError}</span>
+              </p>
+            )}
+
             <div className="form-actions">
               <button
                 className="cancel-button"
                 type="button"
-                onClick={() =>
-                  isCompact && step === "preferences"
-                    ? changeStep("basic")
-                    : onCancel?.()
-                }
+                disabled={isSaving}
+                onClick={() => {
+                  if (isCompact && step === "preferences") {
+                    changeStep("basic");
+                    return;
+                  }
+
+                  if (onCancel) {
+                    onCancel();
+                  } else {
+                    navigate("/");
+                  }
+                }}
               >
                 {isCompact && step === "preferences" ? "이전" : "취소"}
               </button>
+
               <button
                 ref={previewTriggerRef}
                 className="submit-button"
                 type="submit"
+                disabled={isSaving}
+                aria-busy={isSaving}
               >
-                {isCompact
-                  ? step === "basic"
-                    ? "다음"
-                    : hasPreferences
-                      ? "미리보기"
-                      : "건너뛰기"
-                  : "여행 만들기"}
+                {isSaving
+                  ? "저장 중..."
+                  : isCompact
+                    ? step === "basic"
+                      ? "다음"
+                      : hasPreferences
+                        ? "미리보기"
+                        : "건너뛰기"
+                    : "여행 만들기"}
               </button>
             </div>
           </form>
@@ -1090,7 +1150,7 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
           <KakaoRegionPreview region={previewRegion} />
         )}
       />
-      <TripPreviewModal
+      {/* <TripPreviewModal
         open={sheetOpen}
         onClose={closeSheet}
         onCreate={() => {
@@ -1099,6 +1159,27 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
             pendingCreateRef.current = createTrip;
             closeSheet();
           } else createTrip();
+        }}
+        triggerRef={previewTriggerRef}
+      >
+        {renderPreview("dialog")}
+      </TripPreviewModal> */}
+
+      <TripPreviewModal
+        open={sheetOpen}
+        onClose={closeSheet}
+        onCreate={() => {
+          if (savingRef.current || pendingCreateRef.current) return;
+
+          if (sheetHistoryRef.current) {
+            pendingCreateRef.current = () => {
+              void createTrip();
+            };
+
+            closeSheet();
+          } else {
+            void createTrip();
+          }
         }}
         triggerRef={previewTriggerRef}
       >
