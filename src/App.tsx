@@ -9,10 +9,11 @@ import SavedPage from "./pages/savedPage/SavedPage";
 import PlaceDetailPage from "./pages/placeDetailPage/PlaceDetailPage";
 import TripDaysPage from "./pages/travelTimetablePage/TimetablePage";
 import Search from "./components/search/Search";
-import Schedule from "./components/Schedule/Schedule";
+
 import TravelBudgetStatsPage from "./components/travelBudget/TravelBudgetStatsPage";
 import RoutyProfile from "./components/RoutyProfile/RoutyProfile";
 import { useAuth } from "./contexts/AuthContext";
+import Schedule from "./pages/tripDetailPage/Schedule";
 
 function CreateTripRoute() {
   const navigate = useNavigate();

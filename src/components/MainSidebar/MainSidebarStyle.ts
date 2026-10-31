@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { dropdownAnimation } from "../../styles/animation";
+import { dropdownAnimation, modalAnimation } from "../../styles/animation";
 import { Link } from "react-router";
 
 export const MENU_SELECTION_DURATION_MS = 180;
@@ -498,6 +498,8 @@ export const LogoutBackdrop = styled.div({
 });
 
 export const LogoutDialog = styled.div({
+  ...modalAnimation,
+
   width: "100%",
   maxWidth: 480,
   padding: "36px 32px 30px",

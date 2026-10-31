@@ -79,7 +79,27 @@ export const CreateTripPageStyle = styled.div({
     gridRow: 2,
     gap: 8,
   },
+  "& .save-error": {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "8px",
+    marginTop: "16px",
+    color: "#C43D32",
+    fontSize: "14px",
+    lineHeight: 1.5,
 
+    "& svg": {
+      flexShrink: 0,
+      width: "18px",
+      height: "18px",
+      marginTop: "2px",
+    },
+  },
+
+  "& .form-actions button:disabled": {
+    opacity: 0.6,
+    cursor: "wait",
+  },
   "& .field": {
     display: "flex",
     flexDirection: "column",

@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { ShareBanner, ShareBannerText } from "../../Schedule/ShareModalStyle";
+import { ShareBanner, ShareBannerText } from "../share/ShareModalStyle";
 
 export {
   ShareOverlay,
@@ -12,7 +12,7 @@ export {
   SharePlatformButton,
   SharePlatformIcon,
   KakaoBubble,
-} from "../../Schedule/ShareModalStyle";
+} from "../share/ShareModalStyle";
 
 export const PreviewBanner = styled(ShareBanner)({
   height: "155px",
