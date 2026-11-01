@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
 import { config } from "dotenv";
-import { createSupabaseServer } from "../../server/supabase.js";
+import { createSupabaseServer } from "../../supabase.js";
 
 if (process.env.NODE_ENV !== "production") {
   config({ path: ".env.local" });

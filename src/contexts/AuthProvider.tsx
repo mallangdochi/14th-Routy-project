@@ -5,7 +5,9 @@
 //   useState,
 //   type ReactNode,
 // } from "react";
+
 // import { getCurrentUser, type AuthUser } from "../api/auth";
+
 // import { AuthContext } from "./AuthContext";
 
 // interface AuthProviderProps {
@@ -14,56 +16,38 @@
 
 // export default function AuthProvider({ children }: AuthProviderProps) {
 //   const [user, setUser] = useState<AuthUser | null>(null);
+
 //   const [loading, setLoading] = useState(true);
+
 //   const [error, setError] = useState("");
 
 //   const requestId = useRef(0);
+//   const backgroundBusy = useRef(false);
 
-//   const refreshUser = useCallback(async (): Promise<void> => {
+//   const userId = user?.id ?? null;
+
+//   const loadUser = useCallback((): Promise<void> => {
 //     const currentRequest = ++requestId.current;
 
-//     setLoading(true);
-//     setError("");
-
-//     try {
-//       const currentUser = await getCurrentUser();
-
-//       if (currentRequest !== requestId.current) return;
-
-//       setUser(currentUser);
-//     } catch (error) {
-//       if (currentRequest !== requestId.current) return;
-
-//       setUser(null);
-//       setError(
-//         error instanceof Error
-//           ? error.message
-//           : "로그인 상태를 확인하지 못했습니다.",
-//       );
-//     } finally {
-//       if (currentRequest === requestId.current) {
-//         setLoading(false);
-//       }
-//     }
-//   }, []);
-
-//   useEffect(() => {
-//     const currentRequest = ++requestId.current;
-
-//     getCurrentUser()
+//     return getCurrentUser()
 //       .then((currentUser) => {
-//         if (currentRequest !== requestId.current) return;
+//         if (currentRequest !== requestId.current) {
+//           return;
+//         }
 
+//         // 서버가 401을 반환하면 getCurrentUser()는 null을 반환합니다.
 //         setUser(currentUser);
 //         setError("");
 //       })
-//       .catch((error: unknown) => {
-//         if (currentRequest !== requestId.current) return;
+//       .catch((caught: unknown) => {
+//         if (currentRequest !== requestId.current) {
+//           return;
+//         }
 
-//         setUser(null);
+//         // 일시적인 통신 오류만으로 기존 사용자를 지우지 않습니다.
 //         setError(
-//           error instanceof Error
-//             ? error.message
+//           caught instanceof Error
+//             ? caught.message
 //             : "로그인 상태를 확인하지 못했습니다.",
 //         );
 //       })
@@ -72,63 +56,156 @@
 //           setLoading(false);
 //         }
 //       });
-
-//     return () => {
-//       if (currentRequest === requestId.current) {
-//         requestId.current += 1;
-//       }
-//     };
 //   }, []);
 
+//   const refreshUser = useCallback((): Promise<void> => {
+//     setLoading(true);
+//     setError("");
+
+//     return loadUser();
+//   }, [loadUser]);
+
+//   useEffect(() => {
+//     void loadUser();
+
+//     return () => {
+//       requestId.current += 1;
+//     };
+//   }, [loadUser]);
+
+//   useEffect(() => {
+//     let disposed = false;
+
+//     const checkSession = async (): Promise<void> => {
+//       if (
+//         disposed ||
+//         document.visibilityState !== "visible" ||
+//         backgroundBusy.current
+//       ) {
+//         return;
+//       }
+
+//       backgroundBusy.current = true;
+
+//       try {
+//         await loadUser();
+//       } finally {
+//         backgroundBusy.current = false;
+//       }
+//     };
+
+//     const handleFocus = () => {
+//       void checkSession();
+//     };
+
+//     const handleVisibilityChange = () => {
+//       if (document.visibilityState === "visible") {
+//         void checkSession();
+//       }
+//     };
+
+//     const handleOnline = () => {
+//       void checkSession();
+//     };
+
+//     window.addEventListener("focus", handleFocus);
+
+//     window.addEventListener("online", handleOnline);
+
+//     document.addEventListener("visibilitychange", handleVisibilityChange);
+
+//     const timer = window.setInterval(() => {
+//       if (userId) {
+//         void checkSession();
+//       }
+//     }, 60_000);
+
+//     return () => {
+//       disposed = true;
+
+//       window.clearInterval(timer);
+
+//       window.removeEventListener("focus", handleFocus);
+
+//       window.removeEventListener("online", handleOnline);
+
+//       document.removeEventListener("visibilitychange", handleVisibilityChange);
+//     };
+//   }, [userId, loadUser]);
+
 //   return (
-//     <AuthContext.Provider value={{ user, loading, error, refreshUser }}>
+//     <AuthContext.Provider
+//       value={{
+//         user,
+//         loading,
+//         error,
+//         refreshUser,
+//       }}
+//     >
 //       {children}
 //     </AuthContext.Provider>
 //   );
 // }
+
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import { getCurrentUser, type AuthUser } from "../api/auth";
-
 import { AuthContext } from "./AuthContext";
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
+const SESSION_CHECK_INTERVAL = 60_000;
+
 export default function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
 
+  const mounted = useRef(false);
   const requestId = useRef(0);
-  const backgroundBusy = useRef(false);
+  const inFlight = useRef<Promise<void> | null>(null);
+  const lastCheckStartedAt = useRef<number | null>(null);
 
   const userId = user?.id ?? null;
 
-  const loadUser = useCallback((): Promise<void> => {
+  const loadUser = useCallback((force = false): Promise<void> => {
+    // 최초 조회와 백그라운드 조회는 진행 중인 요청을 공유합니다.
+    if (!force && inFlight.current) {
+      return inFlight.current;
+    }
+
     const currentRequest = ++requestId.current;
 
-    return getCurrentUser()
+    lastCheckStartedAt.current = Date.now();
+
+    const pending = getCurrentUser()
       .then((currentUser) => {
-        if (currentRequest !== requestId.current) {
+        if (!mounted.current || currentRequest !== requestId.current) {
           return;
         }
 
-        // 서버가 401을 반환하면 getCurrentUser()는 null을 반환합니다.
-        setUser(currentUser);
+        setUser((previousUser) => {
+          // 동일한 응답이면 기존 객체를 유지합니다.
+          if (JSON.stringify(previousUser) === JSON.stringify(currentUser)) {
+            return previousUser;
+          }
+
+          return currentUser;
+        });
+
         setError("");
       })
       .catch((caught: unknown) => {
-        if (currentRequest !== requestId.current) {
+        if (!mounted.current || currentRequest !== requestId.current) {
           return;
         }
 
@@ -140,97 +217,99 @@ export default function AuthProvider({ children }: AuthProviderProps) {
         );
       })
       .finally(() => {
-        if (currentRequest === requestId.current) {
+        if (currentRequest !== requestId.current) {
+          return;
+        }
+
+        inFlight.current = null;
+
+        if (mounted.current) {
           setLoading(false);
         }
       });
+
+    inFlight.current = pending;
+
+    return pending;
   }, []);
 
   const refreshUser = useCallback((): Promise<void> => {
     setLoading(true);
     setError("");
 
-    return loadUser();
+    // 변경 전부터 진행 중이던 요청 대신 새로운 상태를 조회합니다.
+    // 이전 요청의 응답은 requestId 검사로 무시됩니다.
+    return loadUser(true);
   }, [loadUser]);
 
   useEffect(() => {
+    mounted.current = true;
+
     void loadUser();
 
     return () => {
-      requestId.current += 1;
+      mounted.current = false;
     };
   }, [loadUser]);
 
   useEffect(() => {
-    let disposed = false;
+    const checkSession = (): void => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
 
-    const checkSession = async (): Promise<void> => {
+      if (inFlight.current) {
+        return;
+      }
+
+      const lastStartedAt = lastCheckStartedAt.current;
+
       if (
-        disposed ||
-        document.visibilityState !== "visible" ||
-        backgroundBusy.current
+        lastStartedAt !== null &&
+        Date.now() - lastStartedAt < SESSION_CHECK_INTERVAL
       ) {
         return;
       }
 
-      backgroundBusy.current = true;
-
-      try {
-        await loadUser();
-      } finally {
-        backgroundBusy.current = false;
-      }
+      void loadUser();
     };
 
-    const handleFocus = () => {
-      void checkSession();
-    };
-
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = (): void => {
       if (document.visibilityState === "visible") {
-        void checkSession();
+        checkSession();
       }
     };
 
-    const handleOnline = () => {
-      void checkSession();
-    };
-
-    window.addEventListener("focus", handleFocus);
-
-    window.addEventListener("online", handleOnline);
-
+    window.addEventListener("focus", checkSession);
+    window.addEventListener("online", checkSession);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const timer = window.setInterval(() => {
       if (userId) {
-        void checkSession();
+        checkSession();
       }
-    }, 60_000);
+    }, SESSION_CHECK_INTERVAL);
 
     return () => {
-      disposed = true;
-
       window.clearInterval(timer);
 
-      window.removeEventListener("focus", handleFocus);
-
-      window.removeEventListener("online", handleOnline);
-
+      window.removeEventListener("focus", checkSession);
+      window.removeEventListener("online", checkSession);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [userId, loadUser]);
 
+  const contextValue = useMemo(
+    () => ({
+      user,
+      loading,
+      error,
+      refreshUser,
+    }),
+    [user, loading, error, refreshUser],
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        error,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 }

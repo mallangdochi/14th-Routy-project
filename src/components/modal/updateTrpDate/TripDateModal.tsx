@@ -62,6 +62,44 @@ function TripDateModalContent({
   const busyRef = useRef(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pickerAreaRef = useRef<HTMLDivElement>(null);
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const picker = pickerAreaRef.current;
+    const body = scrollBodyRef.current;
+    if (!picker || !body) return;
+    let frame = 0;
+    const measure = () => {
+      const popup = picker.querySelector<HTMLElement>(".picker-popup");
+      const trigger = picker.querySelector<HTMLElement>(".picker-trigger");
+      if (!popup || !trigger) return;
+      const available = Math.max(0,
+        trigger.getBoundingClientRect().top - body.getBoundingClientRect().top - 12,
+      );
+      popup.style.maxHeight = `${available}px`;
+      popup.style.overflowY = "auto";
+      popup.style.overscrollBehaviorY = "contain";
+    };
+    const scheduleMeasure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+    const mutations = new MutationObserver(measure);
+    mutations.observe(picker, { childList: true, subtree: true });
+    const resize = new ResizeObserver(scheduleMeasure);
+    resize.observe(body);
+    resize.observe(picker);
+    body.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", scheduleMeasure);
+    measure();
+    return () => {
+      mutations.disconnect();
+      resize.disconnect();
+      cancelAnimationFrame(frame);
+      body.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", scheduleMeasure);
+    };
+  }, []);
 
   const titleId = useId();
   const descriptionId = useId();
@@ -251,7 +289,7 @@ function TripDateModalContent({
           </S.CloseButton>
         </S.Header>
 
-        <S.Body>
+        <S.Body ref={scrollBodyRef}>
           <S.SectionHeading>
             <strong>여행 날짜</strong>
             <span>{draftDates.length}일</span>
@@ -297,33 +335,6 @@ function TripDateModalContent({
             )}
           </S.DateList>
 
-          {/* <S.AddArea>
-            <S.AddControls>
-              <S.DatePickerArea ref={pickerAreaRef}>
-                <DatePicker
-                  label="날짜 추가"
-                  value={addingDate}
-                  min="1900-01-01"
-                  max="9999-12-31"
-                  disabled={disabled}
-                  modal
-                  onChange={(value) => {
-                    setAddingDate(value);
-                    setError("");
-                  }}
-                />
-              </S.DatePickerArea>
-
-              <S.AddButton
-                type="button"
-                disabled={disabled || !addingDate}
-                onClick={addDate}
-              >
-                <Plus size={17} aria-hidden="true" />
-                추가
-              </S.AddButton>
-            </S.AddControls>
-          </S.AddArea> */}
           <S.AddArea>
             <S.AddControls>
               <S.DatePickerArea ref={pickerAreaRef}>
