@@ -91,3 +91,26 @@ export async function getMyTrips(signal?: AbortSignal): Promise<SavedTrip[]> {
 
   return result.trips;
 }
+export async function deleteTrip(tripId: string): Promise<void> {
+  const response = await fetch("/api/trips/delete", {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ tripId }),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.message ?? "여행을 삭제하지 못했습니다.");
+  }
+
+  if (data?.tripId !== tripId || data?.deleted !== true) {
+    throw new Error(
+      "삭제 결과를 확인하지 못했습니다. 내 여행 목록에서 확인해주세요.",
+    );
+  }
+}

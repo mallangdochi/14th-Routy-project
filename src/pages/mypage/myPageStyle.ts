@@ -47,32 +47,99 @@ export const MobileMenuToggle = styled.button({
   color: "#111827",
 });
 
-export const MobileDrawerBackdrop = styled.div<{ $open: boolean }>(
-  ({ $open }) => ({
-    display: "none",
+// export const MobileDrawerBackdrop = styled.div<{
+//   $open: boolean;
+//   $animate?: boolean;
+// }>(({ $open, $animate = false }) => ({
+//   display: "none",
 
-    "@media (max-width: 760px)": {
-      display: "block",
-      position: "fixed",
-      inset: 0,
-      zIndex: 89,
-      backgroundColor: "rgba(9, 24, 35, 0.42)",
-      opacity: $open ? 1 : 0,
-      visibility: $open ? "visible" : "hidden",
-      pointerEvents: $open ? "auto" : "none",
-      transition: $open
+//     "@media (max-width: 760px)": {
+//       display: "block",
+//       position: "fixed",
+//       inset: 0,
+//       zIndex: 89,
+//       backgroundColor: "rgba(9, 24, 35, 0.42)",
+//       opacity: $open ? 1 : 0,
+//       visibility: $open ? "visible" : "hidden",
+//       pointerEvents: $open ? "auto" : "none",
+//       transition: $open
+//         ? "opacity 220ms ease, visibility 0s"
+//         : "opacity 220ms ease, visibility 0s linear 220ms",
+//     },
+//   }),
+// );
+
+// export const SidebarShell = styled.div<{ $open: boolean }>(({ $open }) => ({
+//   width: 230,
+//   flexShrink: 0,
+
+//   "@media (min-width: 761px) and (max-width: 1199px)": {
+//     width: 200,
+//     "& > aside": {
+//       width: 200,
+//       minWidth: 200,
+//       paddingLeft: 12,
+//       paddingRight: 12,
+//     },
+//   },
+
+//   "@media (max-width: 760px)": {
+//     position: "fixed",
+//     inset: "0 0 0 auto",
+//     zIndex: 90,
+//     width: 250,
+//     maxWidth: "84vw",
+//     height: "100dvh",
+//     visibility: $open ? "visible" : "hidden",
+//     transform: $open ? "translateX(0)" : "translateX(100%)",
+//     transition: $open
+//       ? "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s"
+//       : "transform 230ms ease-in, visibility 0s linear 230ms",
+//     boxShadow: $open ? "-4px 0 18px rgba(0, 0, 0, 0.16)" : "none",
+
+//     "& > aside": {
+//       width: "100%",
+//       minWidth: 0,
+//       height: "100dvh",
+//     },
+//   },
+// }));
+
+export const MobileDrawerBackdrop = styled.div<{
+  $open: boolean;
+  $animate?: boolean;
+}>(({ $open, $animate = false }) => ({
+  display: "none",
+
+  "@media (max-width: 767px)": {
+    display: "block",
+    position: "fixed",
+    inset: 0,
+    zIndex: 89,
+    backgroundColor: "rgba(9, 24, 35, 0.42)",
+
+    opacity: $open ? 1 : 0,
+    visibility: $open ? "visible" : "hidden",
+    pointerEvents: $open ? "auto" : "none",
+
+    transition: !$animate
+      ? "none"
+      : $open
         ? "opacity 220ms ease, visibility 0s"
         : "opacity 220ms ease, visibility 0s linear 220ms",
-    },
-  }),
-);
+  },
+}));
 
-export const SidebarShell = styled.div<{ $open: boolean }>(({ $open }) => ({
+export const SidebarShell = styled.div<{
+  $open: boolean;
+  $animate?: boolean;
+}>(({ $open, $animate = false }) => ({
   width: 230,
   flexShrink: 0,
 
-  "@media (min-width: 761px) and (max-width: 1199px)": {
+  "@media (max-width: 1199px)": {
     width: 200,
+
     "& > aside": {
       width: 200,
       minWidth: 200,
@@ -81,18 +148,24 @@ export const SidebarShell = styled.div<{ $open: boolean }>(({ $open }) => ({
     },
   },
 
-  "@media (max-width: 760px)": {
+  "@media (max-width: 767px)": {
     position: "fixed",
     inset: "0 0 0 auto",
     zIndex: 90,
     width: 250,
     maxWidth: "84vw",
     height: "100dvh",
+
     visibility: $open ? "visible" : "hidden",
     transform: $open ? "translateX(0)" : "translateX(100%)",
-    transition: $open
-      ? "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s"
-      : "transform 230ms ease-in, visibility 0s linear 230ms",
+    pointerEvents: $open ? "auto" : "none",
+
+    transition: !$animate
+      ? "none"
+      : $open
+        ? "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s"
+        : "transform 230ms ease-in, visibility 0s linear 230ms",
+
     boxShadow: $open ? "-4px 0 18px rgba(0, 0, 0, 0.16)" : "none",
 
     "& > aside": {

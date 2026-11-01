@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { config } from "dotenv";
-import { createSupabaseServer } from "../../server/supabase.js";
+import { createSupabaseServer } from "../../supabase.js";
 
 if (process.env.NODE_ENV !== "production") {
   config({ path: ".env.local" });
@@ -21,12 +21,23 @@ export default async function handler(
   }
 
   try {
+    const startedAt = performance.now();
+
     const supabase = createSupabaseServer(request, response);
+
+    const clientReadyAt = performance.now();
 
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
+
+    const authFinishedAt = performance.now();
+
+    console.info("[LOCAL auth/me] 인증 처리 시간", {
+      clientMs: Math.round(clientReadyAt - startedAt),
+      authMs: Math.round(authFinishedAt - clientReadyAt),
+    });
 
     if (authError) {
       if (
@@ -50,7 +61,6 @@ export default async function handler(
         user: null,
       });
     }
-
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select(
@@ -78,7 +88,21 @@ export default async function handler(
       )
       .eq("id", user.id)
       .maybeSingle();
+    const profileFinishedAt = performance.now();
 
+    console.info("[auth/me] 프로필 처리 시간", {
+      profileMs: Math.round(profileFinishedAt - authFinishedAt),
+      totalMs: Math.round(profileFinishedAt - startedAt),
+    });
+
+    response.setHeader(
+      "Server-Timing",
+      [
+        `client;dur=${(clientReadyAt - startedAt).toFixed(1)}`,
+        `auth;dur=${(authFinishedAt - clientReadyAt).toFixed(1)}`,
+        `profile;dur=${(profileFinishedAt - authFinishedAt).toFixed(1)}`,
+      ].join(", "),
+    );
     if (profileError) {
       console.error("Profile lookup error:", profileError);
 

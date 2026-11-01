@@ -1041,7 +1041,8 @@ function MyPageContent() {
 
   const withdrawingRef = useRef(false);
   const isLoggedIn = Boolean(user);
-
+  const settingsSavingRef = useRef(false);
+  const cacheClearingRef = useRef(false);
   const pathParts = pathname.split("/");
   const section = pathParts[2];
   const detail = pathParts[3];
@@ -1083,10 +1084,10 @@ function MyPageContent() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState("");
 
-  const settingsSavingRef = useRef(false);
-
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileMenuAnimated, setIsMobileMenuAnimated] = useState(false);
 
   const [isMobileViewport, setIsMobileViewport] = useState(
     () =>
@@ -1100,9 +1101,9 @@ function MyPageContent() {
     const updateViewport = (event: MediaQueryListEvent) => {
       setIsMobileViewport(event.matches);
 
-      if (!event.matches) {
-        setIsMobileMenuOpen(false);
-      }
+      // 화면 크기 변경으로 닫힐 때는 애니메이션 없이 즉시 숨김
+      setIsMobileMenuAnimated(false);
+      setIsMobileMenuOpen(false);
     };
 
     mediaQuery.addEventListener("change", updateViewport);
@@ -1154,7 +1155,29 @@ function MyPageContent() {
     setToastMessage(message);
     setToastVersion((version) => version + 1);
   };
+  const handleClearCache = async (): Promise<void> => {
+    if (cacheClearingRef.current) return;
 
+    cacheClearingRef.current = true;
+
+    try {
+      const response = await fetch("/api/clear-cache", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("캐시 삭제 요청에 실패했습니다.");
+      }
+
+      showSavedToast(
+        "브라우저에 캐시 삭제를 요청했어요. 브라우저에 따라 적용 여부가 달라질 수 있어요.",
+      );
+    } finally {
+      cacheClearingRef.current = false;
+    }
+  };
   const loadLatestUser = async (): Promise<AuthUser> => {
     const latest = await getCurrentUser();
 
@@ -1384,6 +1407,7 @@ function MyPageContent() {
               key={settingsVersion}
               savedSettings={savedSettings}
               onSave={handleSettingsSave}
+              onClearCache={handleClearCache}
             />
           </S.SettingsSaveBoundary>
 
@@ -1422,7 +1446,7 @@ function MyPageContent() {
 
         <S.MobileTopLogo src={routyLogo} alt="Routy" />
 
-        {isLoggedIn && (
+        {/* {isLoggedIn && (
           <S.MobileMenuToggle
             type="button"
             aria-label="계정 메뉴 열기"
@@ -1434,10 +1458,24 @@ function MyPageContent() {
           >
             <Menu size={26} strokeWidth={1.9} aria-hidden="true" />
           </S.MobileMenuToggle>
+        )} */}
+        {isLoggedIn && (
+          <S.MobileMenuToggle
+            type="button"
+            aria-label="계정 메뉴 열기"
+            aria-controls="mypage-sidebar"
+            aria-expanded={isMobileMenuOpen}
+            onClick={() => {
+              setIsMobileMenuAnimated(true);
+              setIsMobileMenuOpen(true);
+            }}
+          >
+            <Menu size={26} strokeWidth={1.9} aria-hidden="true" />
+          </S.MobileMenuToggle>
         )}
       </S.MobileTopBar>
 
-      {isLoggedIn && isMobileViewport && (
+      {/* {isLoggedIn && isMobileViewport && (
         <S.MobileDrawerBackdrop
           $open={isMobileMenuOpen}
           aria-hidden="true"
@@ -1464,8 +1502,37 @@ function MyPageContent() {
             }}
           />
         </S.SidebarShell>
+      )} */}
+      {isLoggedIn && isMobileViewport && (
+        <S.MobileDrawerBackdrop
+          $open={isMobileMenuOpen}
+          $animate={isMobileMenuAnimated}
+          aria-hidden="true"
+          onClick={() => {
+            setIsMobileMenuOpen(false);
+          }}
+        />
       )}
 
+      {(isLoggedIn || !isMobileViewport) && (
+        <S.SidebarShell
+          id="mypage-sidebar"
+          $open={isLoggedIn && isMobileMenuOpen}
+          $animate={isMobileMenuAnimated}
+        >
+          <Sidebar
+            profileImage={savedProfile.image}
+            onNavigate={(page) => {
+              setIsMobileMenuOpen(false);
+              navigate(`/mypage/${page}`);
+            }}
+            onBack={() => {
+              setIsMobileMenuOpen(false);
+              navigate("/");
+            }}
+          />
+        </S.SidebarShell>
+      )}
       <S.PageMain>
         <S.MainInner>
           {(isLoggedIn || currentPage === "support") &&

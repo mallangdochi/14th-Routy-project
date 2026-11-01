@@ -4,6 +4,7 @@ import { modalAnimation } from "../../../styles/animation";
 export const Dialog = styled.dialog(
   {
     width: "min(560px, calc(100% - 32px))",
+    height: "min(760px, calc(100dvh - 48px))",
     maxHeight: "min(760px, calc(100dvh - 48px))",
     margin: "auto",
     padding: 0,
@@ -13,7 +14,7 @@ export const Dialog = styled.dialog(
     color: "#0D3E41",
     fontFamily: "inherit",
     fontSize: "16px",
-    overflow: "visible",
+    overflow: "hidden",
     boxShadow: "0 24px 80px rgb(13 62 65 / 18%)",
 
     "&::backdrop": {
@@ -23,6 +24,7 @@ export const Dialog = styled.dialog(
     "@media (max-width: 767px)": {
       width: "100%",
       maxWidth: "100%",
+      height: "90dvh",
       maxHeight: "90dvh",
       margin: "auto 0 0",
       borderRadius: "20px 20px 0 0",
@@ -66,13 +68,6 @@ const buttonBase = {
     },
   },
 } as const;
-
-// export const Form = styled.form({
-//   display: "flex",
-//   flexDirection: "column",
-//   maxHeight: "inherit",
-//   minHeight: 0,
-// });
 
 export const Header = styled.header({
   display: "flex",
@@ -139,35 +134,40 @@ export const CloseButton = styled.button({
   },
 });
 
-// export const Body = styled.div({
-//   minHeight: 0,
-//   overflowY: "auto",
-//   overscrollBehavior: "contain",
-//   padding: "22px 26px",
-
-//   "@media (max-width: 767px)": {
-//     padding: "20px",
-//   },
-// });
 
 export const Form = styled.form({
   display: "flex",
   flexDirection: "column",
-  maxHeight: "inherit",
+  height: "100%",
+  maxHeight: "100%",
   minHeight: 0,
-  overflow: "visible",
+  overflow: "hidden",
   borderRadius: "inherit",
 });
 
+
+
+
+
+
+
+
+
 export const Body = styled.div({
   position: "relative",
+  display: "flex",
+  flexDirection: "column",
+  "& > *": { flexShrink: 0 },
   zIndex: 1,
+  flex: "1 1 auto",
   minHeight: 0,
-  overflow: "visible",
   padding: "22px 26px",
+  overscrollBehaviorY: "contain",
 
   "&&": {
-    overflow: "visible",
+    overflowX: "hidden",
+    overflowY: "scroll",
+    scrollbarGutter: "stable",
   },
 
   "@media (max-width: 767px)": {
@@ -284,7 +284,8 @@ export const AddArea = styled.div({
   display: "flex",
   flexDirection: "column",
   gap: "10px",
-  marginTop: "24px",
+  marginTop: "auto",
+  paddingTop: "24px",
 
   "& label": {
     fontWeight: 600,
@@ -299,9 +300,27 @@ export const AddControls = styled.div({
   "& > button": {
     minHeight: "46px",
   },
+
+  "@media (max-width: 767px)": {
+    flexDirection: "column",
+    alignItems: "stretch",
+    width: "100%",
+
+    "& > div": {
+      flex: "0 0 auto",
+      width: "100%",
+      minWidth: 0,
+    },
+
+    "& > button": {
+      width: "100%",
+      minHeight: "46px",
+    },
+  },
 });
 
 export const DatePickerArea = styled.div({
+  position: "relative",
   flex: "1 1 0",
   minWidth: 0,
 
@@ -362,16 +381,6 @@ export const DatePickerArea = styled.div({
     cursor: "not-allowed",
   },
 
-  // 이 모달 안에서만 달력을 일반 흐름에 배치합니다.
-  // "& .picker-popup": {
-  //   position: "relative",
-  //   inset: "auto",
-  //   width: "100%",
-  //   minWidth: 0,
-  //   maxWidth: "100%",
-  //   marginTop: "10px",
-  //   boxSizing: "border-box",
-  // },
   "&& .picker-popup": {
     position: "absolute",
     top: "auto",
@@ -388,6 +397,9 @@ export const DatePickerArea = styled.div({
     backgroundColor: "#FFFEFB",
     boxShadow: "0 -8px 28px rgb(13 62 65 / 18%)",
     boxSizing: "border-box",
+    maxHeight: "none",
+    overflowY: "auto",
+    overscrollBehaviorY: "contain",
   },
 
   "@media (min-width: 768px) and (hover: hover) and (pointer: fine)": {
@@ -400,6 +412,23 @@ export const DatePickerArea = styled.div({
   "@media (prefers-reduced-motion: reduce)": {
     "& .picker-trigger": {
       transition: "none",
+    },
+  },
+
+  "@media (max-width: 1023px)": {
+    position: "relative",
+
+    "&& .picker-popup": {
+      position: "absolute",
+      top: "auto",
+      right: "auto",
+      bottom: "calc(46px + 8px)",
+      left: 0,
+      zIndex: 100,
+      width: "100%",
+      minWidth: 0,
+      maxWidth: "100%",
+      margin: 0,
     },
   },
 });

@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 
-import { createSupabaseServer } from "../../server/supabase.js";
+import { createSupabaseServer } from "../../supabase.js";
 
 if (process.env.NODE_ENV !== "production") {
   config({ path: ".env.local" });

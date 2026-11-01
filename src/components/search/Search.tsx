@@ -4,7 +4,7 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
-  type FormEvent,
+  type SubmitEvent,
 } from "react";
 import { Link, useNavigate } from "react-router";
 import {
@@ -372,7 +372,7 @@ export default function Search() {
     navigate(detailUrl(place), { state: { place } });
   };
 
-  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+  const handleSearch = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextKeyword = keyword.trim();
     setSubmittedKeyword(nextKeyword);

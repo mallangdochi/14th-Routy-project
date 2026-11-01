@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { config } from "dotenv";
-import { createSupabaseServer } from "../../server/supabase.js";
+import { createSupabaseServer } from "../../supabase.js";
 
 if (process.env.NODE_ENV !== "production") {
   config({ path: ".env.local" });
@@ -72,7 +72,6 @@ export default async function handler(
 
   const input = body as Record<string, unknown>;
   const tripId = input.tripId;
-  const name = typeof input.name === "string" ? input.name.trim() : "";
 
   if (
     typeof tripId !== "string" ||
@@ -85,12 +84,48 @@ export default async function handler(
     });
   }
 
-  if (!name || name.length > 50) {
+  const fields = (["name", "region", "people"] as const).filter((field) =>
+    Object.prototype.hasOwnProperty.call(input, field),
+  );
+
+  if (fields.length !== 1) {
     return response.status(400).json({
-      message: "여행 이름은 1~50자로 입력해주세요.",
+      message: "수정할 여행 정보를 하나만 전달해주세요.",
     });
   }
 
+  const field = fields[0]!;
+  let updates: {
+    name?: string;
+    region?: string;
+    people?: number;
+  };
+
+  if (field === "people") {
+    if (
+      typeof input.people !== "number" ||
+      !Number.isSafeInteger(input.people) ||
+      input.people < 1
+    ) {
+      return response.status(400).json({
+        message: "여행 인원은 1명 이상의 정수로 입력해주세요.",
+      });
+    }
+
+    updates = { people: input.people };
+  } else {
+    const value = typeof input[field] === "string" ? input[field].trim() : "";
+    const maxLength = field === "name" ? 50 : 100;
+    const label = field === "name" ? "여행 이름" : "여행 지역";
+
+    if (!value || value.length > maxLength) {
+      return response.status(400).json({
+        message: `${label}은 1~${maxLength}자로 입력해주세요.`,
+      });
+    }
+
+    updates = field === "name" ? { name: value } : { region: value };
+  }
   try {
     const supabase = createSupabaseServer(request, response);
 
@@ -108,12 +143,12 @@ export default async function handler(
     const { data, error } = await supabase
       .from("trips")
       .update({
-        name,
+        ...updates,
         updated_at: new Date().toISOString(),
       })
       .eq("id", tripId)
       .eq("user_id", user.id)
-      .select("id, name, updated_at")
+      .select("id, name, region, people, updated_at")
       .maybeSingle();
 
     if (error) {
@@ -135,7 +170,11 @@ export default async function handler(
 
     return response.status(200).json({
       tripId: data.id,
-      name: data.name,
+      ...(field === "name"
+        ? { name: data.name }
+        : field === "region"
+          ? { region: data.region }
+          : { people: data.people }),
       updatedAt: data.updated_at,
     });
   } catch (error) {

@@ -1,6 +1,21 @@
+import {
+  loadTripParticipants,
+  getSharedTripDetail,
+  getTripMembers,
+  saveTripMembers,
+  leaveTrip,
+  type TripMembersResult,
+} from "../../api/tripSharing";
+import TripParticipants, {
+  type TripParticipantsSource,
+} from "../../components/modal/trip-participants/TripParticipants";
+import { createPortal } from "react-dom";
+import RegionSelectModal from "../../components/modal/travel-region-selector/RegionSelectModal";
 import React, { useEffect, useRef, useState } from "react";
 import {
   House,
+  TriangleAlert,
+  CircleX,
   ChevronRight,
   Check,
   Pencil,
@@ -26,6 +41,7 @@ import {
   GripVertical,
   ChevronDown,
   LayoutGrid,
+  Users,
 } from "lucide-react";
 import avatarP1 from "../../assets/profileAvatars/P1.webp";
 import avatarP2 from "../../assets/profileAvatars/P2.webp";
@@ -38,7 +54,7 @@ import avatarP11 from "../../assets/profileAvatars/P11.webp";
 import avatarP12 from "../../assets/profileAvatars/P12.webp";
 import avatarP13 from "../../assets/profileAvatars/P13.webp";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { getMyTrips, type SavedTrip } from "../../api/trips";
+import { type SavedTrip } from "../../api/trips";
 import { useAuth } from "../../contexts/AuthContext";
 import defaultTripImage from "../../assets/where.webp";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
@@ -70,6 +86,10 @@ import PlaceAddModal, {
 } from "../../components/modal/add-plan/PlaceAddModal";
 // 실제 빈 일정 이미지 파일명에 맞게 변경하세요.
 import emptyScheduleImage from "../../assets/where2.webp";
+import TripPeopleModal, {
+  type TripMemberChanges,
+} from "../../components/modal/select-trip-people/TripPeopleModal";
+import TripInviteGate from "../../components/modal/trip-invite-gate/TripInviteGate";
 
 export type PlaceModalSource = Pick<
   PlaceModalProps,
@@ -80,7 +100,10 @@ export type PlaceModalSource = Pick<
   | "defaultTransportLabel"
   | "transportOptions"
 >;
-type ScheduleProps = { placeModalSource?: PlaceModalSource };
+type ScheduleProps = {
+  placeModalSource?: PlaceModalSource;
+  loadParticipants?: TripParticipantsSource;
+};
 const missingPlacesSource: PlaceModalSource = {
   savedPlaces: [],
   defaultTransport: "",
@@ -98,6 +121,7 @@ const missingPlacesSource: PlaceModalSource = {
 
 type ScheduleTrip = SavedTrip & {
   dates: string[];
+  permission?: "owner" | "editor" | "viewer";
 };
 
 type Category = "맛집" | "카페" | "관광지" | "숙소" | "쇼핑" | "교통";
@@ -339,8 +363,19 @@ function ScheduleStopCard({
   );
 }
 
-export default function Schedule({
+export default function Schedule(props: ScheduleProps) {
+  const params = useParams();
+  const tripId = params.tripId ?? params.id;
+  return (
+    <TripInviteGate key={tripId} tripId={tripId}>
+      <SchedulePage {...props} />
+    </TripInviteGate>
+  );
+}
+
+function SchedulePage({
   placeModalSource = missingPlacesSource,
+  loadParticipants = loadTripParticipants,
 }: ScheduleProps) {
   const params = useParams();
   const tripId = params.tripId ?? params.id;
@@ -356,55 +391,24 @@ export default function Schedule({
     error: string;
   } | null>(null);
 
-  // useEffect(() => {
-  //   if (!userId || !tripId) return;
-  //   const controller = new AbortController();
-  //   void getMyTrips(controller.signal)
-  //     .then((savedTrips) => {
-  //       if (controller.signal.aborted) return;
-  //       const trip =
-  //         savedTrips.find((item) => String(item.id) === tripId) ?? null;
-  //       setResult({
-  //         userId,
-  //         tripId,
-  //         retry,
-  //         trip,
-  //         error: trip ? "" : "여행이 없거나 조회 권한이 없습니다.",
-  //       });
-  //     })
-  //     .catch((error: unknown) => {
-  //       if (controller.signal.aborted) return;
-  //       setResult({
-  //         userId,
-  //         tripId,
-  //         retry,
-  //         trip: null,
-  //         error:
-  //           error instanceof Error
-  //             ? error.message
-  //             : "여행 정보를 불러오지 못했습니다.",
-  //       });
-  //     });
-  //   return () => controller.abort();
-  // }, [userId, tripId, retry]);
-
   useEffect(() => {
     if (!userId || !tripId) return;
 
     const controller = new AbortController();
 
     void Promise.all([
-      getMyTrips(controller.signal),
+      getSharedTripDetail(tripId, controller.signal),
       getTripDays(tripId, controller.signal),
     ])
-      .then(([savedTrips, tripDays]) => {
+      .then(([detail, tripDays]) => {
         if (controller.signal.aborted) return;
 
-        const savedTrip = savedTrips.find((item) => String(item.id) === tripId);
+        const savedTrip = detail.trip;
 
         const trip: ScheduleTrip | null = savedTrip
           ? {
               ...savedTrip,
+              permission: detail.permission,
               dates: tripDays.dates,
               startDate: tripDays.startDate,
               endDate: tripDays.endDate,
@@ -451,6 +455,7 @@ export default function Schedule({
         key={`${userId}:${tripId}`}
         selectedTrip={current.trip}
         placeModalSource={placeModalSource}
+        loadParticipants={loadParticipants}
       />
     );
   }
@@ -506,19 +511,19 @@ export default function Schedule({
 function ScheduleContent({
   selectedTrip,
   placeModalSource,
+  loadParticipants,
 }: {
   selectedTrip: ScheduleTrip;
   placeModalSource: PlaceModalSource;
+  loadParticipants?: TripParticipantsSource;
 }) {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const canEditTrip =
+    selectedTrip.permission === "owner" || selectedTrip.permission === "editor";
   const handleTimetable = () => navigate(`/trips/${selectedTrip.id}`);
-  const [defaultProfileImage] = useState(() => {
-    const images = Object.values(DEFAULT_PROFILE_IMAGES);
 
-    return images[Math.floor(Math.random() * images.length)]!;
-  });
   const [tripName, setTripName] = useState(selectedTrip.name);
   const [draftTripName, setDraftTripName] = useState(selectedTrip.name);
   const [isEditingTripName, setIsEditingTripName] = useState(false);
@@ -528,7 +533,174 @@ function ScheduleContent({
   const tripNameSavingRef = useRef(false);
   const tripNameEditButtonRef = useRef<HTMLButtonElement>(null);
 
+  const [isTripNameMenuOpen, setIsTripNameMenuOpen] = useState(false);
+  const tripNameMenuRef = useRef<HTMLDivElement>(null);
+  const [isTripNameMenuMounted, setIsTripNameMenuMounted] = useState(false);
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteDialogMounted, setIsDeleteDialogMounted] = useState(false);
+  const [isDeletingTrip, setIsDeletingTrip] = useState(false);
+  const [deleteTripError, setDeleteTripError] = useState("");
+  const deletingTripRef = useRef(false);
+  const deleteAliveRef = useRef(false);
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const deleteCancelRef = useRef<HTMLButtonElement>(null);
+  const deleteTitleId = React.useId();
+  const deleteDescriptionId = React.useId();
+  const deleteErrorId = React.useId();
+
+  useEffect(() => {
+    deleteAliveRef.current = true;
+    return () => {
+      deleteAliveRef.current = false;
+    };
+  }, []);
+
+  // useEffect(() => {
+  //   if (!isDeleteDialogMounted) return;
+  //   const dialog = deleteDialogRef.current;
+  //   if (!dialog) return;
+  //   const previousFocus = document.activeElement;
+  //   const previousOverflow = document.body.style.overflow;
+  //   document.body.style.overflow = "hidden";
+  //   if (!dialog.open) dialog.showModal();
+  //   deleteCancelRef.current?.focus({ preventScroll: true });
+  //   return () => {
+  //     dialog.close();
+  //     document.body.style.overflow = previousOverflow;
+  //     if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+  //       previousFocus.focus({ preventScroll: true });
+  //     } else {
+  //       tripNameEditButtonRef.current?.focus({ preventScroll: true });
+  //     }
+  //   };
+  // }, [isDeleteDialogMounted]);
+
+  useEffect(() => {
+    if (!isDeleteDialogMounted) return;
+
+    const dialog = deleteDialogRef.current;
+    if (!dialog) return;
+
+    const tripNameEditButton = tripNameEditButtonRef.current;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    if (!dialog.open) dialog.showModal();
+
+    deleteCancelRef.current?.focus({ preventScroll: true });
+
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      } else if (tripNameEditButton?.isConnected) {
+        tripNameEditButton.focus({ preventScroll: true });
+      }
+    };
+  }, [isDeleteDialogMounted]);
+
+  useEffect(() => {
+    if (isDeleteDialogOpen || !isDeleteDialogMounted) return;
+    const timer = window.setTimeout(() => setIsDeleteDialogMounted(false), 320);
+    return () => window.clearTimeout(timer);
+  }, [isDeleteDialogOpen, isDeleteDialogMounted]);
+
+  const openTripDeleteDialog = () => {
+    if (selectedTrip.permission !== "owner" || deletingTripRef.current) return;
+    setIsTripNameMenuOpen(false);
+    setDeleteTripError("");
+    setIsDeleteDialogMounted(true);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const closeTripDeleteDialog = () => {
+    if (deletingTripRef.current) return;
+    setIsDeleteDialogOpen(false);
+  };
+
+  const handleConfirmTripDelete = async () => {
+    if (
+      !isDeleteDialogOpen ||
+      deletingTripRef.current ||
+      selectedTrip.permission !== "owner"
+    )
+      return;
+    deletingTripRef.current = true;
+    setIsDeletingTrip(true);
+    setDeleteTripError("");
+    try {
+      const tripId = String(selectedTrip.id);
+      const response = await fetch("/api/trips/delete", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId }),
+      });
+      const value: unknown = await response.json().catch(() => null);
+      const result =
+        value && typeof value === "object"
+          ? (value as Record<string, unknown>)
+          : null;
+      if (!response.ok) {
+        throw new Error(
+          typeof result?.message === "string"
+            ? result.message
+            : "여행을 삭제하지 못했습니다.",
+        );
+      }
+      if (result?.tripId !== tripId || result.deleted !== true) {
+        throw new Error(
+          "삭제 결과를 확인하지 못했습니다. 내 여행 목록에서 확인해주세요.",
+        );
+      }
+    } catch (reason: unknown) {
+      deletingTripRef.current = false;
+      if (deleteAliveRef.current) {
+        setIsDeletingTrip(false);
+        setDeleteTripError(
+          reason instanceof Error
+            ? reason.message
+            : "여행을 삭제하지 못했습니다.",
+        );
+      }
+      return;
+    }
+    if (deleteAliveRef.current) navigate("/", { replace: true });
+  };
+
+  useEffect(() => {
+    if (!isTripNameMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !tripNameMenuRef.current?.contains(event.target)
+      ) {
+        setIsTripNameMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setIsTripNameMenuOpen(false);
+      tripNameEditButtonRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isTripNameMenuOpen]);
+
   const startEditingTripName = () => {
+    setIsTripNameMenuOpen(false);
     setDraftTripName(tripName);
     setTripNameError("");
     setIsEditingTripName(true);
@@ -597,7 +769,143 @@ function ScheduleContent({
 
   const [activeDayId, setActiveDayId] = useState(1);
   const [showDateModal, setShowDateModal] = useState(false);
+  const [showRegionModal, setShowRegionModal] = useState(false);
+  const [showPeopleModal, setShowPeopleModal] = useState(false);
+  const [tripPeople, setTripPeople] = useState(selectedTrip.people);
+  const [membersRevision, setMembersRevision] = useState(0);
+  const [memberData, setMemberData] = useState<TripMembersResult | null>(null);
+  const [memberLoadError, setMemberLoadError] = useState("");
+  const [memberSession, setMemberSession] = useState(0);
+  const [memberRetry, setMemberRetry] = useState(0);
+  const openMembersModal = () => {
+    setMemberData(null);
+    setMemberLoadError("");
+    setMemberSession((n) => n + 1);
+    setShowPeopleModal(true);
+  };
+  useEffect(() => {
+    if (!showPeopleModal) return;
+    const controller = new AbortController();
+    void getTripMembers(String(selectedTrip.id), controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) {
+          setMemberData(result);
+          setTripPeople(result.editorLimit);
+          setMemberLoadError("");
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted)
+          setMemberLoadError(
+            reason instanceof Error
+              ? reason.message
+              : "참여자를 불러오지 못했습니다.",
+          );
+      });
+    return () => controller.abort();
+  }, [showPeopleModal, selectedTrip.id, memberSession, memberRetry]);
+  const handleMembersSaved = (editorLimit: number) => {
+    setTripPeople(editorLimit);
+    setMembersRevision((n) => n + 1);
+  };
+  const handleSaveMembers = async (changes: TripMemberChanges) => {
+    const tripId = String(selectedTrip.id);
+    const result = await saveTripMembers(tripId, changes);
+    if (result.tripId !== tripId || result.editorLimit !== changes.editorLimit)
+      throw new Error("저장 결과를 확인해주세요.");
+    handleMembersSaved(result.editorLimit);
+    return true;
+  };
+  const handleLeaveTrip = async () => {
+    const tripId = String(selectedTrip.id);
+    const result = await leaveTrip(tripId);
+    if (result.tripId !== tripId || !result.left)
+      throw new Error("탈퇴 결과를 확인해주세요.");
+    setShowPeopleModal(false);
+    navigate("/", { replace: true });
+    return true;
+  };
+  const resolveMemberAvatar = (value: string | null | undefined) => {
+    if (value?.startsWith("default:"))
+      return DEFAULT_PROFILE_IMAGES[value.slice(8).toUpperCase()];
+    return value || undefined;
+  };
+  const [selectedRegion, setSelectedRegion] =
+    useState<React.ComponentProps<typeof RegionSelectModal>["value"]>(null);
+  const tripRegion = selectedRegion?.name ?? selectedTrip.region;
+  const tripRegionSavingRef = useRef(false);
 
+  const handleSaveTripRegion = async (
+    region: NonNullable<
+      React.ComponentProps<typeof RegionSelectModal>["value"]
+    >,
+  ): Promise<void> => {
+    if (tripRegionSavingRef.current) return;
+
+    const nextRegion = region.name.trim();
+
+    if (nextRegion === tripRegion) return;
+
+    tripRegionSavingRef.current = true;
+
+    try {
+      const tripId = String(selectedTrip.id);
+
+      const response = await fetch("/api/trips/share", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "update",
+          tripId,
+          region: nextRegion,
+        }),
+      });
+
+      const data: unknown = await response.json().catch(() => null);
+      const result =
+        data !== null && typeof data === "object"
+          ? (data as Record<string, unknown>)
+          : null;
+
+      if (!response.ok) {
+        throw new Error(
+          typeof result?.message === "string"
+            ? result.message
+            : "여행 지역을 저장하지 못했습니다.",
+        );
+      }
+
+      if (
+        result?.tripId !== tripId ||
+        result.region !== nextRegion ||
+        typeof result.updatedAt !== "string"
+      ) {
+        throw new Error(
+          "저장 결과를 확인하지 못했습니다. 새로고침 후 확인해주세요.",
+        );
+      }
+
+      // 서버 저장에 성공한 뒤 화면에 반영합니다.
+      setSelectedRegion({
+        ...region,
+        name: nextRegion,
+      });
+    } catch (error: unknown) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "여행 지역을 저장하지 못했습니다.",
+      );
+
+      setShowRegionModal(true);
+    } finally {
+      tripRegionSavingRef.current = false;
+    }
+  };
   const tripDateText = (() => {
     const first = days[0];
     const last = days[days.length - 1];
@@ -660,6 +968,7 @@ function ScheduleContent({
   const [isPlaceModalOpen, setIsPlaceModalOpen] = useState(false);
   const [placeModalDay, setPlaceModalDay] = useState<Day | null>(null);
   const openPlaceModal = () => {
+    if (!canEditTrip) return;
     setPlaceModalDay(activeDay);
     setIsPlaceModalOpen(true);
   };
@@ -697,6 +1006,7 @@ function ScheduleContent({
   );
 
   const updateStops = (updater: (previous: Stop[]) => Stop[]) => {
+    if (!canEditTrip) return;
     setStopsByDay((previous) => ({
       ...previous,
       [activeDayId]: updater(previous[activeDayId] ?? []),
@@ -712,6 +1022,7 @@ function ScheduleContent({
   };
 
   const toggleEditMode = () => {
+    if (!canEditTrip) return;
     if (!isEditMode) {
       editSnapshotRef.current = stops.map((stop) => ({
         ...stop,
@@ -1041,106 +1352,118 @@ function ScheduleContent({
                   </S.IconButton>
                 </S.TripTitleRow> */}
                 <S.TripTitleRow>
-                  {isEditingTripName ? (
-                    <S.TripNameEditor aria-busy={isSavingTripName}>
-                      <div className="trip-name-controls">
-                        <input
-                          autoFocus
-                          aria-label="여행 이름"
-                          aria-invalid={Boolean(tripNameError)}
-                          maxLength={50}
-                          value={draftTripName}
-                          disabled={isSavingTripName}
-                          onFocus={(event) => event.currentTarget.select()}
-                          onChange={(event) => {
-                            setDraftTripName(event.target.value);
-                            setTripNameError("");
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.nativeEvent.isComposing) return;
+                  <>
+                    <S.TripTitle>{tripName}</S.TripTitle>
 
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              void handleSaveTripName();
-                            }
-
-                            if (event.key === "Escape") {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              cancelEditingTripName();
-                            }
-                          }}
-                        />
-
-                        <S.IconButton
-                          className="trip-name-confirm"
-                          type="button"
-                          aria-label={
-                            isSavingTripName ? "저장 중" : "여행 이름 저장"
-                          }
-                          title={isSavingTripName ? "저장 중" : "저장"}
-                          disabled={isSavingTripName}
-                          onClick={() => void handleSaveTripName()}
-                        >
-                          <Check size={17} />
-                        </S.IconButton>
-
-                        <S.IconButton
-                          className="trip-name-cancel"
-                          type="button"
-                          aria-label="여행 이름 수정 취소"
-                          title="취소"
-                          disabled={isSavingTripName}
-                          onClick={cancelEditingTripName}
-                        >
-                          <X size={17} />
-                        </S.IconButton>
-                      </div>
-
-                      {tripNameError && (
-                        <p className="trip-name-error" role="alert">
-                          {tripNameError}
-                        </p>
-                      )}
-                    </S.TripNameEditor>
-                  ) : (
-                    <>
-                      <S.TripTitle>{tripName}</S.TripTitle>
-
-                      <S.IconButton
+                    <S.TripNameMenuAnchor ref={tripNameMenuRef}>
+                      <S.TripEditButton
                         ref={tripNameEditButtonRef}
                         type="button"
-                        aria-label="여행 이름 편집"
-                        title="여행 이름 편집"
-                        onClick={startEditingTripName}
+                        aria-label="여행 편집"
+                        title="여행 편집"
+                        aria-expanded={isTripNameMenuOpen}
+                        onClick={() => {
+                          setIsTripNameMenuMounted(true);
+                          setIsTripNameMenuOpen(
+                            (previous) => canEditTrip && !previous,
+                          );
+                        }}
                       >
-                        <Pencil size={17} />
-                      </S.IconButton>
-                    </>
-                  )}
+                        <Pencil size={20} />
+                      </S.TripEditButton>
+                      {isTripNameMenuMounted && (
+                        <S.TripNamePopoverPosition>
+                          <S.TripNamePopover
+                            aria-label="여행 관리"
+                            aria-hidden={!isTripNameMenuOpen}
+                            inert={!isTripNameMenuOpen}
+                            data-open={isTripNameMenuOpen}
+                            onAnimationEnd={(event) => {
+                              if (
+                                event.target === event.currentTarget &&
+                                !isTripNameMenuOpen
+                              ) {
+                                setIsTripNameMenuMounted(false);
+                              }
+                            }}
+                          >
+                            <S.TripNameMenuItem
+                              type="button"
+                              disabled={!canEditTrip}
+                              onClick={startEditingTripName}
+                            >
+                              <Pencil size={18} />
+                              <span>여행 제목 수정</span>
+                            </S.TripNameMenuItem>
+                            <S.TripNameMenuItem
+                              type="button"
+                              onClick={() => {
+                                setIsTripNameMenuOpen(false);
+                                setShowRegionModal(true);
+                              }}
+                            >
+                              <MapPin size={18} />
+                              <span>여행 지역 수정</span>
+                            </S.TripNameMenuItem>
+                            <S.TripNameMenuItem
+                              type="button"
+                              onClick={() => {
+                                setIsTripNameMenuOpen(false);
+                                setShowDateModal(true);
+                              }}
+                            >
+                              <CalendarDays size={18} />
+                              <span>여행 날짜 수정</span>
+                            </S.TripNameMenuItem>
+                            <S.TripNameMenuItem
+                              type="button"
+                              onClick={() => {
+                                setIsTripNameMenuOpen(false);
+                                openMembersModal();
+                              }}
+                            >
+                              <Users size={18} />
+                              <span>여행 멤버 수정</span>
+                            </S.TripNameMenuItem>
+                            <S.TripNameMenuItem
+                              className="trip-menu-delete"
+                              type="button"
+                              disabled={
+                                selectedTrip.permission !== "owner" ||
+                                isDeletingTrip
+                              }
+                              onClick={openTripDeleteDialog}
+                            >
+                              <Trash2 size={18} />
+                              <span>여행 삭제</span>
+                            </S.TripNameMenuItem>
+                          </S.TripNamePopover>
+                        </S.TripNamePopoverPosition>
+                      )}
+                    </S.TripNameMenuAnchor>
+                  </>
                 </S.TripTitleRow>
                 <S.TripDate>{tripDateText}</S.TripDate>
                 <S.MemberList>
-                  <S.MemberAvatar
-                    title={user?.username || "여행 소유자"}
-                    aria-label={user?.username || "여행 소유자"}
-                  >
-                    <img
-                      key={user?.avatarUrl || defaultProfileImage}
-                      src={user?.avatarUrl || defaultProfileImage}
-                      alt={user?.username || "여행 소유자"}
-                      onError={(event) => {
-                        const image = event.currentTarget;
-
-                        if (image.getAttribute("src") !== defaultProfileImage) {
-                          image.src = defaultProfileImage;
-                        }
-                      }}
-                    />
-                  </S.MemberAvatar>
+                  <TripParticipants
+                    key={`${selectedTrip.id}:${membersRevision}`}
+                    tripId={String(selectedTrip.id)}
+                    totalPeople={tripPeople}
+                    currentUserId={user?.id}
+                    loadParticipants={loadParticipants}
+                    resolveAvatar={(value) => {
+                      if (value?.startsWith("default:")) {
+                        return DEFAULT_PROFILE_IMAGES[
+                          value.slice(8).toUpperCase()
+                        ];
+                      }
+                      return value || undefined;
+                    }}
+                  />
 
                   <S.MemberAdd
                     type="button"
+                    disabled={selectedTrip.permission !== "owner"}
                     aria-label="여행 참여자 초대"
                     onClick={() => setShowShareModal(true)}
                   >
@@ -1210,14 +1533,6 @@ function ScheduleContent({
                   </S.DayButtonText>
                 </S.DayButton>
               ))}
-
-              <S.AddDayButton
-                type="button"
-                onClick={() => setShowDateModal(true)}
-              >
-                <Pencil size={18} />
-                여행 날짜 수정
-              </S.AddDayButton>
             </S.DayTabs>
           )}
 
@@ -1236,7 +1551,7 @@ function ScheduleContent({
 
                     <S.Weather>
                       <Cloud size={20} />
-                      <span>{selectedTrip.region} · 날씨 정보 없음</span>
+                      <span>{tripRegion} · 날씨 정보 없음</span>
                       <ChevronRight size={14} />
                     </S.Weather>
                   </S.ScheduleHeadingLeft>
@@ -1254,6 +1569,7 @@ function ScheduleContent({
                         <S.EditModeButton
                           type="button"
                           $active={false}
+                          disabled={!canEditTrip}
                           onClick={toggleEditMode}
                         >
                           <Pencil size={15} />
@@ -1283,6 +1599,7 @@ function ScheduleContent({
                         <S.EditModeButton
                           type="button"
                           $active={false}
+                          disabled={!canEditTrip}
                           onClick={toggleEditMode}
                         >
                           <Pencil size={15} />
@@ -1354,7 +1671,7 @@ function ScheduleContent({
                 <S.MapCanvas>
                   {activeTab === "map" ? (
                     <KakaoTravelMap
-                      region={selectedTrip.region}
+                      region={tripRegion}
                       stops={visibleMapStops}
                       routeStops={stops}
                       showRoute={showRoute}
@@ -1625,6 +1942,94 @@ function ScheduleContent({
         </S.EditOverlay>
       )}
 
+      {isDeleteDialogMounted &&
+        createPortal(
+          <S.TripDeleteDialog
+            ref={deleteDialogRef}
+            data-open={isDeleteDialogOpen}
+            inert={!isDeleteDialogOpen}
+            aria-labelledby={deleteTitleId}
+            aria-describedby={`${deleteDescriptionId}${deleteTripError ? ` ${deleteErrorId}` : ""}`}
+            aria-busy={isDeletingTrip}
+            onCancel={(event) => {
+              event.preventDefault();
+              closeTripDeleteDialog();
+            }}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) closeTripDeleteDialog();
+            }}
+            onAnimationEnd={(event) => {
+              if (event.target === event.currentTarget && !isDeleteDialogOpen) {
+                setIsDeleteDialogMounted(false);
+              }
+            }}
+          >
+            <div
+              className="trip-delete-content"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="trip-delete-handle" aria-hidden="true" />
+              <button
+                className="trip-delete-close"
+                type="button"
+                aria-label="여행 삭제 창 닫기"
+                disabled={isDeletingTrip}
+                onClick={closeTripDeleteDialog}
+              >
+                <X size={20} />
+              </button>
+              <div className="trip-delete-heading">
+                <TriangleAlert
+                  className="trip-delete-icon"
+                  size={28}
+                  aria-hidden="true"
+                />
+                <h2 id={deleteTitleId}>여행을 삭제할까요?</h2>
+              </div>
+              <p className="trip-delete-name">{tripName}</p>
+              <div id={deleteDescriptionId}>
+                <p className="trip-delete-description">
+                  여행과 연결된 일정이 함께 삭제됩니다.
+                </p>
+                <div className="trip-delete-warning">
+                  <p>삭제한 여행은 복구할 수 없어요.</p>
+                  <p>참여한 사용자도 이 여행에 접근할 수 없게 됩니다.</p>
+                </div>
+              </div>
+              {deleteTripError && (
+                <p
+                  className="trip-delete-error"
+                  id={deleteErrorId}
+                  role="alert"
+                >
+                  {deleteTripError}
+                </p>
+              )}
+              <div className="trip-delete-actions">
+                <button
+                  ref={deleteCancelRef}
+                  className="trip-delete-cancel"
+                  type="button"
+                  disabled={isDeletingTrip}
+                  onClick={closeTripDeleteDialog}
+                >
+                  취소
+                </button>
+                <button
+                  className="trip-delete-confirm"
+                  type="button"
+                  disabled={isDeletingTrip}
+                  onClick={() => void handleConfirmTripDelete()}
+                >
+                  <Trash2 size={17} aria-hidden="true" />
+                  {isDeletingTrip ? "삭제 중…" : "여행 삭제"}
+                </button>
+              </div>
+            </div>
+          </S.TripDeleteDialog>,
+          document.body,
+        )}
+
       <ShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
@@ -1632,6 +2037,53 @@ function ScheduleContent({
         tripName={selectedTrip.name}
       />
 
+      <TripPeopleModal
+        key={`members:${memberSession}:${memberData ? "ready" : "loading"}`}
+        open={showPeopleModal}
+        value={memberData?.editorLimit ?? tripPeople}
+        max={2147483647}
+        tripName={tripName}
+        members={memberData?.participants.map((member) => ({
+          id: member.userId,
+          name: member.nickname || "참여자",
+          permission: member.permission,
+          avatarUrl: resolveMemberAvatar(member.avatarUrl),
+        }))}
+        currentUserId={user?.id ?? ""}
+        currentPermission={memberData?.permission ?? selectedTrip.permission}
+        loading={!memberData && !memberLoadError}
+        loadError={memberLoadError}
+        onRetry={() => {
+          setMemberLoadError("");
+          setMemberRetry((n) => n + 1);
+        }}
+        onClose={() => setShowPeopleModal(false)}
+        onConfirm={(limit) =>
+          handleSaveMembers({ editorLimit: limit, permissions: [] })
+        }
+        onSaveMembers={handleSaveMembers}
+        onLeave={handleLeaveTrip}
+      />
+      <RegionSelectModal
+        isOpen={showRegionModal}
+        value={selectedRegion}
+        onClose={() => setShowRegionModal(false)}
+        onConfirm={(region) => {
+          void handleSaveTripRegion(region);
+        }}
+      />
+      <MobileTripNameSheet
+        open={isEditingTripName}
+        value={draftTripName}
+        busy={isSavingTripName}
+        error={tripNameError}
+        onChange={(value) => {
+          setDraftTripName(value);
+          setTripNameError("");
+        }}
+        onSave={() => void handleSaveTripName()}
+        onClose={cancelEditingTripName}
+      />
       <TripDateModal
         open={showDateModal}
         dates={days.map((day) => day.isoDate)}
@@ -1647,7 +2099,7 @@ function ScheduleContent({
         onClose={() => setIsPlaceModalOpen(false)}
         dayLabel={`Day ${placeModalDay?.id ?? activeDay.id}`}
         dateLabel={`${(placeModalDay ?? activeDay).date} (${(placeModalDay ?? activeDay).weekday})`}
-        region={selectedTrip.region}
+        region={tripRegion}
         existingPlaceIds={(
           stopsByDay[
             days.find((day) => day.isoDate === placeModalDay?.isoDate)?.id ??
@@ -1657,5 +2109,154 @@ function ScheduleContent({
         onConfirm={handleAddPlaces}
       />
     </S.Page>
+  );
+}
+
+function MobileTripNameSheet({
+  open,
+  value,
+  busy,
+  error,
+  onChange,
+  onSave,
+  onClose,
+}: {
+  open: boolean;
+  value: string;
+  busy: boolean;
+  error: string;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const [previousOpen, setPreviousOpen] = useState(open);
+  const [mounted, setMounted] = useState(open);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const titleId = React.useId();
+  const inputId = React.useId();
+  const errorId = React.useId();
+  if (open !== previousOpen) {
+    setPreviousOpen(open);
+    if (open) setMounted(true);
+  }
+  useEffect(() => {
+    if (!mounted) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    };
+  }, [mounted]);
+  useEffect(() => {
+    if (!open && mounted) {
+      const timer = window.setTimeout(() => setMounted(false), 300);
+      return () => window.clearTimeout(timer);
+    }
+    if (open && mounted) {
+      inputRef.current?.focus({ preventScroll: true });
+      inputRef.current?.select();
+    }
+  }, [open, mounted]);
+  if (!mounted || typeof document === "undefined") return null;
+  return createPortal(
+    <S.MobileNameDialog
+      ref={dialogRef}
+      data-open={open}
+      inert={!open}
+      aria-labelledby={titleId}
+      aria-busy={busy}
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!busy) onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !busy) onClose();
+      }}
+      onAnimationEnd={(event) => {
+        if (event.target === event.currentTarget && !open) setMounted(false);
+      }}
+    >
+      <form
+        onClick={(event) => event.stopPropagation()}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!busy) onSave();
+        }}
+      >
+        <div className="name-sheet-handle" aria-hidden="true" />
+        <header>
+          <h2 id={titleId}>여행 제목 수정</h2>
+          <button
+            className="name-sheet-close"
+            type="button"
+            aria-label="닫기"
+            disabled={busy}
+            onClick={onClose}
+          >
+            <X size={20} />
+          </button>
+        </header>
+        <p className="name-sheet-description">
+          이번 여행에 어울리는 이름을 지어주세요.
+        </p>
+        <label htmlFor={inputId}>여행 이름</label>
+        <div className="name-sheet-input-wrap">
+          <input
+            ref={inputRef}
+            id={inputId}
+            value={value}
+            maxLength={50}
+            disabled={busy}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? errorId : undefined}
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && event.nativeEvent.isComposing)
+                event.preventDefault();
+            }}
+          />
+          <button
+            className="name-sheet-clear"
+            type="button"
+            aria-label="입력 내용 지우기"
+            disabled={busy || !value}
+            onClick={() => {
+              onChange("");
+              inputRef.current?.focus({ preventScroll: true });
+            }}
+          >
+            <CircleX size={18} />
+          </button>
+        </div>
+        <div className="name-sheet-caption">
+          <span id={errorId} role={error ? "alert" : undefined}>
+            {error || "최대 50자까지 입력할 수 있어요."}
+          </span>
+          <span>{value.length}/50</span>
+        </div>
+        <footer>
+          <button type="button" disabled={busy} onClick={onClose}>
+            취소
+          </button>
+          <button
+            className="name-sheet-save"
+            type="submit"
+            disabled={busy || !value.trim()}
+          >
+            {busy ? "저장 중…" : "저장하기"}
+          </button>
+        </footer>
+      </form>
+    </S.MobileNameDialog>,
+    document.body,
   );
 }
