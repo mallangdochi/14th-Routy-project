@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import { modalAnimation } from "../../../styles/animation";
 
 const CENTERED_FLEX = {
   display: "flex",
@@ -11,6 +12,7 @@ export const ShareOverlay = styled.div({
   position: "fixed",
   inset: 0,
   zIndex: 2000,
+  '&[data-open="false"]': { pointerEvents: "none" },
   ...CENTERED_FLEX,
   padding: "20px",
   backgroundColor: "rgba(0,0,0,0.38)",
@@ -21,7 +23,7 @@ export const ShareOverlay = styled.div({
   },
 });
 
-export const ShareModal = styled.div({
+export const ShareModal = styled.div(modalAnimation, {
   display: "flex",
   flexDirection: "column",
   width: "100%",

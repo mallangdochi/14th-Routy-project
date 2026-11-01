@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import {
   UserRound,
@@ -38,7 +39,15 @@ import {
   Divider,
   FooterButton,
 } from "./mysidebarStyle";
-
+import {
+  LogoutBackdrop,
+  LogoutDialog,
+  LogoutDialogTitle,
+  LogoutDialogDescription,
+  LogoutDialogActions,
+  LogoutCancelButton,
+  LogoutConfirmButton,
+} from "../MainSidebar/MainSidebarStyle";
 import { useAuth } from "../../contexts/AuthContext";
 import { logout } from "../../api/auth";
 
@@ -130,9 +139,43 @@ export default function Sidebar({
 
   const avatarSrc = getProfileImage(user?.avatarUrl, profileImage);
 
+
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const [isLogoutClosing, setIsLogoutClosing] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+
   const logoutPendingRef = useRef(false);
+  const logoutButtonRef = useRef<HTMLButtonElement>(null);
+
+  const logoutTitleId = useId();
+  const logoutDescriptionId = useId();
+
+  useEffect(() => {
+    if (!isLogoutOpen || isLogoutClosing) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || logoutPendingRef.current) return;
+      event.preventDefault();
+      setIsLogoutClosing(true);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isLogoutOpen, isLogoutClosing]);
+
+  const handleOpenLogout = (): void => {
+    if (logoutPendingRef.current) return;
+
+    setLogoutError("");
+    setIsLogoutClosing(false);
+    setIsLogoutOpen(true);
+  };
+
+  const handleCloseLogout = (): void => {
+    if (logoutPendingRef.current || isLogoutClosing) return;
+    setIsLogoutClosing(true);
+  };
 
   const currentSection = pathname.split("/")[2];
 
@@ -162,6 +205,7 @@ export default function Sidebar({
     navigate("/");
   };
 
+
   const handleLogout = async (): Promise<void> => {
     if (logoutPendingRef.current) return;
 
@@ -172,6 +216,8 @@ export default function Sidebar({
     try {
       await logout();
       await refreshUser();
+
+      setIsLogoutOpen(false);
 
       const isMobile = window.matchMedia("(max-width: 767px)").matches;
 
@@ -251,10 +297,12 @@ export default function Sidebar({
 
         {isLoggedIn ? (
           <FooterButton
+            ref={logoutButtonRef}
             type="button"
             disabled={logoutLoading}
             aria-busy={logoutLoading}
-            onClick={() => void handleLogout()}
+            aria-haspopup="dialog"
+            onClick={handleOpenLogout}
           >
             <LogOut size={21} strokeWidth={1.8} aria-hidden="true" />
             <span>{logoutLoading ? "로그아웃 중..." : "로그아웃"}</span>
@@ -265,9 +313,61 @@ export default function Sidebar({
             <span>로그인</span>
           </FooterButton>
         )}
-
-        {logoutError && <p role="alert">{logoutError}</p>}
       </Footer>
+
+      {isLogoutOpen &&
+        createPortal(
+          <LogoutBackdrop>
+            <LogoutDialog
+              data-open={!isLogoutClosing}
+              onAnimationEnd={(event) => {
+                if (event.target !== event.currentTarget || !isLogoutClosing) return;
+
+                setIsLogoutOpen(false);
+                setIsLogoutClosing(false);
+                setLogoutError("");
+                logoutButtonRef.current?.focus();
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={logoutTitleId}
+              aria-describedby={logoutDescriptionId}
+            >
+              <LogoutDialogTitle id={logoutTitleId}>
+                로그아웃하시겠습니까?
+              </LogoutDialogTitle>
+
+              <LogoutDialogDescription id={logoutDescriptionId}>
+                {logoutError ? (
+                  <span role="alert">{logoutError}</span>
+                ) : (
+                  "현재 계정에서 로그아웃합니다."
+                )}
+              </LogoutDialogDescription>
+
+              <LogoutDialogActions>
+                <LogoutCancelButton
+                  type="button"
+                  autoFocus
+                  disabled={logoutLoading || isLogoutClosing}
+                  onClick={handleCloseLogout}
+                >
+                  취소
+                </LogoutCancelButton>
+
+                <LogoutConfirmButton
+                  type="button"
+                  disabled={logoutLoading || isLogoutClosing}
+                  aria-busy={logoutLoading}
+                  onClick={() => void handleLogout()}
+                >
+                  {logoutLoading ? "로그아웃 중..." : "로그아웃"}
+                </LogoutConfirmButton>
+              </LogoutDialogActions>
+            </LogoutDialog>
+          </LogoutBackdrop>,
+          document.body,
+        )}
     </SidebarContainer>
   );
 }

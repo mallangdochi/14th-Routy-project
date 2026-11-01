@@ -1,7 +1,7 @@
 // import type { VercelRequest, VercelResponse } from "@vercel/node";
 // import { serializeCookieHeader } from "@supabase/ssr";
 // import { createClient } from "@supabase/supabase-js";
-// import { createSupabaseServer } from "../../server/supabase.js";
+// import { createSupabaseServer } from "../../supabase.js";
 // import { config } from "dotenv";
 
 // if (process.env.NODE_ENV !== "production") {
@@ -209,9 +209,9 @@ import { createClient } from "@supabase/supabase-js";
 
 import { config } from "dotenv";
 
-import { createSupabaseServer } from "../../server/supabase.js";
+import { createSupabaseServer } from "../../supabase.js";
 
-import { writeAppSession } from "../../server/session.js";
+import { writeAppSession } from "../../session.js";
 
 if (process.env.NODE_ENV !== "production") {
   config({ path: ".env.local" });
