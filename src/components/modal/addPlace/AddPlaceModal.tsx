@@ -3,7 +3,11 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, MapPin, Plus, Search, X } from "lucide-react";
 
 import { trips, type Trip, type TripStatus } from "../../../data/trips";
-import { mockTripDays, type TripDay } from "../../../data/tripDays";
+import type { TripDay } from "../../../data/tripDays";
+import {
+  addPlaceToTrip,
+  getTripDaysWithSaved,
+} from "../../../data/tripScheduleStore";
 import { AddPlaceModalStyle } from "./AddPlaceModalStyle";
 
 export type AddPlaceTarget = {
@@ -12,6 +16,8 @@ export type AddPlaceTarget = {
   category: string;
   image: string;
   address?: string;
+  lat?: number;
+  lng?: number;
 };
 
 export type AddPlaceResult = {
@@ -38,14 +44,6 @@ function parseDate(value: string) {
   return new Date(year, month - 1, day);
 }
 
-function dateKey(date: Date) {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-}
-
 function formatDate(value: string, includeYear = false) {
   const date = parseDate(value);
   const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
@@ -55,35 +53,7 @@ function formatDate(value: string, includeYear = false) {
 }
 
 function getTripDays(trip: Trip): TripDay[] {
-  const tripDays = mockTripDays.filter((item) => item.tripId === trip.id);
-  const dates = (
-    tripDays.length
-      ? tripDays.map((item) => item.date)
-      : [trip.startDate, trip.endDate]
-  ).sort();
-  const current = parseDate(dates[0]);
-  const end = parseDate(dates[dates.length - 1]);
-  const savedDays = new Map(tripDays.map((item) => [item.date, item]));
-  const days: TripDay[] = [];
-
-  while (current <= end) {
-    const date = dateKey(current);
-    const day = days.length + 1;
-    const savedDay = savedDays.get(date);
-
-    days.push({
-      ...savedDay,
-      id: savedDay?.id ?? `trip-${trip.id}-date-${date}`,
-      tripId: trip.id,
-      day,
-      date,
-      places: savedDay?.places ?? [],
-    });
-
-    current.setDate(current.getDate() + 1);
-  }
-
-  return days;
+  return getTripDaysWithSaved(trip.id);
 }
 
 export default function AddPlaceModal(props: AddPlaceModalProps) {
@@ -108,6 +78,7 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
   const [query, setQuery] = useState("");
   const [selectedTripId, setSelectedTripId] = useState("");
   const [selectedDayId, setSelectedDayId] = useState("");
+  const [addError, setAddError] = useState("");
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -223,13 +194,19 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
   const handleAdd = () => {
     if (isClosing || !selectedTrip || !selectedDay) return;
 
-    onAdd({
-      place,
-      trip: selectedTrip,
-      day: selectedDay,
-    });
-
-    requestClose();
+    try {
+      // Persist before closing: Search, Saved, and Detail all use this same modal.
+      addPlaceToTrip(selectedTrip.id, selectedDay.date, place);
+      setAddError("");
+      onAdd({ place, trip: selectedTrip, day: selectedDay });
+      requestClose();
+    } catch (reason) {
+      setAddError(
+        reason instanceof Error
+          ? reason.message
+          : "일정을 저장하지 못했습니다.",
+      );
+    }
   };
 
   return createPortal(
@@ -440,6 +417,11 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
             </div>
 
             <footer className="modal-footer day-footer">
+              {addError && (
+                <p role="alert" style={{ color: "#D85A5A", fontSize: 15 }}>
+                  {addError}
+                </p>
+              )}
               <button
                 type="button"
                 className="primary-button"

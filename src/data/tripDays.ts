@@ -3,6 +3,13 @@ export type TripDayPlace = {
   name: string;
   startTime?: string;
   stayMinutes?: number;
+  sourcePlaceId?: string;
+  address?: string;
+  category?: string;
+  description?: string;
+  image?: string;
+  lat?: number;
+  lng?: number;
 };
 
 export type TripDay = {
