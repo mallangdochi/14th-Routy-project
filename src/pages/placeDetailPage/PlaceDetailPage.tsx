@@ -269,9 +269,11 @@ export default function PlaceDetailPage() {
     if (next === -1) return;
     event.preventDefault();
     setActiveTab(tabs[next].id);
-    event.currentTarget.parentElement
-      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
-      [next]?.focus();
+    const buttons =
+      event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+        '[role="tab"]',
+      );
+    buttons?.[next]?.focus();
   };
 
   const kakaoUrl = place ? safeKakaoUrl(place) : null;

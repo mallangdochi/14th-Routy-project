@@ -9,11 +9,8 @@ import {
 import { createPortal } from "react-dom";
 import { ChevronLeft, Circle, MapPin, Search, X } from "lucide-react";
 import { RegionSelectStyle } from "./regionSelectStyle";
-import {
-  filterRegions,
-  REGIONS,
-  type TravelRegion,
-} from "../../../data/regions";
+import type { TravelRegion } from "../../../data/regions";
+import TourRegionThumbnail from "../../tour/TourRegionThumbnail.tsx";
 function subscribeMobile(listener: () => void) {
   const media = window.matchMedia("(max-width: 767px)");
   media.addEventListener("change", listener);
@@ -27,7 +24,7 @@ interface Props {
   value: TravelRegion | null;
   onClose: () => void;
   onConfirm: (region: TravelRegion) => void;
-  searchRegions?: (
+  searchRegions: (
     query: string,
     signal: AbortSignal,
   ) => Promise<TravelRegion[]>;
@@ -59,11 +56,12 @@ function RegionSelectContent({
   onExited,
   onClose,
   onConfirm,
+  value,
   searchRegions,
   renderMap,
 }: Props & { onExited: () => void }) {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<TravelRegion | null>(null);
+  const [selected, setSelected] = useState<TravelRegion | null>(value);
   const [response, setResponse] = useState<{
     query: string;
     search: NonNullable<Props["searchRegions"]>;
@@ -88,20 +86,14 @@ function RegionSelectContent({
     response.query === query &&
     response.search === searchRegions;
   const hasQuery = query.trim().length > 0;
-  const loading = Boolean(hasQuery && searchRegions && !responseMatches);
+  const loading = hasQuery && !responseMatches;
   const error = hasQuery && responseMatches ? response.error : "";
-  const results = !hasQuery
-    ? []
-    : searchRegions
-      ? responseMatches
-        ? filterRegions(response.results, query)
-        : []
-      : filterRegions(REGIONS, query);
+  const results = hasQuery && responseMatches ? response.results : [];
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
   useEffect(() => {
-    if (!searchRegions || !query.trim()) return;
+    if (!query.trim()) return;
     const search = searchRegions;
     const controller = new AbortController();
     let active = true;
@@ -124,7 +116,7 @@ function RegionSelectContent({
           error: "지역을 불러오지 못했어요. 검색어를 다시 입력해주세요.",
         });
       }
-    }, 300);
+    }, 180);
     return () => {
       active = false;
       controller.abort();
@@ -284,6 +276,7 @@ function RegionSelectContent({
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value);
+                  setSelected(null);
                   if (listRef.current) listRef.current.scrollTop = 0;
                 }}
               />
@@ -386,6 +379,7 @@ function RegionSelectContent({
         <footer className="region-footer">
           <div className="selected-copy" aria-live="polite">
             <span>선택한 지역</span>
+            {selected && <TourRegionThumbnail region={selected} size={52} />}
             <strong title={selected?.name} data-empty={!selected}>
               {selected?.name ?? "아직 선택한 지역이 없어요"}
             </strong>

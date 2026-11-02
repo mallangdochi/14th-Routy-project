@@ -19,7 +19,8 @@ import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
-import { mockTripDays, getStayMinutes } from "../../data/tripDays";
+import { getStayMinutes } from "../../data/tripDays";
+import { getTripDaysWithSaved } from "../../data/tripScheduleStore";
 import { PlaceCardStyle, TripDaysPageStyle } from "./timetableStyle";
 
 function formatStayDuration(minutes: number) {
@@ -108,9 +109,9 @@ export default function TripDaysPage() {
     canNext: false,
   });
 
-  const days = mockTripDays
-    .filter((day) => day.tripId === (tripId ?? "1"))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.day - b.day);
+  const days = getTripDaysWithSaved(tripId ?? "1").sort(
+    (a, b) => a.date.localeCompare(b.date) || a.day - b.day,
+  );
 
   // 시간표는 최소 5일 칸 유지
   const timetableDays = Array.from(

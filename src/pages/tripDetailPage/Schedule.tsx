@@ -11,6 +11,7 @@ import TripParticipants, {
 } from "../../components/modal/trip-participants/TripParticipants";
 import { createPortal } from "react-dom";
 import RegionSelectModal from "../../components/modal/travel-region-selector/RegionSelectModal";
+import { searchTravelRegions } from "../../api/kakao/searchTravelRegions";
 import React, { useEffect, useRef, useState } from "react";
 import {
   House,
@@ -54,12 +55,15 @@ import avatarP11 from "../../assets/profileAvatars/P11.webp";
 import avatarP12 from "../../assets/profileAvatars/P12.webp";
 import avatarP13 from "../../assets/profileAvatars/P13.webp";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { type SavedTrip } from "../../api/trips";
+import type { SavedTrip } from "../../api/trips";
 import { useAuth } from "../../contexts/AuthContext";
 import defaultTripImage from "../../assets/where.webp";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import * as S from "./ScheduleStyle";
 import KakaoMap from "../../components/kakaoMap/KakaoMap";
+import TravelRouteSummary, {
+  type RouteLine,
+} from "../../components/Schedule/TravelRouteSummary";
 import KakaoTravelMap, { type KakaoPlace } from "../../map/KakaoTravelMap";
 import ShareModal from "../../components/modal/share/ShareModal";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
@@ -141,6 +145,8 @@ type Stop = {
   transport?: string;
   lat?: number;
   lng?: number;
+  externalId?: string;
+  sourcePlaceId?: string;
 };
 
 type Day = {
@@ -978,6 +984,7 @@ function ScheduleContent({
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const [showRoute, setShowRoute] = useState(true);
+  const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
   const [mapZoom, setMapZoom] = useState(1);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -1042,10 +1049,7 @@ function ScheduleContent({
     if (editSnapshotRef.current) {
       const snapshot = editSnapshotRef.current;
 
-      setStopsByDay((previous) => ({
-        ...previous,
-        [activeDayId]: snapshot,
-      }));
+      updateStops(() => snapshot);
     }
 
     editSnapshotRef.current = null;
@@ -1655,6 +1659,11 @@ function ScheduleContent({
                   ))}
                 </S.StopList>
 
+                <TravelRouteSummary
+                  stops={stops}
+                  onRoutesReady={setRoutePaths}
+                />
+
                 {isEditMode && stops.length > 0 && (
                   <S.AddPlaceButton type="button" onClick={openPlaceModal}>
                     <S.AddPlaceTitle>
@@ -1674,6 +1683,7 @@ function ScheduleContent({
                       region={tripRegion}
                       stops={visibleMapStops}
                       routeStops={stops}
+                      routePaths={routePaths}
                       showRoute={showRoute}
                       zoom={mapZoom}
                       onAddPlace={addPlaceFromKakao}
@@ -1682,6 +1692,7 @@ function ScheduleContent({
                     <KakaoMap
                       stops={kakaoMapStops}
                       category={activeFilter}
+                      routePaths={routePaths}
                       showRoute={showRoute}
                       zoom={mapZoom}
                     />
@@ -2067,6 +2078,7 @@ function ScheduleContent({
       <RegionSelectModal
         isOpen={showRegionModal}
         value={selectedRegion}
+        searchRegions={searchTravelRegions}
         onClose={() => setShowRegionModal(false)}
         onConfirm={(region) => {
           void handleSaveTripRegion(region);
