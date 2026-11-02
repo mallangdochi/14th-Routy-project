@@ -11,6 +11,14 @@ import {
 import { createPortal } from "react-dom";
 import {
   Car,
+  TrainFront,
+  TramFront,
+  BusFront,
+  CarTaxiFront,
+  Footprints,
+  Plane,
+  CircleHelp,
+  type LucideIcon,
   ChevronDown,
   Bookmark,
   Check,
@@ -69,14 +77,25 @@ const EMPTY_DRAFT: ScheduleDraft = {
   transport: "",
 };
 const DEFAULT_TRANSPORT_OPTIONS: TransportOption[] = [
-  { value: "car", label: "자동차" },
-  { value: "train", label: "기차" },
-  { value: "subway", label: "지하철" },
-  { value: "bus", label: "버스" },
-  { value: "taxi", label: "택시" },
-  { value: "walk", label: "도보" },
-  { value: "plane", label: "비행기" },
+  { value: "자동차", label: "자동차" },
+  { value: "기차", label: "기차" },
+  { value: "지하철", label: "지하철" },
+  { value: "버스", label: "버스" },
+  { value: "택시", label: "택시" },
+  { value: "도보", label: "도보" },
+  { value: "비행기", label: "비행기" },
 ];
+const TRANSPORT_ALIASES: Record<string, string> = {
+  car: "자동차", train: "기차", subway: "지하철", bus: "버스",
+  taxi: "택시", walk: "도보", plane: "비행기",
+};
+const TRANSPORT_ICONS: Record<string, LucideIcon> = {
+  자동차: Car, 기차: TrainFront, 지하철: TramFront, 버스: BusFront,
+  택시: CarTaxiFront, 도보: Footprints, 비행기: Plane,
+};
+function getTransportIcon(value: string) {
+  return TRANSPORT_ICONS[TRANSPORT_ALIASES[value] ?? value] ?? CircleHelp;
+}
 export type Props = {
   open: boolean;
   dayLabel: string;
@@ -85,7 +104,7 @@ export type Props = {
   /** 기존 호출 호환용. 실제 목록은 Context의 서버 저장 데이터를 사용 */
   savedPlaces?: Place[];
   /** 여행 만들기에 저장된 교통편의 실제 값 (필수) */
-  defaultTransport: string;
+  defaultTransport: string | null;
   defaultTransportLabel?: string;
   /** 프로젝트의 교통편 값 체계에 맞는 옵션을 전달 */
   transportOptions?: TransportOption[];
@@ -218,10 +237,10 @@ function PlaceAddModalContent({
   const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
   // 기본 교통편의 값은 부모가 조회한 여행 데이터에서 전달받습니다.
   // 값이 없으면 별도 라벨만으로 자동차 등 임의 기본값을 표시하지 않습니다.
-  const tripDefaultTransport = defaultTransport.trim();
+  const tripDefaultTransport = (defaultTransport ?? "").trim();
   const transportLabel = tripDefaultTransport
     ? transportOptions.find((option) => option.value === tripDefaultTransport)?.label ||
-      defaultTransportLabel?.trim() || tripDefaultTransport
+      defaultTransportLabel?.trim() || TRANSPORT_ALIASES[tripDefaultTransport] || tripDefaultTransport
     : "미설정";
   function updateDraft(id: string, patch: Partial<ScheduleDraft>) {
     setDrafts((current) => ({
@@ -441,10 +460,6 @@ function PlaceAddModalContent({
   async function confirm() {
     if (!addableSelected.length || submitLock.current) return;
 
-    if (!tripDefaultTransport) {
-      setError("여행의 기본 교통편을 불러온 뒤 다시 시도해 주세요.");
-      return;
-    }
     const payload: ScheduledPlace[] = [];
     for (const place of addableSelected) {
       const draft = drafts[place.id] ?? EMPTY_DRAFT;
@@ -933,6 +948,9 @@ function PlaceAddModalContent({
                   )?.label ||
                   draft.transport ||
                   transportLabel;
+                const EffectiveTransportIcon = getTransportIcon(
+                  draft.transport || tripDefaultTransport,
+                );
                 return (
                   <section
                     className="schedule-card"
@@ -1103,9 +1121,11 @@ function PlaceAddModalContent({
                             <strong>여행 만들기에서 설정한 교통편</strong>이
                             적용돼요.
                           </p>
-                          <div className="default-transport">
-                            <Car size={18} aria-hidden="true" />
-                            여행 기본 교통 · {transportLabel}
+                          <div className="default-transport" role="status" aria-live="polite">
+                            <EffectiveTransportIcon size={18} aria-hidden="true" />
+                            {draft.transport
+                              ? `개별 교통 설정 · ${selectedTransportLabel}`
+                              : `여행 기본 교통 · ${transportLabel}`}
                           </div>
                         </div>
                       </div>

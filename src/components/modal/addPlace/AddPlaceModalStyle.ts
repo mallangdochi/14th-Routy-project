@@ -177,19 +177,19 @@ export const AddPlaceModalStyle = styled("div")({
     lineHeight: 1.5,
   },
 
-  "& .place-address": {
-    display: "inline-flex",
+  "& .place-heading": {
+    display: "flex",
+    flexWrap: "wrap",
     alignItems: "center",
-    gap: 4,
+    gap: 8,
     minWidth: 0,
-    color: "#6B7B85",
-    fontSize: "var(--modal-body-size)",
-    lineHeight: 1.5,
-    overflowWrap: "anywhere",
+  },
 
-    "& svg": {
-      flexShrink: 0,
-    },
+  "& .place-category-path": {
+    margin: 0,
+    color: "#718596",
+    fontSize: "var(--modal-body-size)",
+    overflowWrap: "anywhere",
   },
 
   "& .trip-search": {
@@ -664,7 +664,7 @@ export const AddPlaceModalStyle = styled("div")({
 
     "& .trip-option": {
       display: "grid",
-      gridTemplateColumns: "20px 52px minmax(0, 1fr)",
+      gridTemplateColumns: "20px minmax(0, 1fr)",
       columnGap: 8,
       rowGap: 6,
       padding: 10,
@@ -685,7 +685,7 @@ export const AddPlaceModalStyle = styled("div")({
     },
 
     "& .trip-info": {
-      gridColumn: 3,
+      gridColumn: 2,
       gridRow: 1,
       gap: 4,
 
@@ -700,7 +700,7 @@ export const AddPlaceModalStyle = styled("div")({
     },
 
     "& .trip-status": {
-      gridColumn: 3,
+      gridColumn: 2,
       gridRow: 2,
       justifySelf: "start",
       padding: "2px 8px",

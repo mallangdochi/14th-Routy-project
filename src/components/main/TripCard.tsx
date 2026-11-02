@@ -1,7 +1,9 @@
-import { CalendarDays, MapPin, MoreVertical } from "lucide-react";
+import { CalendarDays, MapPin } from "lucide-react";
+
 import type { Trip, TripStatus } from "../../data/trips";
+
 import { TripCardStyle } from "./TripCardStyle";
-import Dropdown from "../dropdown/Dropdown";
+// import Dropdown from "../dropdown/Dropdown";
 
 interface TripCardProps {
   trip: Trip;
@@ -11,15 +13,15 @@ interface TripCardProps {
   onDelete?: (id: string) => void;
 }
 
-type TripMenuAction = "" | "edit" | "delete";
+// type TripMenuAction = "" | "edit" | "delete";
 
-const tripMenuOptions: {
-  value: TripMenuAction;
-  label: string;
-}[] = [
-  { value: "edit", label: "여행 수정" },
-  { value: "delete", label: "여행 삭제" },
-];
+// const tripMenuOptions: {
+//   value: TripMenuAction;
+//   label: string;
+// }[] = [
+//   { value: "edit", label: "여행 수정" },
+//   { value: "delete", label: "여행 삭제" },
+// ];
 
 const statusLabels: Record<TripStatus, string> = {
   PLANNING: "계획중",
@@ -46,9 +48,11 @@ export default function TripCard({
   trip,
   view,
   onOpen,
-  onEdit,
-  onDelete,
+  // onEdit,
+  // onDelete,
 }: TripCardProps) {
+  const imageSource = trip.image?.trim();
+
   return (
     <TripCardStyle
       className={`trip-card view-${view}`}
@@ -57,11 +61,14 @@ export default function TripCard({
       <button
         type="button"
         className="trip-image-button"
-        onClick={() => onOpen?.(trip.id)}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen?.(trip.id);
+        }}
         aria-label={`${trip.title} 여행 일정 보기`}
       >
         <div className="trip-image-wrapper">
-          <img src={trip.image} alt="" loading="lazy" />
+          <img key={imageSource} src={imageSource} alt="" loading="lazy" />
 
           <span className={`trip-badge ${trip.status.toLowerCase()}`}>
             {statusLabels[trip.status]}
@@ -74,49 +81,57 @@ export default function TripCard({
           <button
             type="button"
             className="trip-title-button"
-            onClick={() => onOpen?.(trip.id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen?.(trip.id);
+            }}
           >
             {view === "list" && (
               <span className={`trip-badge ${trip.status.toLowerCase()}`}>
                 {statusLabels[trip.status]}
               </span>
             )}
+
             <h2>{trip.title}</h2>
           </button>
 
-          <Dropdown<TripMenuAction>
-            className="trip-menu"
-            label={`${trip.title} 관리 메뉴`}
-            value=""
-            showLabel={false}
-            trigger={<MoreVertical aria-hidden="true" />}
-            options={tripMenuOptions}
-            onChange={(action) => {
-              if (action === "edit") {
-                onEdit?.(trip.id);
-              } else if (action === "delete") {
-                onDelete?.(trip.id);
-              }
-            }}
-          />
+          {/* <div onClick={(event) => event.stopPropagation()}>
+            <Dropdown<TripMenuAction>
+              className="trip-menu"
+              label={`${trip.title} 관리 메뉴`}
+              value=""
+              showLabel={false}
+              trigger={<MoreVertical aria-hidden="true" />}
+              options={tripMenuOptions}
+              onChange={(action) => {
+                if (action === "edit") {
+                  onEdit?.(trip.id);
+                } else if (action === "delete") {
+                  onDelete?.(trip.id);
+                }
+              }}
+            />
+          </div> */}
         </div>
 
-        <p className="trip-date">
-          {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
-          {" · "}
-          {getTripDuration(trip.startDate, trip.endDate)}
-        </p>
+        <div className="trip-card-desc">
+          <p className="trip-date">
+            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+            {" · "}
+            {getTripDuration(trip.startDate, trip.endDate)}
+          </p>
 
-        <div className="trip-stats">
-          <span>
-            <MapPin aria-hidden="true" />
-            추천 장소 <strong>{trip.places}</strong>
-          </span>
+          <div className="trip-stats">
+            <span>
+              <MapPin aria-hidden="true" />
+              추천 장소 <strong>{trip.places}</strong>
+            </span>
 
-          <span>
-            <CalendarDays aria-hidden="true" />
-            일정 <strong>{trip.schedules}</strong>
-          </span>
+            <span>
+              <CalendarDays aria-hidden="true" />
+              일정 <strong>{trip.schedules}</strong>
+            </span>
+          </div>
         </div>
       </div>
     </TripCardStyle>

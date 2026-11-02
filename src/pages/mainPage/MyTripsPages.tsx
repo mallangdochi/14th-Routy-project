@@ -1,274 +1,3 @@
-// import { MyTripsPageStyle } from "./MyTripsPageStyle";
-// import MobileHeader from "../../components/mobileBanner/MobileHeader";
-
-// import { useLayoutEffect, useRef, useState } from "react";
-// import { Grid2X2, List, Plus, House, CalendarDays } from "lucide-react";
-
-// import { trips, type TripStatus } from "../../data/trips";
-// import TripCard from "../../components/main/TripCard";
-// import MainSidebar from "../../components/MainSidebar/MainSidebar";
-// import EmptyTravel from "../../components/emptyUI/travel/EmptyTravel";
-// import MobileNav from "../../components/mobileBanner/MobileFooter";
-// import { useNavigate } from "react-router";
-// import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
-// import Dropdown from "../../components/dropdown/Dropdown";
-// import { useAuth } from "../../contexts/AuthContext";
-// import Logout from "../../components/emptyUI/logout/Logout";
-
-// type FilterType = "ALL" | TripStatus;
-// type ViewType = "grid" | "list";
-// type SortType = "recent" | "oldest" | "startDate";
-
-// const filters: { label: string; value: FilterType }[] = [
-//   { label: "전체", value: "ALL" },
-//   { label: "예정", value: "PLANNING" },
-//   { label: "진행", value: "IN_PROGRESS" },
-//   { label: "완료", value: "COMPLETED" },
-// ];
-
-// const sortOptions: { value: SortType; label: string }[] = [
-//   { value: "recent", label: "최근 수정순" },
-//   { value: "oldest", label: "오래된 수정순" },
-//   { value: "startDate", label: "여행 시작일순" },
-// ];
-
-// export default function MyTripsPage() {
-//   const { user } = useAuth();
-//   const [filter, setFilter] = useState<FilterType>("ALL");
-//   const [sort, setSort] = useState<SortType>("recent");
-//   const [view, setView] = useState<ViewType>("grid");
-//   const navigate = useNavigate();
-
-//   const tabsRef = useRef<HTMLDivElement>(null);
-
-//   useLayoutEffect(() => {
-//     const container = tabsRef.current;
-//     if (!container) return;
-
-//     const updateIndicator = () => {
-//       const selectedButton = container.querySelector<HTMLButtonElement>(
-//         'button[aria-pressed="true"]',
-//       );
-
-//       if (!selectedButton) return;
-
-//       container.style.setProperty(
-//         "--indicator-left",
-//         `${selectedButton.offsetLeft}px`,
-//       );
-//       container.style.setProperty(
-//         "--indicator-top",
-//         `${selectedButton.offsetTop}px`,
-//       );
-//       container.style.setProperty(
-//         "--indicator-width",
-//         `${selectedButton.offsetWidth}px`,
-//       );
-//       container.style.setProperty(
-//         "--indicator-height",
-//         `${selectedButton.offsetHeight}px`,
-//       );
-//     };
-
-//     updateIndicator();
-
-//     const observer = new ResizeObserver(updateIndicator);
-//     observer.observe(container);
-
-//     container.querySelectorAll("button").forEach((button) => {
-//       observer.observe(button);
-//     });
-
-//     return () => observer.disconnect();
-//   }, [filter, user]);
-
-//   const previewEmpty = false;
-
-//   const tripData: typeof trips = previewEmpty ? [] : trips;
-
-//   const filteredTrips = tripData
-//     .filter((trip) => filter === "ALL" || trip.status === filter)
-//     .sort((a, b) => {
-//       if (sort === "oldest") {
-//         return a.updatedAt.localeCompare(b.updatedAt);
-//       }
-
-//       if (sort === "startDate") {
-//         return a.startDate.localeCompare(b.startDate);
-//       }
-
-//       return b.updatedAt.localeCompare(a.updatedAt);
-//     });
-
-//   const getCount = (value: FilterType) => {
-//     if (value === "ALL") return tripData.length;
-
-//     return tripData.filter((trip) => trip.status === value).length;
-//   };
-
-//   const handleCreateTrip = () => {
-//     navigate("/trips/new");
-//   };
-
-//   const handleOpenTrip = (id: string) => {
-//     console.log("여행 선택:", id);
-//     navigate(`/trip-schedule/${id}`);
-//   };
-
-//   const handleEditTrip = (id: string) => {
-//     console.log("여행 수정:", id);
-//   };
-
-//   const handleDeleteTrip = (id: string) => {
-//     console.log("여행 삭제:", id);
-//   };
-
-//   return (
-//     <MyTripsPageStyle>
-//       <aside className="page-sidebar">
-//         <MainSidebar />
-//       </aside>
-//       <div className="page-mobile-header">
-//         <MobileHeader />
-//       </div>
-//       <main className="page-content">
-//         {!user ? (
-//           <Logout />
-//         ) : (
-//           <div className="trips-page-inner">
-//             <div className="trips-breadcrumb" aria-label="현재 위치">
-//               <Breadcrumb
-//                 items={[{ label: "내 여행", to: "/", Icon: House }]}
-//               />
-//             </div>
-
-//             <header className="trips-header">
-//               <div className="trips-header-top">
-//                 <h1>내 여행 일정</h1>
-
-//                 <button
-//                   type="button"
-//                   className="schedule-button"
-//                   aria-label="나의 일정표"
-//                   onClick={() => navigate("/schedule")}
-//                 >
-//                   <span className="schedule-button-label">나의 일정표</span>
-//                   <CalendarDays
-//                     className="schedule-button-icon"
-//                     aria-hidden="true"
-//                     size={21}
-//                   />
-//                 </button>
-//               </div>
-
-//               <p>설레는 여행을 계획하고, 특별한 추억을 만들어보세요.</p>
-//             </header>
-//             <div className="trips-toolbar">
-//               <div
-//                 ref={tabsRef}
-//                 className="trips-tabs"
-//                 role="group"
-//                 aria-label="여행 상태 필터"
-//               >
-//                 <span className="trips-tab-indicator" aria-hidden="true" />
-
-//                 {filters.map((item) => (
-//                   <button
-//                     key={item.value}
-//                     type="button"
-//                     className={filter === item.value ? "active" : ""}
-//                     aria-pressed={filter === item.value}
-//                     onClick={() => setFilter(item.value)}
-//                   >
-//                     {item.label}
-//                     <span className="tab-count">{getCount(item.value)}</span>
-//                   </button>
-//                 ))}
-//               </div>
-//               <div className="trips-controls">
-//                 <Dropdown
-//                   label="여행 정렬"
-//                   value={sort}
-//                   options={sortOptions}
-//                   onChange={setSort}
-//                 />
-//                 <div
-//                   className="view-switch"
-//                   role="group"
-//                   aria-label="보기 방식"
-//                 >
-//                   <button
-//                     type="button"
-//                     className={view === "grid" ? "active" : ""}
-//                     aria-label="그리드 보기"
-//                     aria-pressed={view === "grid"}
-//                     onClick={() => setView("grid")}
-//                   >
-//                     <Grid2X2 aria-hidden="true" />
-//                   </button>
-
-//                   <button
-//                     type="button"
-//                     className={view === "list" ? "active" : ""}
-//                     aria-label="리스트 보기"
-//                     aria-pressed={view === "list"}
-//                     onClick={() => setView("list")}
-//                   >
-//                     <List aria-hidden="true" />
-//                   </button>
-//                 </div>
-//               </div>
-//             </div>
-
-//             <section
-//               className={`trips-content-region ${filter === "ALL" ? "is-all" : ""}`}
-//               aria-label="여행 목록"
-//             >
-//               {filteredTrips.length === 0 ? (
-//                 <EmptyTravel />
-//               ) : (
-//                 <div className={`trips-grid view-${view}`}>
-//                   {filteredTrips.map((trip) => (
-//                     <TripCard
-//                       key={trip.id}
-//                       trip={trip}
-//                       view={view}
-//                       onOpen={handleOpenTrip}
-//                       onEdit={handleEditTrip}
-//                       onDelete={handleDeleteTrip}
-//                     />
-//                   ))}
-
-//                   {filter === "ALL" && (
-//                     <button
-//                       type="button"
-//                       className="create-trip-card"
-//                       onClick={handleCreateTrip}
-//                     >
-//                       <span className="create-icon">
-//                         <Plus aria-hidden="true" />
-//                       </span>
-
-//                       <strong>새 여행 만들기</strong>
-//                       <span className="create-description">
-//                         새로운 여행을 계획해 보세요.
-//                       </span>
-//                     </button>
-//                   )}
-//                 </div>
-//               )}
-//             </section>
-//           </div>
-//         )}
-//       </main>
-
-//       <div className="page-mobile-footer">
-//         <MobileNav />
-//       </div>
-//     </MyTripsPageStyle>
-//   );
-// }
-
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Grid2X2, List, Plus, House, CalendarDays } from "lucide-react";
 import { useNavigate } from "react-router";
@@ -292,7 +21,7 @@ type TripCardData = (typeof trips)[number];
 
 type FilterType = "ALL" | TripStatus;
 type ViewType = "grid" | "list";
-type SortType = "recent" | "oldest" | "startDate";
+type SortType = "recent" | "oldest" | "startDate" | "planOrder";
 
 type TripQueryResult = {
   userId: string;
@@ -308,7 +37,14 @@ const filters: { label: string; value: FilterType }[] = [
   { label: "완료", value: "COMPLETED" },
 ];
 
+const tripStatusOrder: Record<TripStatus, number> = {
+  IN_PROGRESS: 0,
+  PLANNING: 1,
+  COMPLETED: 2,
+};
+
 const sortOptions: { value: SortType; label: string }[] = [
+  { value: "planOrder", label: "일정 계획순" },
   { value: "recent", label: "최근 수정순" },
   { value: "oldest", label: "오래된 수정순" },
   { value: "startDate", label: "여행 시작일순" },
@@ -364,7 +100,7 @@ export default function MyTripsPage() {
   const navigate = useNavigate();
 
   const [filter, setFilter] = useState<FilterType>("ALL");
-  const [sort, setSort] = useState<SortType>("recent");
+  const [sort, setSort] = useState<SortType>("planOrder");
   const [view, setView] = useState<ViewType>("grid");
 
   const [attempt, setAttempt] = useState(0);
@@ -455,7 +191,7 @@ export default function MyTripsPage() {
     });
 
     return () => observer.disconnect();
-  }, [filter, userId]);
+  }, [filter, userId, isLoading]);
 
   const today = getTodayDate();
 
@@ -466,6 +202,13 @@ export default function MyTripsPage() {
   const filteredTrips = tripData
     .filter((trip) => filter === "ALL" || trip.status === filter)
     .sort((a, b) => {
+      if (sort === "planOrder") {
+        const statusDifference =
+          tripStatusOrder[a.status] - tripStatusOrder[b.status];
+        if (statusDifference !== 0) return statusDifference;
+        return b.updatedAt.localeCompare(a.updatedAt);
+      }
+
       if (sort === "oldest") {
         return a.updatedAt.localeCompare(b.updatedAt);
       }
@@ -509,9 +252,24 @@ export default function MyTripsPage() {
         <MobileHeader />
       </div>
 
-      <main className="page-content">
+      <main
+        className="page-content"
+        style={
+          isLoading
+            ? {
+                display: "grid",
+                placeItems: "center",
+                minHeight: "100dvh",
+                boxSizing: "border-box",
+              }
+            : undefined
+        }
+        aria-busy={isLoading}
+      >
         {!user ? (
           <Logout />
+        ) : isLoading ? (
+          <Loader />
         ) : (
           <div className="trips-page-inner">
             <div className="trips-breadcrumb" aria-label="현재 위치">
@@ -610,9 +368,7 @@ export default function MyTripsPage() {
               aria-label="여행 목록"
               aria-busy={isLoading}
             >
-              {isLoading ? (
-                <Loader />
-              ) : loadError ? (
+              {loadError ? (
                 <div className="trips-load-error">
                   <p role="alert">{loadError}</p>
 

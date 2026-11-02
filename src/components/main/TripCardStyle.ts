@@ -222,14 +222,237 @@ export const TripCardStyle = styled.article({
     borderLeft: "1px solid #e5e9ec",
     paddingLeft: "16px",
   },
-
+  "& .trip-card-desc": {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
   "@media (hover: hover) and (pointer: fine)": {
     "&:hover": {
       boxShadow: "0 6px 18px rgba(20,45,55,0.1)",
     },
   },
+  "@media (max-width: 1440px)": {
+    "& .trip-image-button": {
+      display: "block",
+      width: "100%",
 
-  "@media (min-width: 768px) and (max-width: 1023px)": {
+      borderRadius: "12px 12px 0 0",
+
+      overflow: "hidden",
+    },
+
+    "& .trip-heading": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "8px",
+      width: "100%",
+      minWidth: 0,
+    },
+
+    "& .trip-title-button": {
+      flex: 1,
+      minWidth: 0,
+
+      textAlign: "left",
+    },
+
+    "& .trip-menu": {
+      "& .sort-trigger": {
+        justifyContent: "center",
+        height: "30px",
+        padding: 0,
+        borderRadius: "6px",
+        color: "#73859b",
+      },
+
+      "& .sort-trigger svg": {
+        width: "20px",
+        height: "20px",
+      },
+
+      "& .sort-dropdown": {
+        left: "auto",
+        right: 0,
+        minWidth: "140px",
+      },
+
+      "& .sort-dropdown button": {
+        fontSize: "var(--trip-font-size)",
+      },
+
+      "& .sort-dropdown button:last-child": {
+        color: "#bd453d",
+      },
+
+      "@media (hover: hover) and (pointer: fine)": {
+        "& .sort-trigger:hover": {
+          backgroundColor: "#edf3f4",
+        },
+      },
+    },
+
+    "& .trip-image-wrapper": {
+      position: "relative",
+      width: "100%",
+      aspectRatio: "2 / 1",
+      overflow: "hidden",
+      backgroundColor: "#edf4f5",
+    },
+
+    "& .trip-image-wrapper img": {
+      height: "100%",
+      objectFit: "cover",
+    },
+
+    "& .trip-badge": {
+      position: "absolute",
+      top: "10px",
+      left: "10px",
+      padding: "5px 12px",
+      borderRadius: "20px",
+      fontSize: "14px",
+      fontWeight: 600,
+      letterSpacing: "-0.01em",
+      whiteSpace: "nowrap",
+    },
+
+    "& .trip-badge.planning": {
+      backgroundColor: "#cdece3",
+      color: "#006052",
+    },
+
+    "& .trip-badge.in_progress": {
+      backgroundColor: "#ffe6c9",
+      color: "#b84a23",
+    },
+
+    "& .trip-badge.completed": {
+      backgroundColor: "#e2f0ff",
+      color: "#285e91",
+    },
+
+    "& .trip-content": {
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px",
+      minWidth: 0,
+      padding: "12px 16px",
+    },
+
+    "& .trip-content h2": {
+      overflow: "hidden",
+      paddingRight: "20px",
+      color: "#152c45",
+      fontSize: "18px",
+      fontWeight: 600,
+      letterSpacing: "-0.015em",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+
+    "& .trip-date": {
+      overflow: "hidden",
+      color: "#73869d",
+      fontSize: "16px",
+      fontWeight: 400,
+      letterSpacing: "-0.01em",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+
+    "& .trip-stats": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "8px",
+      marginTop: "4px",
+      color: "#687f97",
+      fontSize: "16px",
+      fontWeight: 400,
+      letterSpacing: "-0.01em",
+    },
+
+    "& .trip-stats span": {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
+      whiteSpace: "nowrap",
+    },
+
+    "& .trip-stats strong": {
+      color: "#1a3552",
+      fontWeight: 600,
+    },
+
+    "& .trip-stats svg": {
+      width: "17px",
+      height: "17px",
+      flexShrink: 0,
+      color: "#173e61",
+    },
+
+    "&.view-list": {
+      display: "flex",
+      alignItems: "stretch",
+      gap: "16px",
+      padding: "10px",
+    },
+    "&.view-list .trip-image-button": {
+      flex: "0 0 150px",
+      width: "auto",
+      borderRadius: "10px",
+    },
+    "&.view-list .trip-image-wrapper": {
+      height: "100%",
+      minHeight: "140px",
+      aspectRatio: "auto",
+    },
+    "&.view-list .trip-image-wrapper .trip-badge": {
+      display: "none",
+    },
+    "&.view-list .trip-content": {
+      flex: 1,
+      justifyContent: "center",
+      padding: "4px 0",
+      gap: "8px",
+    },
+    "&.view-list .trip-heading": {
+      alignItems: "flex-start",
+    },
+    "&.view-list .trip-title-button": {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      gap: "7px",
+    },
+    "&.view-list .trip-title-button .trip-badge": {
+      position: "static",
+      padding: "4px 12px",
+    },
+    "&.view-list .trip-content h2": {
+      paddingRight: 0,
+      maxWidth: "100%",
+    },
+    "&.view-list .trip-stats": {
+      justifyContent: "flex-start",
+      flexWrap: "wrap",
+      gap: "8px 16px",
+      marginTop: 0,
+    },
+    "&.view-list .trip-stats span + span": {
+      borderLeft: "1px solid #e5e9ec",
+      paddingLeft: "16px",
+    },
+    "& .trip-card-desc": {
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+    },
+  },
+
+  "@media (max-width: 1023px)": {
     "--trip-font-size": "15px",
     "& .trip-content": {
       padding: "10px",
