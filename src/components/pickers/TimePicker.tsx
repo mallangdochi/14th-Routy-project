@@ -71,6 +71,7 @@ export default function TimePicker({
     <PickerStyle
       ref={rootRef}
       className={className}
+      data-picker="time"
       data-open={open}
       data-present={mounted}
       data-placement={placement}
@@ -200,6 +201,7 @@ export default function TimePicker({
             }
           }}
         >
+          <div className="picker-time-title">시간 선택</div>
           <div className="picker-periods">
             {(["AM", "PM"] as const).map((p) => (
               <button

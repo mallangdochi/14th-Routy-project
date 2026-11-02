@@ -8,6 +8,8 @@ export const SavedPageStyle = styled.div({
   alignItems: "stretch",
   width: "100%",
   height: "100dvh",
+  minHeight: 0,
+  overflow: "hidden",
   backgroundColor: "#FEFBF5",
 
   "& .page-sidebar": {
@@ -23,8 +25,15 @@ export const SavedPageStyle = styled.div({
     margin: "0 auto",
     flex: "1 1 0",
     minWidth: 0,
-    minHeight: "100vh",
+    minHeight: 0,
+    height: "100%",
+    boxSizing: "border-box",
     overflowY: "auto",
+    scrollbarGutter: "stable",
+
+    "@supports not (scrollbar-gutter: stable)": {
+      overflowY: "scroll",
+    },
     backgroundColor: "#FEFBF5",
     padding: "24px 40px 0",
   },
@@ -59,6 +68,7 @@ export const PageInner = styled.div({
   margin: "0 auto",
   width: "100%",
   maxWidth: "1300px",
+  boxSizing: "border-box",
   minWidth: 0,
   fontSize: "var(--page-font-size)",
 
@@ -118,6 +128,20 @@ export const PageInner = styled.div({
 
     "& button": {
       ...menuAnimation.button,
+      display: "grid",
+      placeItems: "center",
+
+      "&::after": {
+        content: "attr(data-label)",
+        gridArea: "1 / 1",
+        fontWeight: 700,
+        visibility: "hidden",
+        pointerEvents: "none",
+      },
+
+      "& > span": {
+        gridArea: "1 / 1",
+      },
       flex: "0 0 auto",
       minWidth: 0,
       minHeight: 44,

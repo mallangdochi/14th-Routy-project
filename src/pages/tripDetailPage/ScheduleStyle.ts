@@ -339,16 +339,13 @@ export const MemberRemaining = styled.button({
   minHeight: "38px",
   marginLeft: "-4px",
   padding: "7px 17px",
-  border: 0,
   borderRadius: "999px",
   backgroundColor: "#E3F7E9",
   color: "#414B45",
-  fontFamily: "inherit",
   fontSize: "16px",
   fontWeight: 500,
   lineHeight: 1.4,
   whiteSpace: "nowrap",
-  cursor: "pointer",
   transition: "background-color 160ms ease",
   "&:focus-visible": { outline: "2px solid #527F79", outlineOffset: "3px" },
   "@media (hover: hover)": {
@@ -376,22 +373,20 @@ export const HeaderActions = styled.div({
   display: "flex",
   alignItems: "center",
   gap: "10px",
-  marginLeft: "auto",
 
   "@media (max-width: 1023px)": {
     display: "flex",
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: "6px",
+    gap: "15px",
     flexShrink: 0,
-    marginLeft: "auto",
 
     "& > button": {
-      minWidth: 0,
+      // minWidth: 0,
       minHeight: "32px",
-      padding: "0 9px",
-      fontSize: "11px",
+      // padding: "0 9px",
+      fontSize: "16px",
       whiteSpace: "nowrap",
     },
 
@@ -437,6 +432,7 @@ export const PrimaryButton = styled.button({
   alignItems: "center",
   justifyContent: "center",
   gap: "8px",
+  minWidth: 40,
   minHeight: "38px",
   padding: "0 16px",
   border: "none",
@@ -482,13 +478,15 @@ export const ScheduleButton = styled.button({
   justifyContent: "center",
   gap: "7px",
   minHeight: "38px",
-  padding: "0 13px",
-  border: "1px solid #E7EBED",
+  padding: "0 9px",
+  // border: "1px solid #E7EBED",
   borderRadius: "7px",
   backgroundColor: "#005259",
   color: "#ffffff",
   fontSize: "13px",
   fontWeight: 600,
+
+  order: -1,
 
   "&:hover": {
     backgroundColor: "#003E43",
@@ -717,13 +715,46 @@ export const ContentGrid = styled.div({
   display: "grid",
   gridTemplateColumns: "minmax(0, 1fr)",
   alignItems: "start",
-  gap: "16px",
+  gap: "20px",
   width: "100%",
   minWidth: 0,
-
-  "& > section": {
-    width: "100%",
-    minWidth: 0,
+  padding: "24px",
+  border: "1px solid #E2E6E9",
+  borderRadius: "20px",
+  backgroundColor: "#FFFFFF",
+  boxShadow: "0 3px 14px rgba(13,62,65,.025)",
+  "& > section": { width: "100%", minWidth: 0 },
+  "@media (min-width: 1100px)": {
+    '&[data-edit-mode="true"]': {
+      gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+      gridTemplateRows: "auto auto",
+      columnGap: "22px",
+      "& > section:first-of-type": { display: "contents" },
+      "& > section:first-of-type > div:first-of-type": {
+        gridColumn: "1 / -1",
+        marginBottom: 0,
+      },
+      "& > section:first-of-type > div:nth-of-type(2)": {
+        gridColumn: "1",
+        gridRow: "2",
+      },
+      "& > section:last-of-type": {
+        gridColumn: "2",
+        gridRow: "2",
+        display: "flex",
+        alignSelf: "stretch",
+        height: "auto",
+        minHeight: "650px",
+        maxHeight: "none",
+        borderRadius: "12px",
+      },
+    },
+  },
+  "@media (max-width: 1023px)": { padding: "18px", borderRadius: "16px" },
+  "@media (max-width: 767px)": {
+    padding: "12px",
+    gap: "14px",
+    borderRadius: "14px",
   },
 });
 // 일정 패널
@@ -731,26 +762,14 @@ export const SchedulePanel = styled.section({
   display: "flex",
   flexDirection: "column",
   minWidth: 0,
-  padding: "12px",
-  border: "1px solid #E8EEEE",
-  borderRadius: "11px",
-  backgroundColor: "#FFFFFF",
-
-  "@media (max-width: 1023px)": {
-    padding: "14px",
-  },
-
-  '&[data-tablet-hidden="true"]': {
-    display: "none",
-  },
-
-  "@media (max-width: 767px)": {
-    padding: "12px 10px",
-    borderRadius: "12px",
-  },
+  padding: 0,
+  border: "none",
+  backgroundColor: "transparent",
+  '&[data-tablet-hidden="true"]': { display: "none" },
 });
 
 export const ScheduleHeading = styled.div({
+  flexWrap: "wrap",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -759,7 +778,10 @@ export const ScheduleHeading = styled.div({
   marginBottom: "12px",
 
   "@media (max-width: 1023px)": {
-    gap: "6px",
+    gap: "13px",
+    "@media (min-width: 768px)": {
+      "&& button": { fontSize: "16px" },
+    },
   },
 
   "@media (max-width: 767px)": {
@@ -775,7 +797,12 @@ export const ScheduleHeadingLeft = styled.div({
   flexWrap: "wrap",
   gap: "9px",
   minWidth: 0,
-
+  "& .date-wrapper": {
+    display: "flex",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: 9,
+  },
   h2: {
     margin: 0,
     fontSize: "21px",
@@ -791,10 +818,19 @@ export const ScheduleHeadingLeft = styled.div({
 
   "@media (max-width: 1023px)": {
     gap: "7px",
-
+    flex: "1 1 200px",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "flex-start",
     h2: {
       fontSize: "20px",
     },
+  },
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    // Use the actual date/weather width when deciding whether to wrap.
+    flex: "0 1 auto",
+    minWidth: "min-content",
   },
 
   "@media (max-width: 767px)": {
@@ -824,7 +860,7 @@ export const Weather = styled.div({
   "@media (max-width: 1023px)": {
     marginLeft: "4px",
     gap: "3px",
-    fontSize: "10px",
+    fontSize: "15px",
 
     svg: {
       width: "17px",
@@ -866,7 +902,14 @@ export const EditModeButton = styled.button<{
     borderColor: "#006D70",
   },
 
-  "@media (max-width: 1023px)": {
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    height: "40px",
+    padding: "0 12px",
+    fontSize: "16px",
+    gap: "6px",
+    svg: { width: "16px", height: "16px" },
+  },
+  "@media (max-width: 767px)": {
     height: "29px",
     padding: "0 8px",
     fontSize: "11px",
@@ -900,23 +943,24 @@ export const EditHint = styled.div({
 });
 // 일정 카드 목록
 export const StopList = styled.div({
+  position: "relative",
   display: "flex",
   flexDirection: "column",
-  gap: "8px",
+  gap: "10px",
   width: "100%",
   minWidth: 0,
   isolation: "isolate",
 
   "@media (max-width: 1023px)": {
-    gap: "7px",
+    gap: "8px",
   },
 });
 // 일정 카드 행
 // 일정 카드 행 - 드래그 모션
 export const StopRow = styled.div<{
   $isDragging?: boolean;
-  $isDragOver?: boolean;
-}>(({ $isDragging, $isDragOver }) => ({
+  $dropEdge?: "before" | "after" | null;
+}>(({ $isDragging }) => ({
   position: "relative",
   display: "flex",
   alignItems: "stretch",
@@ -925,21 +969,18 @@ export const StopRow = styled.div<{
   minWidth: 0,
   minHeight: "90px",
 
-  // 드래그 중 원래 카드 위치 표시
-  opacity: $isDragging ? 0.35 : 1,
+  opacity: 1,
+  backgroundColor: "transparent",
+  borderRadius: "10px",
+  transition:
+    "transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease",
+  "@media (prefers-reduced-motion: reduce)": { transition: "none" },
 
-  transition: "opacity 0.2s ease, transform 0.2s ease",
-
-  // 다른 카드 위로 이동했을 때
-  "& > div:last-child": {
-    outline: $isDragOver ? "2px dashed #008A8A" : "2px solid transparent",
-
-    outlineOffset: "2px",
-
-    backgroundColor: $isDragOver ? "#F0FAF9" : "#FFFFFF",
-
-    transition: "outline 0.2s ease, background-color 0.2s ease",
+  "& > [data-stop-card]": {
+    visibility: $isDragging ? "hidden" : "visible",
   },
+
+  '&[data-editor-present="true"]': { zIndex: 20 },
 
   // 메뉴가 열린 카드
   "&:has([aria-expanded='true'])": {
@@ -956,9 +997,64 @@ export const StopRow = styled.div<{
     gap: "5px",
   },
 
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    '&[data-edit-mode="true"]': {
+      gap: "14px",
+    },
+  },
+
   "@media (max-width: 767px)": {
-    minHeight: "86px",
-    gap: "5px",
+    minHeight: "130px",
+    gap: "6px",
+    "& > div:first-of-type, & > div:nth-of-type(2)": {
+      alignSelf: "start",
+      height: "130px",
+    },
+    '&[data-edit-mode="true"]': {
+      display: "grid",
+      gridTemplateColumns: "max-content minmax(0, 1fr) max-content",
+      gap: "8px",
+      padding: 0,
+      border: 0,
+      backgroundColor: "transparent",
+      "& > div:first-of-type": {
+        order: 2,
+        width: "max-content",
+        minWidth: 0,
+        justifyContent: "flex-start",
+        overflow: "visible",
+      },
+      "& > div:nth-of-type(2)": {
+        order: 0,
+        width: "max-content",
+        minWidth: 0,
+        justifyContent: "flex-end",
+      },
+      "& > [data-stop-card]": { order: 1 },
+      "& > div:first-of-type > button, & > div:nth-of-type(2) > input": {
+        transform: "none",
+        margin: 0,
+        padding: 0,
+      },
+      "& > div:first-of-type > button": {
+        width: "auto",
+        minWidth: 0,
+        height: "auto",
+        minHeight: 0,
+        border: 0,
+        lineHeight: 0,
+        backgroundColor: "transparent",
+      },
+      "& > div:first-of-type > button > svg": {
+        width: "18px",
+      },
+      "& > div:nth-of-type(2) > input": {
+        width: "19.8px",
+        height: "19.8px",
+        minWidth: 0,
+        flexShrink: 0,
+      },
+    },
   },
 }));
 // 드래그 핸들 영역
@@ -969,11 +1065,11 @@ export const DragSlot = styled.div({
   minWidth: "18px",
   alignSelf: "stretch",
 
-  "@media (max-width: 1023px)": {
-    flex: "0 0 15px",
-    width: "15px",
-    minWidth: "15px",
-  },
+  // "@media (max-width: 1023px)": {
+  // flex: "0 0 15px",
+  // width: "15px",
+  // minWidth: "15px",
+  // },
 
   "@media (max-width: 767px)": {
     flex: "0 0 0px",
@@ -981,21 +1077,22 @@ export const DragSlot = styled.div({
     minWidth: 0,
     overflow: "hidden",
 
-    '&[data-edit-mode="true"]': {
-      flex: "0 0 12px",
-      width: "12px",
-      minWidth: "12px",
-      overflow: "visible",
-    },
+    // '&[data-edit-mode="true"]': {
+    //   flex: "0 0 12px",
+    //   width: "12px",
+    //   minWidth: "12px",
+    //   overflow: "visible",
+    // },
   },
 });
 // 점 6개 드래그 핸들
 export const DragHandle = styled.button({
+  touchAction: "none",
+  WebkitTouchCallout: "none",
   ...CENTERED_FLEX,
 
   width: "18px",
   height: "34px",
-  padding: 0,
 
   border: "none",
   borderRadius: "5px",
@@ -1025,15 +1122,10 @@ export const DragHandle = styled.button({
     outlineOffset: "2px",
   },
 
-  "@media (max-width: 1023px)": {
-    width: "15px",
-    height: "30px",
-
-    svg: {
-      width: "15px",
-      height: "15px",
-    },
-  },
+  // "@media (max-width: 1023px)": {
+  //   // width: "15px",
+  //   height: "30px",
+  // },
 });
 // 타임라인 숫자 및 점선
 export const Timeline = styled.div({
@@ -1044,6 +1136,7 @@ export const Timeline = styled.div({
   minWidth: "28px",
   alignSelf: "stretch",
 
+  '&[data-edit-mode="true"]::after': { display: "none" },
   "&::after": {
     content: '""',
     position: "absolute",
@@ -1097,43 +1190,118 @@ export const TimelineDot = styled.span({
 });
 // 일정 카드
 export const StopCard = styled.div({
+  '&[data-expanded="true"]': {
+    borderColor: "#00858A",
+    borderRadius: "10px 10px 0 0",
+    backgroundColor: "#F2FAF9",
+  },
   position: "relative",
   display: "flex",
   alignItems: "center",
   flex: 1,
-  gap: "8px",
+  gap: "10px",
   minWidth: 0,
-  minHeight: "90px",
-  padding: "8px",
-  border: "1px solid #E5EBEB",
+  minHeight: "104px",
+  padding: "10px",
+  border: "1px solid #E2E6E9",
   borderRadius: "10px",
   backgroundColor: "#FFFFFF",
-  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-
-  "&:hover": {
-    borderColor: "#B5D7D5",
-    boxShadow: "0 2px 8px rgba(0,80,80,0.05)",
-  },
-
-  "@media (min-width: 1024px) and (max-width: 1199px)": {
-    gap: "6px",
-    padding: "6px",
-  },
-
-  "@media (max-width: 1023px)": {
-    minHeight: "66px",
-    gap: "6px",
-    padding: "6px",
-  },
-
+  transition: "border-color 160ms ease, box-shadow 160ms ease",
+  "@media (hover: hover)": { "&:hover": { borderColor: "#B5D7D5" } },
+  "@media (max-width: 1023px)": { gap: "8px", padding: "10px" },
   "@media (max-width: 767px)": {
-    width: "100%",
-    minWidth: 0,
-    minHeight: "86px",
-    gap: "5px",
-    padding: "8px 6px",
-    alignItems: "center",
-    borderRadius: "10px",
+    display: "block",
+    gap: 0,
+    padding: "130px 0 0",
+    minHeight: "130px",
+    boxSizing: "border-box",
+    border: 0,
+    borderRadius: "16px",
+    backgroundColor: "#173D3F",
+    isolation: "isolate",
+    '&[data-expanded="true"]': {
+      borderRadius: "16px",
+      backgroundColor: "#F2FAF9",
+    },
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      inset: "0 0 auto",
+      height: "130px",
+      zIndex: 1,
+      borderRadius: "16px",
+      pointerEvents: "none",
+      background:
+        "linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.08) 35%, rgba(0,0,0,.82) 100%)",
+    },
+    "& > [data-stop-image]": {
+      display: "block",
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "130px",
+      borderRadius: "16px",
+      objectFit: "cover",
+      zIndex: 0,
+    },
+    "& > [data-stop-time]": {
+      position: "absolute",
+      top: "14px",
+      left: "14px",
+      zIndex: 2,
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      width: "auto",
+      height: "auto",
+      color: "#FFF",
+      fontSize: "14px",
+      lineHeight: 1.4,
+    },
+    "& > [data-stop-time] > span:first-of-type": {
+      padding: "5px 8px",
+      borderRadius: "7px",
+      backgroundColor: "rgba(0,0,0,.78)",
+      color: "#FFF",
+      fontWeight: 600,
+    },
+    "& > [data-stop-details]": {
+      position: "absolute",
+      bottom: "auto",
+      top: "42px",
+      left: "16px",
+      right: "16px",
+      zIndex: 2,
+      height: "72px",
+      padding: 0,
+      justifyContent: "flex-end",
+      gap: 0,
+      pointerEvents: "none",
+    },
+    "& > [data-stop-details] strong": {
+      color: "#FFF",
+      fontSize: "22px",
+      fontWeight: 700,
+      lineHeight: 1.35,
+      textShadow: "0 2px 6px rgba(0,0,0,.65)",
+      display: "-webkit-box",
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: "vertical",
+      overflow: "hidden",
+    },
+    "& > [data-stop-details] > div > span, & > [data-stop-details] > small": {
+      display: "none",
+    },
+    "& > button": {
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: "auto",
+      height: "130px",
+      zIndex: 3,
+      borderRadius: "16px",
+    },
   },
 });
 
@@ -1159,27 +1327,19 @@ export const StopTime = styled.span({
 });
 
 export const StopImage = styled.img({
-  width: "70px",
-  height: "55px",
+  width: "108px",
+  height: "82px",
   flexShrink: 0,
-  borderRadius: "7px",
+  borderRadius: "10px",
   objectFit: "cover",
-
-  "@media (min-width: 1024px) and (max-width: 1199px)": {
-    width: "52px",
-    height: "48px",
-  },
-
+  backgroundColor: "#F0F5F4",
   "@media (max-width: 1023px)": {
-    width: "58px",
-    height: "48px",
+    width: "96px",
+    height: "76px",
   },
-
   "@media (max-width: 767px)": {
-    width: "44px",
-    height: "52px",
-    flexShrink: 0,
-    objectFit: "cover",
+    width: "72px",
+    height: "64px",
   },
 });
 
@@ -1188,98 +1348,83 @@ export const StopDetails = styled.div({
   flexDirection: "column",
   flex: 1,
   minWidth: 0,
-  gap: "4px",
-
-  strong: {
-    fontSize: "16px",
+  gap: "14px",
+  padding: "14px 0",
+  "& strong": {
+    fontSize: "17px",
     fontWeight: 700,
-    lineHeight: 1.35,
+    lineHeight: 1.4,
     color: "#172324",
+    overflowWrap: "anywhere",
+  },
+  "& > small": {
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+    minWidth: 0,
+    fontSize: "16px",
+    lineHeight: 1.4,
+    color: "#596D75",
+    whiteSpace: "nowrap",
+  },
+  "& .stop-address-text": {
+    display: "block",
+    flex: 1,
+    minWidth: 0,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-
-  span: {
-    fontSize: "16px",
-    lineHeight: 1.35,
-    color: "#667174",
-    overflow: "hidden",
-    display: "-webkit-box",
-    WebkitBoxOrient: "vertical",
-    WebkitLineClamp: 2,
-    whiteSpace: "normal",
-    overflowWrap: "anywhere",
+  "& > small svg": {
+    width: "14px",
+    height: "14px",
+    flexShrink: 0,
+    marginTop: 0,
   },
-
-  small: {
-    display: "flex",
-    alignItems: "center",
-    gap: "3px",
-    fontSize: "16px",
-    lineHeight: 1.35,
-    color: "#505E60",
-    overflow: "hidden",
-    whiteSpace: "nowrap",
-  },
-
   "@media (max-width: 1023px)": {
-    gap: "3px",
-
-    strong: {
-      fontSize: "16px",
-    },
-
-    span: {
-      fontSize: "16px",
-    },
-
-    small: {
-      fontSize: "16px",
-    },
+    gap: "12px",
+    padding: "12px 0",
+    "& strong": { fontSize: "16px" },
+    "& > small": { fontSize: "15px" },
   },
-
   "@media (max-width: 767px)": {
-    flex: 1,
-    minWidth: 0,
-    gap: "3px",
-
-    strong: {
-      fontSize: "11px",
-      lineHeight: 1.35,
-      whiteSpace: "normal",
-      overflowWrap: "break-word",
-      display: "-webkit-box",
-      WebkitBoxOrient: "vertical",
-      WebkitLineClamp: 2,
-      overflow: "hidden",
-    },
-
-    span: {
-      fontSize: "10px",
-      lineHeight: 1.4,
-      display: "-webkit-box",
-      WebkitBoxOrient: "vertical",
-      WebkitLineClamp: 2,
-      overflow: "hidden",
-      overflowWrap: "anywhere",
-    },
-
-    small: {
-      fontSize: "10px",
-      lineHeight: 1.3,
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    },
-
-    "small svg": {
-      width: "10px",
-      height: "10px",
-      flexShrink: 0,
-    },
+    gap: "10px",
+    padding: "10px 0",
+    "& strong": { fontSize: "14px" },
+    "& > small": { fontSize: "14px" },
   },
 });
+export const StopTitleLine = styled.div({
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: "8px",
+  minWidth: 0,
+});
+export const StopCategoryBadge = styled.span<{ $category: string }>(
+  ({ $category }) => {
+    const tones: Record<string, { backgroundColor: string; color: string }> = {
+      관광지: { backgroundColor: "#DDF5F0", color: "#087C78" },
+      맛집: { backgroundColor: "#FFF0E6", color: "#9A5131" },
+      카페: { backgroundColor: "#F8EEDB", color: "#82602B" },
+      숙소: { backgroundColor: "#EEE4FA", color: "#73509D" },
+      쇼핑: { backgroundColor: "#FBE9EF", color: "#9B526E" },
+      교통: { backgroundColor: "#E7EFF8", color: "#476E96" },
+    };
+    return {
+      display: "inline-flex",
+      alignItems: "center",
+      flexShrink: 0,
+      padding: "3px 8px",
+      borderRadius: "5px",
+      fontSize: "13px",
+      fontWeight: 600,
+      lineHeight: "18px",
+      whiteSpace: "nowrap",
+      ...(tones[$category] ?? tones.관광지),
+    };
+  },
+);
 // 카드 오른쪽 액션
 export const StopActions = styled.div({
   position: "relative",
@@ -1301,7 +1446,6 @@ export const MoreButton = styled.button({
   ...CENTERED_FLEX,
   width: "30px",
   height: "22px",
-  padding: 0,
   border: "none",
   backgroundColor: "transparent",
   color: "#263536",
@@ -1762,7 +1906,6 @@ export const MobileFilterTrigger = styled.button({
   fontSize: "12px",
   fontWeight: 700,
   whiteSpace: "nowrap",
-  cursor: "pointer",
 
   "& span": {
     flex: 1,
@@ -2144,8 +2287,8 @@ export const EditActionGroup = styled.div({
 
 export const CancelEditButton = styled.button({
   ...CENTERED_FLEX,
-  height: "36px",
-  padding: "0 16px",
+  minHeight: "40px",
+  padding: "8px 16px",
   border: "1px solid #D6E2E4",
   borderRadius: "8px",
   backgroundColor: "#FFFFFF",
@@ -2153,7 +2296,6 @@ export const CancelEditButton = styled.button({
   fontSize: "15px",
   fontWeight: 600,
   whiteSpace: "nowrap",
-  cursor: "pointer",
 
   "&:hover": {
     backgroundColor: "#F3F8F8",
@@ -2182,6 +2324,17 @@ export const SaveEditButton = styled.button({
 });
 
 export const DesktopEditAction = styled.div({
+  "@media (max-width: 1023px)": {
+    display: "flex",
+    flex: "0 0 auto",
+    width: "auto",
+    minWidth: 0,
+    marginLeft: 0,
+    maxWidth: "100%",
+    justifyContent: "flex-start",
+    // justifyContent: "flex-end",
+  },
+
   "@media (max-width: 767px)": {
     display: "none",
   },
@@ -2193,9 +2346,13 @@ export const MobileEditAction = styled.div({
   "@media (max-width: 767px)": {
     display: "flex",
     alignItems: "center",
-    flexShrink: 0,
+    justifyContent: "flex-end",
+    flex: "0 0 100%",
+    width: "100%",
+    minWidth: 0,
   },
 });
+
 export const TripNameEditor = styled.div({
   flex: "1 1 auto",
   minWidth: 0,
@@ -2218,7 +2375,6 @@ export const TripNameEditor = styled.div({
     borderRadius: "8px",
     backgroundColor: "#fff",
     color: "#0D3E41",
-    fontFamily: "inherit",
     fontSize: "22px",
     fontWeight: 700,
     lineHeight: 1.4,
@@ -2421,11 +2577,9 @@ export const TripEditButton = styled.button({
   borderRadius: "999px",
   backgroundColor: "#FFFFFF",
   color: "#004F53",
-  fontFamily: "inherit",
   fontSize: "16px",
   fontWeight: 600,
   whiteSpace: "nowrap",
-  cursor: "pointer",
   transition: "background-color 160ms ease, border-color 160ms ease",
   "& svg": { flexShrink: 0 },
   "@media (min-width: 768px) and (hover: hover)": {
@@ -2462,7 +2616,6 @@ export const TripNamePopoverPosition = styled.div({
 export const TripNamePopover = styled.div({
   ...dropdownAnimation,
   width: "100%",
-  boxSizing: "border-box",
   padding: "8px",
   borderRadius: "16px",
   backgroundColor: "#FFFFFF",
@@ -2482,7 +2635,6 @@ export const TripNameMenuItem = styled.button({
   fontSize: "16px",
   fontWeight: 500,
   textAlign: "left",
-  cursor: "pointer",
   transition: "background-color 160ms ease",
   "& svg": { flexShrink: 0 },
   "&:disabled": { cursor: "not-allowed", opacity: 0.5 },
@@ -2501,7 +2653,6 @@ export const TripNameMenuItem = styled.button({
 
 export const MobileNameDialog = styled.dialog(
   {
-    boxSizing: "border-box",
     width: "100%",
     maxWidth: "100%",
     maxHeight: "calc(100dvh - 16px)",
@@ -2511,7 +2662,6 @@ export const MobileNameDialog = styled.dialog(
     borderRadius: "22px 22px 0 0",
     backgroundColor: "#FFFFFF",
     color: "#0D3E41",
-    fontFamily: "inherit",
     overflowY: "auto",
     "&::backdrop": { backgroundColor: "rgba(13, 35, 39, 0.38)" },
     "& form": { padding: "12px 20px max(24px, env(safe-area-inset-bottom))" },
@@ -2580,7 +2730,6 @@ export const MobileNameDialog = styled.dialog(
       color: "#718596",
     },
     "& input": {
-      boxSizing: "border-box",
       width: "100%",
       minWidth: 0,
       minHeight: "50px",
@@ -2648,11 +2797,14 @@ export const MobileNameDialog = styled.dialog(
       "& footer button": { minHeight: "56px", fontSize: "18px" },
       "& button": { transition: "background-color 160ms ease" },
       "@media (hover: hover)": {
-        "& .name-sheet-close:hover:not(:disabled), & .name-sheet-clear:hover:not(:disabled)": {
-          backgroundColor: "#EDF5F2",
-        },
+        "& .name-sheet-close:hover:not(:disabled), & .name-sheet-clear:hover:not(:disabled)":
+          {
+            backgroundColor: "#EDF5F2",
+          },
         "& footer button:hover:not(:disabled)": { backgroundColor: "#DFEDE7" },
-        "& footer .name-sheet-save:hover:not(:disabled)": { backgroundColor: "#004448" },
+        "& footer .name-sheet-save:hover:not(:disabled)": {
+          backgroundColor: "#004448",
+        },
       },
     },
   },
@@ -2668,19 +2820,16 @@ export const TripDeleteDialog = styled.dialog(modalAnimation, {
   maxHeight: "calc(100dvh - 40px)",
   margin: "auto",
   padding: 0,
-  boxSizing: "border-box",
   overflowY: "auto",
   overscrollBehavior: "contain",
   border: 0,
   borderRadius: 18,
   backgroundColor: "#FFFFFF",
   color: "#0D3E41",
-  fontFamily: "inherit",
   boxShadow: "0 18px 60px rgba(13, 62, 65, .18)",
   "&::backdrop": { backgroundColor: "rgba(13, 62, 65, .35)" },
   "& .trip-delete-content": { position: "relative", padding: "52px 26px 24px" },
   "& .trip-delete-handle": { display: "none" },
-  "& button": { fontFamily: "inherit", cursor: "pointer" },
   "& button:disabled": { opacity: 0.5, cursor: "not-allowed" },
   "& button:focus-visible": { outline: "2px solid #527F79", outlineOffset: 3 },
   "& .trip-delete-close": {
@@ -2802,5 +2951,573 @@ export const TripDeleteDialog = styled.dialog(modalAnimation, {
     "& .trip-delete-description": { fontSize: 14 },
     "& .trip-delete-warning": { fontSize: 14 },
     "& .trip-delete-actions button": { fontSize: 14 },
+  },
+});
+
+// 편집모드: 일정 목록과 경로 지도만 나란히 배치합니다.
+export const StopCheckbox = styled.input({
+  appearance: "none",
+  width: "22px",
+  height: "22px",
+  margin: 0,
+  border: "1.5px solid #718596",
+  borderRadius: "5px",
+  backgroundColor: "#FFF",
+  cursor: "pointer",
+  position: "relative",
+  zIndex: 1,
+  flexShrink: 0,
+  "&:checked": { backgroundColor: "#007C80", borderColor: "#007C80" },
+  "&:checked::after": {
+    content: '""',
+    position: "absolute",
+    left: "6px",
+    top: "2px",
+    width: "6px",
+    height: "11px",
+    border: "solid white",
+    borderWidth: "0 2px 2px 0",
+    transform: "rotate(45deg)",
+  },
+  "&:focus-visible": { outline: "3px solid #9ACAC5", outlineOffset: "3px" },
+});
+
+export const BatchActions = styled.div({
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  flexWrap: "wrap",
+  "& > .add-place-action": { order: -1 },
+
+  "@media (max-width: 1023px)": {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(64px, 1fr))",
+    width: "max-content",
+    maxWidth: "100%",
+    minWidth: 0,
+    alignItems: "stretch",
+    gap: "10px",
+
+    "& > .add-place-action": {
+      order: 0,
+      gridColumn: "1 / -1",
+      gridRow: "2",
+      width: "100%",
+      boxSizing: "border-box",
+    },
+    "& > :not(.add-place-action)": {
+      gridRow: "1",
+      minWidth: 0,
+    },
+    "& > div": { padding: 0 },
+    "&& .sort-trigger": {
+      width: "100%",
+      height: "100%",
+      boxSizing: "border-box",
+    },
+  },
+});
+
+export const BatchButton = styled.button<{ $danger?: boolean }>(
+  ({ $danger }) => ({
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    minHeight: "40px",
+    padding: "8px 14px",
+    borderRadius: "8px",
+    backgroundColor: "#FFF",
+    border: `1px solid ${$danger ? "#E78686" : "#00858A"}`,
+    color: $danger ? "#D94E4E" : "#007A80",
+    fontSize: "16px",
+    fontWeight: 600,
+    "&:disabled": { opacity: 0.4, cursor: "default" },
+    "&:focus-visible": { outline: "3px solid #9ACAC5", outlineOffset: "2px" },
+    "@media (hover: hover)": {
+      "&:hover:not(:disabled)": {
+        backgroundColor: $danger ? "#FFF5F5" : "#F2FAF8",
+      },
+    },
+    "@media (max-width: 767px)": {
+      minHeight: "38px",
+      fontSize: "14px",
+      padding: "7px 10px",
+    },
+  }),
+);
+export const BatchMoveDropdown = styled.div({
+  "&& .sort-trigger": {
+    padding: "8px 14px",
+    minHeight: "40px",
+    border: "1px solid #00858A",
+    borderRadius: "8px",
+    color: "#007A80",
+    fontSize: "16px",
+    fontWeight: 600,
+    gap: 0,
+  },
+  "& .sort-trigger:disabled": { opacity: 0.4 },
+  "& .sort-trigger:focus-visible": {
+    outline: "3px solid #9ACAC5",
+    outlineOffset: "2px",
+  },
+  "& .dropdown-trigger-icon": {
+    display: "none",
+  },
+  "@media (max-width: 767px)": {
+    minHeight: "38px",
+    fontSize: "14px",
+    padding: "7px 10px",
+  },
+});
+
+export const EditMapRoot = styled.div({
+  position: "relative",
+  width: "100%",
+  height: "100%",
+  ".route-map-marker": { position: "relative", width: "44px", height: "54px" },
+  ".route-map-pin-number": {
+    position: "absolute",
+    top: "7px",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    color: "#FFF",
+    fontSize: "20px",
+    fontWeight: 700,
+    lineHeight: "28px",
+    pointerEvents: "none",
+  },
+  ".route-map-pin:focus-visible": {
+    outline: "3px solid #00858A",
+    outlineOffset: "3px",
+    borderRadius: "22px",
+  },
+  '.route-map-marker[data-active="true"] .route-map-pin': {
+    filter: "drop-shadow(0 2px 4px rgba(13,62,65,.22))",
+  },
+  ".route-map-pin": {
+    position: "relative",
+    display: "block",
+    width: "44px",
+    height: "54px",
+    transformOrigin: "50% 100%",
+    // transition: "transform 160ms ease",
+    filter: "drop-shadow(0 2px 3px rgba(13,62,65,.18))",
+    transition: "transform 160ms ease, filter 160ms ease",
+  },
+  ".route-map-pin path": {
+    transition: "fill 160ms ease",
+  },
+  "@media (hover: hover) and (pointer: fine)": {
+    '.route-map-marker:not([data-selected="true"]) .route-map-pin:hover': {
+      filter: "drop-shadow(0 3px 5px rgba(0, 124, 128, 0.3))",
+    },
+
+    '.route-map-marker:not([data-selected="true"]) .route-map-pin:hover path': {
+      fill: "#399C9F",
+    },
+  },
+  '.route-map-marker[data-selected="true"] .route-map-pin': {
+    transform: "scale(1.2)",
+  },
+  '.route-map-marker[data-selected="true"] .route-map-pin path': {
+    fill: "#EB654B",
+  },
+  '.route-map-marker[data-selected="true"] .route-map-tooltip': {
+    bottom: "calc(120% + 8px)",
+  },
+  "@media (prefers-reduced-motion: reduce)": {
+    ".route-map-pin": { transition: "none" },
+  },
+  ".route-map-tooltip": {
+    position: "absolute",
+    left: "50%",
+    bottom: "calc(100% + 8px)",
+    transform: "translateX(-50%)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "5px",
+    width: "max-content",
+    maxWidth: "220px",
+    whiteSpace: "normal",
+    padding: "10px 14px",
+    border: "1px solid #DCEBE9",
+    borderRadius: "10px",
+    backgroundColor: "#FFF",
+    boxShadow: "0 3px 12px rgba(13,62,65,.16)",
+    color: "#0D3E41",
+    fontSize: "14px",
+    zIndex: 30,
+  },
+  ".route-map-tooltip[hidden]": { display: "none" },
+  ".route-map-tooltip strong": { fontSize: "15px", fontWeight: 700 },
+  ".route-map-tooltip > span": { color: "#596D75" },
+});
+export const EditMapMessage = styled.div({
+  position: "absolute",
+  inset: 0,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  backgroundColor: "#FFF",
+  padding: "20px",
+  zIndex: 5,
+});
+export const EditMapNote = styled.div({
+  position: "absolute",
+  bottom: "8px",
+  left: "8px",
+  right: "70px",
+  padding: "6px 8px",
+  backgroundColor: "rgba(255,255,255,.94)",
+  borderRadius: "6px",
+  color: "#596D75",
+  fontSize: "12px",
+  zIndex: 4,
+});
+
+export const EditRouteFitButton = styled.button({
+  position: "absolute",
+  top: "14px",
+  right: "14px",
+  zIndex: 5,
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  padding: "10px 14px",
+  backgroundColor: "#FFF",
+  border: "1px solid #E2E6E9",
+  borderRadius: "8px",
+  color: "#0D3E41",
+  fontSize: "16px",
+  fontWeight: 600,
+  boxShadow: "0 2px 8px rgba(13,62,65,.1)",
+});
+
+// 기본 상태에서는 방문 순서 핀만 표시하고 hover/focus/tap 시 상세를 엽니다.
+
+export const SelectedStopDeleteDialog = styled.dialog({
+  ...modalAnimation,
+  position: "fixed",
+  inset: 0,
+  margin: "auto",
+  width: "min(440px, calc(100vw - 32px))",
+  maxHeight: "calc(100dvh - 32px)",
+  overflowY: "auto",
+  padding: "28px",
+  border: "1px solid #E2E6E9",
+  borderRadius: "18px",
+  backgroundColor: "#FFF",
+  color: "#0D3E41",
+  boxShadow: "0 18px 60px rgba(13,62,65,.18)",
+  "&::backdrop": { backgroundColor: "rgba(13,35,39,.38)" },
+  "& .stop-delete-heading": {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+  "& .stop-delete-heading > svg": { color: "#D94E4E", flexShrink: 0 },
+  "& h2": { fontSize: "20px", fontWeight: 700, lineHeight: 1.4 },
+  "& p": { marginTop: "16px", fontSize: "16px", color: "#596D75" },
+  "& .stop-delete-actions": {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "10px",
+    marginTop: "26px",
+  },
+  "& button": {
+    minHeight: "42px",
+    padding: "9px 20px",
+    borderRadius: "8px",
+    backgroundColor: "#EDF5F2",
+    fontSize: "16px",
+    fontWeight: 600,
+  },
+  "& button.danger": { backgroundColor: "#D94E4E", color: "#FFF" },
+  "& button:focus-visible": {
+    outline: "3px solid #9ACAC5",
+    outlineOffset: "2px",
+  },
+  "@media (hover: hover)": {
+    "& button:hover": { backgroundColor: "#DCEDE7" },
+    "& button.danger:hover": { backgroundColor: "#BE3B3B" },
+  },
+  "@media (max-width: 767px)": {
+    top: "auto",
+    bottom: 0,
+    width: "100%",
+    maxHeight: "calc(100dvh - 24px)",
+    margin: 0,
+    borderRadius: "20px 20px 0 0",
+    padding: "24px 20px calc(24px + env(safe-area-inset-bottom))",
+    "& h2": { fontSize: "18px" },
+  },
+});
+
+// Keeps the list and selection control in the same desktop grid cell.
+export const ScheduleListArea = styled.div({
+  display: "flex",
+  flexDirection: "column",
+  width: "100%",
+  minWidth: 0,
+});
+
+export const SelectAllRow = styled.label({
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  width: "100%",
+  minHeight: "40px",
+  marginBottom: "10px",
+  padding: "0 24px",
+  boxSizing: "border-box",
+  color: "#0D3E41",
+  fontSize: "16px",
+  fontWeight: 600,
+  cursor: "pointer",
+  "& > small": { color: "#718596", fontSize: "14px", fontWeight: 500 },
+  "& > input:indeterminate": {
+    backgroundColor: "#007C80",
+    borderColor: "#007C80",
+  },
+  "& > input:indeterminate::after": {
+    content: '""',
+    position: "absolute",
+    left: "4px",
+    right: "4px",
+    top: "50%",
+    height: "2px",
+    backgroundColor: "#FFFFFF",
+    transform: "translateY(-50%)",
+  },
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    padding: "0 0 0 29px",
+    fontSize: "15px",
+  },
+  "@media (max-width: 767px)": {
+    padding: "0 0 0 17px",
+    fontSize: "14px",
+  },
+});
+
+export const AddPlaceButtonLabel = styled.span({
+  "& .compact-label": { display: "none" },
+  "@media (max-width: 767px)": {
+    "& .desktop-label": { display: "none" },
+    "& .compact-label": { display: "inline" },
+  },
+});
+
+// 편집 아코디언: 문서 흐름의 높이는 유지하고 아래 일정 위에 겹칩니다.
+export const StopExpandTrigger = styled.button({
+  position: "absolute",
+  inset: 0,
+  zIndex: 1,
+  width: "100%",
+  height: "100%",
+  padding: 0,
+  border: 0,
+  borderRadius: "inherit",
+  background: "transparent",
+  cursor: "pointer",
+  "&:focus-visible": { outline: "2px solid #527F79", outlineOffset: 3 },
+});
+export const StopEditor = styled.div({
+  ...dropdownAnimation,
+  position: "absolute",
+  top: "100%",
+  left: -1,
+  right: -1,
+  zIndex: 2,
+  padding: "18px",
+  border: "1px solid #00858A",
+  borderTop: "1px solid #DCEBE9",
+  borderRadius: "0 0 10px 10px",
+  backgroundColor: "#F2FAF9",
+  boxShadow: "0 10px 18px rgba(13,62,65,.12)",
+  display: "flex",
+  flexDirection: "column",
+  gap: "20px",
+  color: "#0D3E41",
+  fontSize: "16px",
+  "& small": {
+    display: "block",
+    marginTop: 8,
+    color: "#718596",
+    fontSize: "14px",
+    lineHeight: 1.5,
+  },
+  "@media (max-width: 1023px)": { fontSize: "15px" },
+  "@media (max-width: 767px)": {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    width: "100%",
+    margin: 0,
+    boxSizing: "border-box",
+    padding: "16px",
+    gap: "16px",
+    fontSize: "14px",
+    border: 0,
+    borderTop: "1px solid #DCEBE9",
+    borderRadius: "0 0 16px 16px",
+    boxShadow: "0 10px 18px rgba(13,62,65,.12)",
+  },
+});
+export const StopEditorRow = styled.div({
+  display: "grid",
+  gridTemplateColumns: "112px minmax(0, 1fr)",
+  alignItems: "center",
+  gap: "8px",
+  "& > span": { fontWeight: 600 },
+  "@media (max-width: 767px)": {
+    gridTemplateColumns: "minmax(0, 1fr)",
+    gap: "8px",
+  },
+});
+export const StopTimePickerField = styled.div({
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+  "& > div": { width: "100%", minWidth: 0 },
+  "&& .picker-trigger": {
+    width: "100%",
+    minWidth: 0,
+    minHeight: "50px",
+    padding: "12px 14px",
+    boxSizing: "border-box",
+    gap: "10px",
+  },
+  "&& .picker-time-value": { whiteSpace: "nowrap", flex: 1, minWidth: 0 },
+  "&& .picker-chevron": { display: "none" },
+  "& .picker-popup": { zIndex: 40 },
+});
+export const StopDurationFields = styled.div({
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr) auto",
+  alignItems: "center",
+  gap: "8px",
+  "& > span": { whiteSpace: "nowrap" },
+  "& input": {
+    width: "100%",
+    minWidth: 0,
+    minHeight: "50px",
+    boxSizing: "border-box",
+    padding: "12px",
+    border: "1px solid #D4DFE5",
+    borderRadius: "8px",
+    backgroundColor: "#FFF",
+    color: "#0D3E41",
+    font: "inherit",
+  },
+  "& input:focus-visible": { outline: "2px solid #527F79", outlineOffset: 2 },
+  "@media (max-width: 767px)": { gap: "8px" },
+});
+export const StopTransportField = styled.div({
+  minWidth: 0,
+});
+
+export const StopTransportNotice = styled.div({
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  marginTop: "8px",
+  minHeight: "42px",
+  boxSizing: "border-box",
+  padding: "10px 12px",
+  borderRadius: "8px",
+  backgroundColor: "#E0F2EF",
+  color: "#0D6566",
+  fontSize: "14px",
+  fontWeight: 600,
+  lineHeight: 1.5,
+  "& > svg": { flexShrink: 0 },
+  "& > span": { minWidth: 0, overflowWrap: "anywhere" },
+});
+
+export const StopTransportDropdownRoot = styled.div({
+  position: "relative",
+  width: "100%",
+  minWidth: 0,
+  "& .transport-trigger": {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    width: "100%",
+    minHeight: "50px",
+    padding: "12px 14px",
+    boxSizing: "border-box",
+    border: "1px solid #D4DFE5",
+    borderRadius: "8px",
+    backgroundColor: "#FFF",
+    color: "#0D3E41",
+    font: "inherit",
+    textAlign: "left",
+    cursor: "pointer",
+  },
+  "& .transport-trigger > span": { flex: 1, minWidth: 0 },
+  "& .transport-trigger > svg": { flexShrink: 0 },
+  "& .transport-chevron": { transition: "transform 240ms ease" },
+  '& .transport-trigger[aria-expanded="true"] .transport-chevron': {
+    transform: "rotate(180deg)",
+  },
+  "& button:focus-visible": { outline: "2px solid #527F79", outlineOffset: 2 },
+});
+export const StopTransportOptions = styled.div({
+  ...dropdownAnimation,
+  position: "absolute",
+  top: "calc(100% + 6px)",
+  left: 0,
+  right: 0,
+  zIndex: 45,
+  maxHeight: "280px",
+  overflowY: "auto",
+  overscrollBehavior: "contain",
+  padding: "6px",
+  border: "1px solid #D4DFE5",
+  borderRadius: "10px",
+  backgroundColor: "#FFF",
+  boxShadow: "0 8px 24px rgba(13,62,65,.14)",
+  "& > button": {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    width: "100%",
+    minHeight: "44px",
+    padding: "10px 12px",
+    border: 0,
+    borderRadius: "6px",
+    backgroundColor: "transparent",
+    color: "#0D3E41",
+    font: "inherit",
+    textAlign: "left",
+    cursor: "pointer",
+  },
+  "& > button > span": { flex: 1 },
+  "& > button > svg": { flexShrink: 0 },
+  '& > button[aria-pressed="true"]': {
+    backgroundColor: "#E0F2EF",
+    color: "#075653",
+  },
+  "@media (hover: hover)": {
+    "& > button:hover": { backgroundColor: "#EDF6F3" },
+  },
+});
+
+// 모바일 보기·편집 카드의 좌측 상단 카테고리
+export const MobileStopCategory = styled(StopCategoryBadge)({
+  display: "none",
+  "@media (max-width: 767px)": {
+    "[data-stop-card] > [data-stop-time] &": {
+      display: "inline-flex",
+      backgroundColor: "#DDF5F0",
+      color: "#075653",
+      textShadow: "none",
+    },
   },
 });

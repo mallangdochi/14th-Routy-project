@@ -321,11 +321,12 @@ export default function SavedPage() {
               {categories.map((category) => (
                 <button
                   key={category}
+                  data-label={category}
                   type="button"
                   aria-pressed={selectedCategory === category}
                   onClick={() => setSelectedCategory(category)}
                 >
-                  {category}
+                  <span>{category}</span>
                 </button>
               ))}
             </div>
