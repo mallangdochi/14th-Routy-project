@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import { menuAnimation } from "../../styles/animation";
 
 const colors = {
   primary: "#005358",
@@ -24,6 +25,13 @@ const center = {
 };
 
 export const PlaceDetailPageStyle = styled.div({
+  display: "flex",
+  width: "100%",
+  height: "100dvh",
+  overflow: "hidden",
+  backgroundColor: colors.soft,
+  color: colors.ink,
+
   "& .photo-placeholder": {
     display: "flex",
     flexDirection: "column",
@@ -59,7 +67,6 @@ export const PlaceDetailPageStyle = styled.div({
     color: "#0A414B",
     fontSize: 16,
     fontWeight: 600,
-    textDecoration: "none",
   },
   "& .missing-place": {
     display: "flex",
@@ -72,15 +79,12 @@ export const PlaceDetailPageStyle = styled.div({
   "& .missing-place h1": { fontSize: 24 },
   "& .missing-place p, & .missing-place a": { fontSize: 16 },
 
-  display: "flex",
-  minHeight: "100vh",
-  backgroundColor: colors.soft,
-  color: colors.ink,
-
   "& .page-sidebar": {
     display: "flex",
     flex: "0 0 auto",
     alignSelf: "stretch",
+    height: "100%",
+    overflow: "hidden",
     minWidth: 0,
   },
 
@@ -91,8 +95,12 @@ export const PlaceDetailPageStyle = styled.div({
   "& .page-content": {
     flex: "1 1 0",
     minWidth: 0,
-    minHeight: "100vh",
-    backgroundColor: colors.soft,
+    minHeight: 0,
+    height: "100%",
+    overflowY: "auto",
+    overflowX: "hidden",
+    scrollbarGutter: "stable",
+    overflowAnchor: "none",
   },
 
   "& .detail-inner": {
@@ -132,7 +140,6 @@ export const PlaceDetailPageStyle = styled.div({
   },
 
   "& .hero-image-card img": {
-    display: "block",
     width: "100%",
     height: "100%",
     minHeight: "558px",
@@ -303,6 +310,9 @@ export const PlaceDetailPageStyle = styled.div({
 
   "& .tab-card": {
     ...surface,
+    position: "relative",
+    "--tab-gap": "10px",
+    "--tab-inset": "14px",
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     gap: "10px",
@@ -319,19 +329,20 @@ export const PlaceDetailPageStyle = styled.div({
     color: "#202b32",
     fontSize: "17px",
     fontWeight: 700,
-    transition: "color 0.2s ease",
+    ...menuAnimation.button,
   },
 
   "& .tab-item.is-active": {
     color: colors.primary,
   },
 
-  "& .tab-item.is-active::after": {
+  "& .tab-indicator": {
+    ...menuAnimation.indicator,
     position: "absolute",
-    content: '""',
+    pointerEvents: "none",
     bottom: 0,
-    left: 0,
-    right: 0,
+    left: "var(--tab-inset)",
+    width: "calc((100% - var(--tab-inset) - var(--tab-inset) - var(--tab-gap) - var(--tab-gap)) / 3)",
     height: "3px",
     borderRadius: "999px",
     backgroundColor: colors.primary,
@@ -339,6 +350,8 @@ export const PlaceDetailPageStyle = styled.div({
 
   "& .tab-content": {
     minWidth: 0,
+    // 짧은 탭으로 전환해도 스크롤 위치가 강제로 올라가지 않도록 공간을 유지합니다.
+    minHeight: "100dvh",
   },
 
   "& .content-card": {
@@ -580,11 +593,8 @@ export const PlaceDetailPageStyle = styled.div({
 
   "& .review-sort select": {
     appearance: "none",
-    backgroundColor: "transparent",
     outlineOffset: "4px",
     paddingRight: "7px",
-    border: 0,
-    cursor: "pointer",
   },
 
   "& .review-sort svg": {
@@ -741,7 +751,7 @@ export const PlaceDetailPageStyle = styled.div({
     },
   },
 
-  "@media (min-width: 721px) and (max-width: 990px)": {
+  "@media (min-width: 768px) and (max-width: 990px)": {
     "& .detail-inner": {
       padding: "20px 14px 80px",
     },
@@ -820,7 +830,7 @@ export const PlaceDetailPageStyle = styled.div({
     },
   },
 
-  "@media (max-width: 720px)": {
+  "@media (max-width: 767px)": {
     display: "block",
     "& .page-sidebar": {
       display: "none",
@@ -945,6 +955,8 @@ export const PlaceDetailPageStyle = styled.div({
       fontSize: "12px",
     },
     "& .tab-card": {
+      "--tab-gap": "2px",
+      "--tab-inset": "6px",
       gap: "2px",
       marginTop: "9px",
       padding: "0 6px",

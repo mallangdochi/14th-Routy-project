@@ -31,6 +31,7 @@ import KakaoSavedPlaceModal from "../modal/saved-place/KakaoSavedPlaceModal";
 import { loadKakaoMaps } from "../../api/kakao/kakaoSdk";
 import { REGIONS } from "../../data/regions";
 import * as S from "./SearchStyle";
+import { useSavedPlaces } from "../../contexts/SavedPlacesContext";
 
 import { type SavedPlace, type PlaceCategory } from "../../data/saved";
 
@@ -234,6 +235,29 @@ function keywordSearch(
   });
 }
 
+// 화면의 한글 카테고리를 저장 API의 값으로 변환합니다.
+const BOOKMARK_CATEGORIES = {
+  관광: "attraction",
+  음식점: "restaurant",
+  카페: "cafe",
+  숙소: "accommodation",
+} as const;
+
+function toBookmarkInput(place: SearchPlace) {
+  return {
+    provider: "kakao",
+    placeId: place.id.replace(/^kakao-/, ""),
+    name: place.name,
+    category: BOOKMARK_CATEGORIES[place.category],
+    address: place.address,
+    description: place.description ?? "",
+    // 현재 이미지는 번들 마스코트이므로 DB에는 저장하지 않습니다.
+    imageUrl: null,
+    latitude: typeof place.lat === "number" && Number.isFinite(place.lat) ? place.lat : null,
+    longitude: typeof place.lng === "number" && Number.isFinite(place.lng) ? place.lng : null,
+  };
+}
+
 export default function Search() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
@@ -251,7 +275,15 @@ export default function Search() {
     width: 0,
   });
 
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const {
+    isSaved,
+    isPending,
+    isLoading: bookmarksLoading,
+    loadError: bookmarksLoadError,
+    toggleSaved,
+    reload: reloadBookmarks,
+  } = useSavedPlaces();
+  const [bookmarkError, setBookmarkError] = useState<string | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<SavedPlace | null>(null);
   const [mapPlace, setMapPlace] = useState<SavedPlace | null>(null);
   const [addedPlaces, setAddedPlaces] = useState<
@@ -384,12 +416,18 @@ export default function Search() {
     setSearchState(EMPTY_SEARCH);
   };
 
-  const toggleFavorite = (id: string) => {
-    setFavorites((previous) =>
-      previous.includes(id)
-        ? previous.filter((item) => item !== id)
-        : [...previous, id],
-    );
+  const toggleFavorite = async (place: SearchPlace) => {
+    setBookmarkError(null);
+
+    try {
+      await toggleSaved(toBookmarkInput(place));
+    } catch (error: unknown) {
+      setBookmarkError(
+        error instanceof Error
+          ? error.message
+          : "저장 상태를 변경하지 못했어요.",
+      );
+    }
   };
 
   const handleAddPlace = (result: AddPlaceResult) => {
@@ -536,6 +574,25 @@ export default function Search() {
                 </S.SortArea>
               </S.ResultsToolbar>
 
+              {bookmarksLoadError && (
+                <div role="alert">
+                  <S.EmptyDescription>{bookmarksLoadError}</S.EmptyDescription>
+                  <S.MapButton
+                    type="button"
+                    disabled={bookmarksLoading}
+                    onClick={() => void reloadBookmarks()}
+                  >
+                    저장 목록 다시 불러오기
+                  </S.MapButton>
+                </div>
+              )}
+
+              {bookmarkError && (
+                <S.EmptyDescription role="alert">
+                  {bookmarkError}
+                </S.EmptyDescription>
+              )}
+
               {searchState.error ? (
                 <S.EmptyState role="alert">
                   <S.EmptyTitle>장소 검색에 실패했어요</S.EmptyTitle>
@@ -551,7 +608,9 @@ export default function Search() {
               ) : results.length ? (
                 <S.ResultList>
                   {results.map((place) => {
-                    const isFavorite = favorites.includes(place.id);
+                    const bookmarkPlace = toBookmarkInput(place);
+                    const isFavorite = isSaved(bookmarkPlace);
+                    const bookmarkPending = isPending(bookmarkPlace);
                     const isAdded = Boolean(addedPlaces[place.id]);
 
                     return (
@@ -600,7 +659,19 @@ export default function Search() {
                             isFavorite ? "저장 취소" : "장소 저장"
                           }`}
                           aria-pressed={isFavorite}
-                          onClick={() => toggleFavorite(place.id)}
+                          disabled={bookmarksLoading || bookmarkPending || Boolean(bookmarksLoadError)}
+                          aria-busy={bookmarkPending}
+                          title={
+                            bookmarksLoading
+                              ? "저장 목록을 불러오고 있어요."
+                              : bookmarksLoadError
+                                ? "저장 목록을 다시 불러와 주세요."
+                                : undefined
+                          }
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void toggleFavorite(place);
+                          }}
                           $active={isFavorite}
                         >
                           <Bookmark
