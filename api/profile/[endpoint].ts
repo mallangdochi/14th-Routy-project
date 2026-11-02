@@ -2,11 +2,14 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import handler0 from "../../server/handlers/profile/manage.js";
 import handler1 from "../../server/handlers/profile/setup.js";
 
+import savedPlacesHandler from "../../server/handlers/profile/saved-places.js";
+
 type Handler = (request: VercelRequest, response: VercelResponse) => unknown;
 
 const handlers: Record<string, Handler> = {
   "manage": handler0,
   "setup": handler1,
+  "saved-places": savedPlacesHandler,
 };
 
 export default function handler(request: VercelRequest, response: VercelResponse) {

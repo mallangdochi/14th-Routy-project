@@ -28,6 +28,7 @@ import {
   type KakaoPlaceInfo,
 } from "../../api/kakao/placeDetails";
 import { PlaceDetailPageStyle } from "./PlaceDetailPageStyle";
+import { useSavedPlaces } from "../../contexts/SavedPlacesContext";
 
 type Tab = "intro" | "nearby" | "reviews";
 type NearCategory = "전체" | "관광지" | "맛집" | "카페" | "숙소";
@@ -111,6 +112,47 @@ function safeKakaoUrl(place: DetailPlace) {
   return /^\d+$/.test(id) ? `https://place.map.kakao.com/${id}` : null;
 }
 
+type SavedCategory =
+  | "attraction"
+  | "restaurant"
+  | "cafe"
+  | "accommodation"
+  | "other";
+
+function getBookmarkIdentity(place: DetailPlace | null) {
+  if (!place) return null;
+  const placeId = place.id.replace(/^kakao-/, "");
+  // 현재 상세 페이지는 카카오 장소 ID를 사용합니다.
+  if (!/^\d+$/.test(placeId)) return null;
+  return { provider: "kakao", placeId };
+}
+
+function toBookmarkInput(place: DetailPlace, image: string | null) {
+  const identity = getBookmarkIdentity(place);
+  if (!identity) throw new Error("장소 정보를 확인한 뒤 다시 시도해 주세요.");
+
+  const categoryMap: Record<string, SavedCategory> = {
+    관광: "attraction",
+    관광지: "attraction",
+    음식점: "restaurant",
+    맛집: "restaurant",
+    카페: "cafe",
+    숙소: "accommodation",
+  };
+  const candidate = image || place.image;
+
+  return {
+    ...identity,
+    name: place.name,
+    address: place.address,
+    category: categoryMap[place.category] ?? "other",
+    description: place.description || place.categoryName || "",
+    imageUrl: candidate && /^https?:\/\//i.test(candidate) ? candidate : null,
+    latitude: typeof place.lat === "number" && Number.isFinite(place.lat) ? place.lat : null,
+    longitude: typeof place.lng === "number" && Number.isFinite(place.lng) ? place.lng : null,
+  };
+}
+
 export default function PlaceDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -150,10 +192,22 @@ export default function PlaceDetailPage() {
     url: string | null;
   } | null>(null);
   const [brokenPhotoKey, setBrokenPhotoKey] = useState<string | null>(null);
-  const [bookmarked, setBookmarked] = useState(false);
+  const {
+    isSaved,
+    isPending,
+    isLoading: bookmarksLoading,
+    loadError: bookmarksLoadError,
+    toggleSaved,
+    reload: reloadBookmarks,
+  } = useSavedPlaces();
+  const [bookmarkFailure, setBookmarkFailure] = useState<{
+    key: string;
+    message: string;
+  } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [added, setAdded] = useState<AddPlaceResult | null>(null);
   const tabsId = useId();
+  const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
 
   // Kakao Places: fetch the actual metadata rather than reusing hard-coded detail mockups.
   useEffect(() => {
@@ -280,6 +334,34 @@ export default function PlaceDetailPage() {
   const picture =
     photo?.key === photoKey && brokenPhotoKey !== photoKey ? photo.url : null;
 
+  const bookmarkIdentity = getBookmarkIdentity(place);
+  const bookmarkKey = bookmarkIdentity
+    ? JSON.stringify([bookmarkIdentity.provider, bookmarkIdentity.placeId])
+    : "";
+  const bookmarked = bookmarkIdentity ? isSaved(bookmarkIdentity) : false;
+  const bookmarkPending = bookmarkIdentity ? isPending(bookmarkIdentity) : false;
+  const bookmarkDisabled =
+    !bookmarkIdentity || bookmarksLoading || Boolean(bookmarksLoadError) || bookmarkPending;
+  const bookmarkError = bookmarkFailure?.key === bookmarkKey
+    ? bookmarkFailure.message
+    : null;
+
+  async function handleToggleBookmark(): Promise<void> {
+    if (!place || bookmarkDisabled) return;
+    setBookmarkFailure(null);
+
+    try {
+      await toggleSaved(toBookmarkInput(place, picture));
+    } catch (error: unknown) {
+      setBookmarkFailure({
+        key: bookmarkKey,
+        message: error instanceof Error
+          ? error.message
+          : "장소 저장 상태를 변경하지 못했어요.",
+      });
+    }
+  }
+
   return (
     <PlaceDetailPageStyle>
       <aside className="page-sidebar">
@@ -353,9 +435,20 @@ export default function PlaceDetailPage() {
                       <button
                         className="icon-outline-button"
                         type="button"
-                        aria-label="장소 저장"
+                        aria-label={bookmarked ? "장소 저장 해제" : "장소 저장"}
                         aria-pressed={bookmarked}
-                        onClick={() => setBookmarked((value) => !value)}
+                        aria-busy={bookmarkPending}
+                        disabled={bookmarkDisabled}
+                        title={
+                          bookmarksLoading
+                            ? "저장 목록을 불러오고 있어요."
+                            : bookmarksLoadError
+                              ? "저장 목록을 다시 불러와 주세요."
+                              : !bookmarkIdentity
+                                ? "장소 정보를 확인하고 있어요."
+                                : bookmarked ? "저장 해제" : "장소 저장"
+                        }
+                        onClick={() => void handleToggleBookmark()}
                       >
                         <Bookmark
                           size={25}
@@ -363,6 +456,23 @@ export default function PlaceDetailPage() {
                         />
                       </button>
                     </div>
+                    {bookmarksLoadError && (
+                      <div className="inline-warning" role="alert">
+                        <p>{bookmarksLoadError}</p>
+                        <button
+                          type="button"
+                          onClick={() => void reloadBookmarks()}
+                          disabled={bookmarksLoading}
+                        >
+                          저장 목록 다시 불러오기
+                        </button>
+                      </div>
+                    )}
+                    {bookmarkError && (
+                      <p className="inline-warning" role="alert">
+                        {bookmarkError}
+                      </p>
+                    )}
                   </section>
                   <section className="info-card">
                     <h2>장소 정보</h2>
@@ -429,6 +539,13 @@ export default function PlaceDetailPage() {
                     <span>{label}</span>
                   </button>
                 ))}
+                <span
+                  className="tab-indicator"
+                  aria-hidden="true"
+                  style={{
+                    transform: `translateX(calc(${activeTabIndex * 100}% + ${activeTabIndex} * var(--tab-gap)))`,
+                  }}
+                />
               </div>
               <div
                 id={`${tabsId}-panel`}

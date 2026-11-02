@@ -785,16 +785,6 @@ export const Panel = styled(BasePanel)({
     color: "#596D75",
     fontSize: "var(--secondary-size)",
   },
-  "& .back-button": {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    minHeight: "34px",
-    marginBottom: "8px",
-    color: "#596D75",
-    fontSize: "var(--button-size)",
-    ...menuAnimation.button,
-  },
   "& .modal-body": {
     display: "flex",
     flex: "1 1 0",
@@ -946,28 +936,42 @@ export const Panel = styled(BasePanel)({
   },
   "& .field-help strong": { fontWeight: 600 },
   "& .transport-select": { position: "relative" },
-  "& .transport-select select": {
-    appearance: "none",
+  "& .transport-dropdown": { width: "100%", minWidth: 0 },
+  "& .transport-dropdown .sort-trigger": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px",
     width: "100%",
     minWidth: 0,
     minHeight: "46px",
-    padding: "9px 36px 9px 12px",
+    padding: "9px 12px",
     border: "1px solid #CBD9DE",
     borderRadius: "9px",
     backgroundColor: "#fff",
+    color: "#596D75",
+    fontFamily: "inherit",
     fontSize: "var(--input-size)",
+    textAlign: "left",
   },
-  "& .transport-select > svg": {
-    position: "absolute",
-    right: "12px",
-    top: "50%",
-    transform: "translateY(-50%)",
-    pointerEvents: "none",
+  "& .transport-dropdown .sort-trigger > span:first-of-type": {
+    minWidth: 0,
+    whiteSpace: "normal",
+    overflowWrap: "anywhere",
   },
-  "& select:focus-visible": {
-    outline: "3px solid #527F79",
-    outlineOffset: "3px",
+  "& .transport-dropdown .dropdown-trigger-icon": {
+    display: "inline-flex", flexShrink: 0,
   },
+  "& .transport-dropdown .sort-trigger:focus-visible": {
+    outline: "2px solid #527F79", outlineOffset: "2px",
+  },
+  "& .schedule-place-meta": {
+    display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px",
+  },
+  "& .schedule-place-meta .schedule-address": {
+    display: "inline-flex", alignItems: "center", gap: "5px", minWidth: 0,
+  },
+  "& .schedule-place-meta .schedule-address svg": { flexShrink: 0 },
   "& .default-transport": {
     display: "flex",
     alignItems: "center",
@@ -981,17 +985,60 @@ export const Panel = styled(BasePanel)({
     fontWeight: 600,
   },
   "& .default-transport svg": { flexShrink: 0 },
+  "@media (min-width: 768px)": {
+    "& .place-info": {
+      display: "grid",
+      gridTemplateColumns: "max-content minmax(0, 1fr)",
+      columnGap: "8px",
+      rowGap: "7px",
+      alignItems: "center",
+      minWidth: 0,
+    },
+    "& .place-name-line": { display: "contents" },
+    "& .place-info .bookmark-button": { gridColumn: "1", gridRow: "1" },
+    "& .place-name-line h4": {
+      gridColumn: "2", gridRow: "1", minWidth: 0,
+      margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+    },
+    "& .place-info > .category-badge": {
+      gridColumn: "1", gridRow: "2", marginTop: 0,
+    },
+    "& .place-info > .address": {
+      gridColumn: "2", gridRow: "2", minWidth: 0,
+      marginTop: 0, overflow: "hidden",
+    },
+    "& .place-info > .address span": {
+      display: "block", flex: "1 1 0", minWidth: 0,
+      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+    },
+    // 북마크 채움으로 저장 상태를 표시하여 카드의 두 줄 배치를 유지합니다.
+    "& .place-name-line .saved-badge": { display: "none" },
+    "& .place-row .select-button": {
+      width: "37.8px", height: "37.8px",
+    },
+    "& .place-row .select-button svg": { width: "19.8px", height: "19.8px" },
+  },
   "@media (min-width: 1024px)": {
     "& .place-row": { gap: "9px", padding: "9px" },
     "& .place-image": { flexBasis: "96px", width: "96px", height: "88px" },
     "& .saved-badge": { fontSize: "14px" },
   },
   "@media (max-width: 1023px)": {
-    "& .modal-body": { padding: "0 24px 16px", gap: 0 },
-    "& .selection-pane": { flex: "1 1 0" },
+    "& .modal-body": {
+      flexDirection: "column",
+      alignItems: "stretch",
+      padding: "0 24px 16px",
+      gap: 0,
+      overflow: "hidden",
+    },
+    "& .selection-pane": { flex: "1 1 0", width: "100%", minWidth: 0 },
     "& .selection-pane .controls": { padding: "0 0 14px" },
     "& .selection-pane .results": { padding: "4px 0 14px" },
     "& .schedule-pane": {
+      flex: "1 1 0",
+      width: "100%",
+      minWidth: 0,
+      overflowX: "hidden",
       padding: "4px 2px 12px",
       backgroundColor: "transparent",
       borderRadius: 0,
@@ -1003,7 +1050,91 @@ export const Panel = styled(BasePanel)({
     },
     "& .schedule-fields": { padding: "6px 18px 18px" },
   },
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    width: "min(680px, calc(100vw - 64px))",
+    height: "min(820px, calc(100dvh - 48px))",
+    "--modal-title-size": "28px",
+    "--place-title-size": "18px",
+    "--result-title-size": "22px",
+    "--input-size": "16px",
+    "& .modal-header": { padding: "22px 26px 18px" },
+    "& .modal-body": { padding: "0 26px 16px" },
+    "& .modal-footer": { padding: "14px 26px" },
+    "& .schedule-pane": { padding: "2px 0 12px" },
+    "& .schedule-card": { borderRadius: "9px", marginBottom: "12px" },
+    "& .schedule-card-trigger": { padding: "14px", gap: "12px" },
+    "& .schedule-card-trigger .place-image": {
+      flexBasis: "88px", width: "88px", height: "64px",
+    },
+    "& .schedule-fields": { padding: "2px 16px 20px", gap: "22px" },
+    "& .schedule-field": {
+      display: "grid",
+      gridTemplateColumns: "136px minmax(0, 1fr)",
+      columnGap: "12px",
+      alignItems: "center",
+    },
+    "& .schedule-field > .field-label": { marginBottom: 0 },
+    "& .schedule-field > .field-help, & .schedule-field > .default-transport": {
+      gridColumn: "2",
+    },
+    "& .schedule-time-picker": { gridColumn: "1 / -1", width: "100%" },
+    "& .schedule-time-picker > div": {
+      display: "grid",
+      gridTemplateColumns: "136px minmax(0, 1fr)",
+      columnGap: "12px",
+      alignItems: "center",
+    },
+    "& .schedule-time-picker .picker-label": { marginBottom: 0, gridColumn: "1" },
+    "& .schedule-time-picker .picker-trigger": { gridColumn: "2" },
+    "& .duration-inputs": { gap: "16px" },
+    "& .field-help": { fontSize: "14px", lineHeight: 1.5 },
+    "& .selection-pane .place-image": {
+      flexBasis: "120px", width: "120px", height: "96px",
+    },
+  },
   "@media (max-width: 767px)": {
+    "& .step-description": { display: "none" },
+    "& .place-image": { display: "none" },
+    "& .place-row": { gap: "12px", padding: "14px 12px", alignItems: "center" },
+    "& .place-info": {
+      display: "grid",
+      gridTemplateColumns: "28px minmax(0, 1fr)",
+      alignItems: "center",
+      columnGap: "8px",
+      rowGap: "7px",
+    },
+    "& .place-name-line": { display: "contents" },
+    "& .place-info .bookmark-button": { gridColumn: "1", gridRow: "1" },
+    "& .place-info > .category-badge": {
+      gridColumn: "2", gridRow: "1", marginTop: 0,
+    },
+    "& .place-name-line h4": {
+      gridColumn: "1 / -1", gridRow: "2",
+      margin: 0, whiteSpace: "normal", overflowWrap: "anywhere",
+      overflow: "visible", textOverflow: "clip",
+    },
+    "& .place-info > .address": {
+      gridColumn: "1 / -1", gridRow: "3", marginTop: 0,
+      alignItems: "flex-start", lineHeight: 1.5,
+    },
+    "& .place-info > .address span": {
+      whiteSpace: "normal", overflowWrap: "anywhere",
+      overflow: "visible", textOverflow: "clip",
+    },
+    // 기존 모바일 버튼 36px, 아이콘 20px의 90%.
+    "& .place-row .select-button": {
+      width: "32.4px", height: "32.4px", margin: 0,
+    },
+    "& .place-row .select-button svg": { width: "18px", height: "18px" },
+    "& .schedule-card-info strong": { whiteSpace: "normal", overflowWrap: "anywhere" },
+    "& .schedule-place-meta": { alignItems: "flex-start" },
+    "& .schedule-place-meta .schedule-address": { lineHeight: 1.5, alignItems: "flex-start" },
+    "& .selection-summary": { textAlign: "center" },
+    "& .selection-summary p": { display: "none" },
+    "& .footer-actions": { justifyContent: "center" },
+    "& .footer-actions .secondary, & .footer-actions .primary": {
+      flex: "0 1 auto", minWidth: "88px",
+    },
     "& .modal-body": { padding: "0 16px 12px" },
     "& .title-row": { gap: "9px", paddingRight: "24px" },
     "& .step-badge": { minWidth: "46px", padding: "3px 8px" },
@@ -1023,6 +1154,56 @@ export const Panel = styled(BasePanel)({
     "& .schedule-card-trigger:hover:not(:disabled)": {
       backgroundColor: "#F1F8F5",
     },
-    "& .back-button:hover:not(:disabled)": { color: "#005358" },
+  },
+  // 일정 카드 헤더만 조정. 북마크는 저장 상태 표시 전용입니다.
+  "& .schedule-card .schedule-card-trigger": {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) 20px",
+    gap: "12px",
+    padding: "12px",
+    alignItems: "center",
+  },
+  "& .schedule-card-trigger .schedule-card-info": {
+    display: "grid",
+    gridTemplateColumns: "max-content minmax(0, 1fr)",
+    gap: "8px",
+    alignItems: "center",
+    minWidth: 0,
+    gridColumn: "1",
+  },
+  "& .schedule-card-trigger .schedule-bookmark-indicator": {
+    gridColumn: "1", gridRow: "1",
+    display: "inline-flex", alignItems: "center", justifyContent: "flex-start",
+    width: "30px", height: "32px", paddingLeft: "7px", color: "#005358",
+  },
+  "& .schedule-card-trigger .schedule-card-info strong": {
+    gridColumn: "2", gridRow: "1", minWidth: 0,
+    overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
+  },
+  "& .schedule-card-trigger .schedule-place-meta": { display: "contents" },
+  "& .schedule-card-trigger .category-badge": {
+    gridColumn: "1", gridRow: "2", marginTop: 0,
+  },
+  "& .schedule-card-trigger .schedule-address": {
+    gridColumn: "2", gridRow: "2",
+    display: "flex", alignItems: "center", gap: "5px",
+    minWidth: 0, overflow: "hidden",
+  },
+  "& .schedule-card-trigger .schedule-address > span": {
+    display: "block", minWidth: 0, flex: "1 1 0",
+    overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
+  },
+  "& .schedule-card-trigger .schedule-summary": { gridColumn: "1 / -1", minWidth: 0 },
+  "& .schedule-card-trigger .accordion-chevron": { gridColumn: "2", justifySelf: "end" },
+  "@media screen and (min-width: 768px)": {
+    "& .schedule-card .schedule-card-trigger": {
+      gridTemplateColumns: "110px minmax(0, 1fr) 20px",
+    },
+    "& .schedule-card-trigger .place-image": {
+      display: "flex", gridColumn: "1", gridRow: "1",
+      width: "110px", height: "80px", minWidth: 0,
+    },
+    "& .schedule-card-trigger .schedule-card-info": { gridColumn: "2", gridRow: "1" },
+    "& .schedule-card-trigger .accordion-chevron": { gridColumn: "3", gridRow: "1" },
   },
 });

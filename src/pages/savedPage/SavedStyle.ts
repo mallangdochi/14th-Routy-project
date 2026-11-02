@@ -180,7 +180,9 @@ export const PageInner = styled.div({
   "& .saved-list": {
     display: "flex",
     flexDirection: "column",
-    gap: 14,
+    gap: 10,
+    margin: 0,
+    padding: 0,
     listStyle: "none",
   },
 
@@ -470,3 +472,439 @@ export const PageInner = styled.div({
       },
   },
 });
+
+// 검색 카드와 동일한 카드 스타일 및 반응형 배치
+export const PlaceCard = styled.article({
+  position: "relative",
+  display: "flex",
+  alignItems: "stretch",
+  gap: "18px",
+  width: "100%",
+  minHeight: "153px",
+  padding: "10px 12px",
+  border: "1px solid #E5E9EF",
+  borderRadius: "11px",
+  backgroundColor: "#ffffff",
+  boxShadow: "0 2px 9px rgba(31, 56, 68, 0.035)",
+
+  "@media (min-width: 1024px) and (max-width: 1199px)": {
+    display: "grid",
+    gridTemplateColumns: "150px minmax(0, 1fr)",
+    gridTemplateRows: "minmax(0, 1fr) auto",
+    columnGap: "12px",
+    rowGap: "8px",
+    minHeight: "174px",
+    padding: "12px",
+    alignItems: "stretch",
+  },
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    display: "grid",
+    gridTemplateColumns: "150px minmax(0, 1fr)",
+    gridTemplateRows: "minmax(0, 1fr) auto",
+    columnGap: "12px",
+    rowGap: "8px",
+    minHeight: "174px",
+    padding: "12px",
+    alignItems: "stretch",
+  },
+
+  "@media (max-width: 767px)": {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: "0",
+    minHeight: 0,
+    padding: "10px",
+    borderRadius: "12px",
+  },
+});
+
+export const PlaceImage = styled.img({
+  width: "205px",
+  height: "133px",
+  flexShrink: 0,
+  objectFit: "cover",
+  borderRadius: "8px",
+  backgroundColor: "#E5EDEE",
+
+  "@media (min-width: 1024px) and (max-width: 1199px)": {
+    width: "150px",
+    height: "150px",
+    aspectRatio: "1 / 1",
+    objectFit: "cover",
+    gridColumn: "1",
+    gridRow: "1 / 3",
+    alignSelf: "start",
+  },
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    width: "150px",
+    height: "150px",
+    aspectRatio: "1 / 1",
+    objectFit: "cover",
+    gridColumn: "1",
+    gridRow: "1 / 3",
+    alignSelf: "start",
+  },
+
+  "@media (max-width: 767px)": {
+    display: "block",
+    width: "100%",
+    height: "auto",
+    aspectRatio: "16 / 9",
+    objectFit: "cover",
+    borderRadius: "8px",
+    flexShrink: 0,
+  },
+});
+
+export const PlaceContent = styled.div({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  flex: "1 1 0%",
+  minWidth: 0,
+  padding: "3px 160px 2px 0",
+
+  "@media (min-width: 1024px) and (max-width: 1199px)": {
+    gridColumn: "2",
+    gridRow: "1",
+    padding: "2px 32px 0 0",
+  },
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    gridColumn: "2",
+    gridRow: "1",
+    padding: "2px 32px 0 0",
+  },
+
+  "@media (max-width: 767px)": {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    flex: "none",
+    width: "100%",
+    padding: "10px 2px 0",
+    minWidth: 0,
+  },
+});
+
+export const PlaceName = styled.h2({
+  margin: "0 0 5px",
+  color: "#102C4B",
+  fontSize: "18px",
+  fontWeight: 800,
+  lineHeight: 1.35,
+  letterSpacing: "-0.5px",
+  "& a": { color: "inherit", textDecoration: "none" },
+  "& a:focus-visible": { outline: "2px solid #527F79", outlineOffset: "3px" },
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    fontSize: "17px",
+    marginBottom: "0",
+    overflowWrap: "anywhere",
+  },
+
+  "@media (max-width: 767px)": {
+    margin: 0,
+    fontSize: "16px",
+    lineHeight: 1.35,
+  },
+});
+
+export const CategoryTag = styled.span({
+  display: "inline-flex",
+  alignItems: "center",
+  minHeight: "21px",
+  padding: "1px 9px",
+  borderRadius: "999px",
+  backgroundColor: "#EDF1F7",
+  color: "#3E5070",
+  fontSize: "11px",
+  fontWeight: 700,
+
+  "@media (max-width: 767px)": {
+    fontSize: "10px",
+    minHeight: "19px",
+    padding: "1px 8px",
+  },
+});
+
+export const PinIcon = styled.span({
+  display: "inline-flex",
+  flexShrink: 0,
+  color: "#6478A5",
+});
+
+export const PlaceAddress = styled.p({
+  display: "flex",
+  alignItems: "flex-start",
+  gap: "5px",
+  minWidth: 0,
+  margin: "8px 0 5px",
+  color: "#54678E",
+  fontSize: "12px",
+  lineHeight: 1.45,
+  overflowWrap: "anywhere",
+
+  "& svg": {
+    flexShrink: 0,
+  },
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    fontSize: "12px",
+    margin: "10px 0 6px",
+  },
+
+  "@media (max-width: 767px)": {
+    margin: "7px 0 4px",
+    fontSize: "11px",
+    lineHeight: 1.4,
+  },
+});
+
+export const PlaceDescription = styled.p({
+  margin: 0,
+  color: "#536A94",
+  fontSize: "12px",
+  lineHeight: 1.55,
+  overflowWrap: "anywhere",
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    fontSize: "12px",
+    lineHeight: 1.5,
+  },
+
+  "@media (max-width: 767px)": {
+    fontSize: "11px",
+    lineHeight: 1.5,
+  },
+});
+
+// ========================================
+// 찜하기 버튼
+// ========================================
+
+export const FavoriteButton = styled.button<{
+  $active: boolean;
+}>(({ $active }) => ({
+  position: "absolute",
+  top: "12px",
+  right: "13px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "30px",
+  height: "30px",
+  padding: 0,
+  border: 0,
+  backgroundColor: "transparent",
+  color: $active ? "#005259" : "#7484AC",
+  transition: "color 0.2s ease, transform 0.2s ease",
+  cursor: "pointer",
+
+  "&:hover": {
+    transform: "scale(1.08)",
+  },
+
+  "@media (max-width: 767px)": {
+    top: "17px",
+    right: "17px",
+    width: "34px",
+    height: "34px",
+    borderRadius: "50%",
+    backgroundColor: "#FFFFFF",
+    boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
+    zIndex: 1,
+  },
+}));
+
+// ========================================
+// 카드 하단 버튼
+// ========================================
+
+export const CardActions = styled.div({
+  position: "absolute",
+  right: "12px",
+  bottom: "10px",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+
+  "@media (min-width: 1024px) and (max-width: 1199px)": {
+    position: "static",
+    gridColumn: "2",
+    gridRow: "2",
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    alignSelf: "end",
+    gap: "8px",
+  },
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    position: "static",
+    gridColumn: "2",
+    gridRow: "2",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: "10px",
+    width: "100%",
+    minWidth: 0,
+    marginTop: "8px",
+    padding: 0,
+  },
+
+  "@media (max-width: 767px)": {
+    position: "static",
+    display: "flex",
+    alignItems: "stretch",
+    justifyContent: "space-between",
+    gap: "10px",
+    width: "100%",
+    minWidth: 0,
+    marginTop: "18px",
+    padding: "0 2px",
+  },
+});
+
+export const MapButton = styled.button({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "7px",
+  height: "36px",
+  padding: "0 12px",
+  border: "1px solid #DCE5F0",
+  borderRadius: "7px",
+  backgroundColor: "#FFFFFF",
+  color: "#233E66",
+  fontSize: "12px",
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+  cursor: "pointer",
+
+  "&:hover": {
+    backgroundColor: "#F4F8FA",
+  },
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "0 0 auto",
+    height: "40px",
+    minWidth: "110px",
+    padding: "0 12px",
+    border: "1px solid #D8E1E5",
+    borderRadius: "9px",
+    backgroundColor: "#FFFFFF",
+    color: "#005259",
+    fontSize: "13px",
+    fontWeight: 600,
+    gap: "6px",
+    whiteSpace: "nowrap",
+  },
+
+  "@media (max-width: 767px)": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "1 1 0",
+    minWidth: 0,
+    height: "44px",
+    padding: "0 8px",
+    border: "1px solid #D8E1E5",
+    borderRadius: "9px",
+    backgroundColor: "#FFFFFF",
+    color: "#005259",
+    fontSize: "13px",
+    fontWeight: 600,
+    gap: "6px",
+    whiteSpace: "nowrap",
+  },
+});
+
+export const AddButton = styled.button<{
+  $added: boolean;
+}>(({ $added }) => ({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "7px",
+  height: "36px",
+  padding: "0 13px",
+  border: 0,
+  borderRadius: "7px",
+  backgroundColor: $added ? "#317C78" : "#005259",
+  color: "#FFFFFF",
+  fontSize: "12px",
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+  cursor: "pointer",
+
+  "&:hover": {
+    backgroundColor: "#003E43",
+  },
+
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "0 0 auto",
+    height: "40px",
+    minWidth: "125px",
+    padding: "0 12px",
+    borderRadius: "9px",
+    backgroundColor: "#005259",
+    color: "#FFFFFF",
+    fontSize: "13px",
+    fontWeight: 600,
+    gap: "6px",
+    whiteSpace: "nowrap",
+  },
+
+  "@media (max-width: 767px)": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "1 1 0",
+    minWidth: 0,
+    height: "44px",
+    padding: "0 8px",
+    borderRadius: "9px",
+    backgroundColor: "#005259",
+    color: "#FFFFFF",
+    fontSize: "13px",
+    fontWeight: 600,
+    gap: "6px",
+    whiteSpace: "nowrap",
+  },
+}));
+
+// ========================================
+// 반응형 제목·카테고리
+// ========================================
+
+export const PlaceHeading = styled.div({
+  display: "contents",
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "8px",
+    minWidth: 0,
+  },
+
+  "@media (max-width: 767px)": {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: "5px",
+    minWidth: 0,
+    width: "100%",
+  },
+});
+
