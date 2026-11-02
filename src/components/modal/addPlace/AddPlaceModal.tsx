@@ -1,13 +1,16 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router";
 import { ChevronLeft, MapPin, Plus, Search, X } from "lucide-react";
 
-import { trips, type Trip, type TripStatus } from "../../../data/trips";
+import { getMyTrips, type SavedTrip } from "../../../api/trips";
+import { getTripDays } from "../../../api/tripDays";
+import { getTripPlaces, appendTripPlaces, type TripPlacesResult, type StoredStop } from "../../../api/tripPlaces";
+import defaultTripImage from "../../../assets/where.webp";
+
+type TripStatus = "PLANNING" | "IN_PROGRESS" | "COMPLETED";
+type Trip = SavedTrip & { title: string; image: string; status: TripStatus };
 import type { TripDay } from "../../../data/tripDays";
-import {
-  addPlaceToTrip,
-  getTripDaysWithSaved,
-} from "../../../data/tripScheduleStore";
 import { AddPlaceModalStyle } from "./AddPlaceModalStyle";
 
 export type AddPlaceTarget = {
@@ -16,6 +19,10 @@ export type AddPlaceTarget = {
   category: string;
   image: string;
   address?: string;
+  categoryPath?: string;
+  sourcePlaceId?: string;
+  placeId?: string;
+  provider?: string;
   lat?: number;
   lng?: number;
 };
@@ -52,8 +59,34 @@ function formatDate(value: string, includeYear = false) {
   return `${prefix}${date.getMonth() + 1}.${date.getDate()} (${weekday})`;
 }
 
-function getTripDays(trip: Trip): TripDay[] {
-  return getTripDaysWithSaved(trip.id);
+function getSourcePlaceId(place: AddPlaceTarget) {
+  const source = place.sourcePlaceId || place.placeId || place.id;
+  if (/^\d+$/.test(source)) return `kakao-${source}`;
+  if (place.provider === "kakao" && !source.startsWith("kakao-")) return `kakao-${source}`;
+  return source;
+}
+
+function getScheduleCategory(value: string): StoredStop["category"] {
+  if (/카페|cafe/i.test(value)) return "카페";
+  if (/맛집|음식|식당|restaurant/i.test(value)) return "맛집";
+  if (/숙소|숙박|호텔|accommodation/i.test(value)) return "숙소";
+  if (/쇼핑|shopping/i.test(value)) return "쇼핑";
+  if (/교통|transport/i.test(value)) return "교통";
+  return "관광지";
+}
+
+function toTripDays(tripId: string, dates: string[], schedule: TripPlacesResult): TripDay[] {
+  return [...dates].sort().map((date, index) => ({
+    id: `${tripId}:${date}`, tripId, day: index + 1, date,
+    places: schedule.places.filter(item => item.date === date).map(item => ({
+      id: String(item.id), name: item.title, startTime: item.time || undefined,
+      stayMinutes: item.stayDurationMinutes ?? 60,
+      sourcePlaceId: item.placeId ?? undefined,
+      address: item.address, category: item.category, image: item.image,
+      lat: typeof item.lat === "number" ? item.lat : undefined,
+      lng: typeof item.lng === "number" ? item.lng : undefined,
+    })),
+  }));
 }
 
 export default function AddPlaceModal(props: AddPlaceModalProps) {
@@ -63,6 +96,7 @@ export default function AddPlaceModal(props: AddPlaceModalProps) {
 }
 
 function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
+  const navigate = useNavigate();
   const titleId = useId();
   const descriptionId = useId();
   const radioName = useId();
@@ -73,7 +107,27 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
   const onCloseRef = useRef(onClose);
   const [isClosing, setIsClosing] = useState(false);
 
-  const requestClose = () => setIsClosing(true);
+  const savingRef = useRef(false);
+  const aliveRef = useRef(true);
+  const closedRef = useRef(false);
+  const dayControllerRef = useRef<AbortController | null>(null);
+  const dayRequestRef = useRef(false);
+  // 네트워크 오류로 재시도하더라도 같은 요청 ID를 사용합니다.
+  const requestIdRef = useRef<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [days, setDays] = useState<TripDay[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDays, setIsLoadingDays] = useState(false);
+  const [tripError, setTripError] = useState("");
+  const [dayError, setDayError] = useState("");
+  const [listRetry, setListRetry] = useState(0);
+
+  const requestClose = () => {
+    if (savingRef.current) return;
+    dayControllerRef.current?.abort();
+    setIsClosing(true);
+  };
   const [step, setStep] = useState<"trip" | "day">("trip");
   const [query, setQuery] = useState("");
   const [selectedTripId, setSelectedTripId] = useState("");
@@ -84,8 +138,45 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      dayControllerRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void getMyTrips(controller.signal).then(items => {
+      if (controller.signal.aborted) return;
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      setTrips(items.map(trip => ({
+        ...trip, title: trip.name || `${trip.region} 여행`, image: defaultTripImage,
+        status: trip.startDate > today ? "PLANNING" : trip.endDate < today ? "COMPLETED" : "IN_PROGRESS",
+      })));
+    }).catch((reason: unknown) => {
+      if (!controller.signal.aborted) setTripError(reason instanceof Error ? reason.message : "여행 목록을 조회하지 못했습니다.");
+    }).finally(() => {
+      if (!controller.signal.aborted) setIsLoading(false);
+    });
+    return () => controller.abort();
+  }, [listRetry]);
+
+  // 애니메이션이 생략되는 환경에서도 닫힘 처리를 보장합니다.
+  useEffect(() => {
+    if (!isClosing) return;
+    const timer = window.setTimeout(() => {
+      if (!closedRef.current) {
+        closedRef.current = true;
+        onCloseRef.current();
+      }
+    }, 340);
+    return () => window.clearTimeout(timer);
+  }, [isClosing]);
+
   const selectedTrip = trips.find((trip) => trip.id === selectedTripId);
-  const days = selectedTrip ? getTripDays(selectedTrip) : [];
   const selectedDay = days.find((day) => day.id === selectedDayId);
 
   const keyword = query.trim().toLocaleLowerCase();
@@ -115,7 +206,10 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setIsClosing(true);
+        if (!savingRef.current) {
+          dayControllerRef.current?.abort();
+          setIsClosing(true);
+        }
         return;
       }
 
@@ -184,28 +278,77 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
     return () => cancelAnimationFrame(frame);
   }, [step]);
 
-  const handleNext = () => {
-    if (!selectedTrip || !days.length) return;
-
-    setSelectedDayId(days[0].id);
-    setStep("day");
+  const handleNext = async () => {
+    if (!selectedTrip || dayRequestRef.current || isClosing) return;
+    const trip = selectedTrip;
+    const controller = new AbortController();
+    dayControllerRef.current = controller;
+    dayRequestRef.current = true;
+    setIsLoadingDays(true);
+    setDayError("");
+    setAddError("");
+    try {
+      const [dateResult, schedule] = await Promise.all([
+        getTripDays(trip.id, controller.signal),
+        getTripPlaces(trip.id, controller.signal),
+      ]);
+      if (controller.signal.aborted) return;
+      const nextDays = toTripDays(trip.id, dateResult.dates, schedule);
+      if (!nextDays.length) throw new Error("추가할 여행 날짜가 없습니다.");
+      setDays(nextDays);
+      setSelectedDayId(nextDays[0].id);
+      setStep("day");
+    } catch (reason) {
+      if (!controller.signal.aborted) setDayError(reason instanceof Error ? reason.message : "여행 일정을 조회하지 못했습니다.");
+    } finally {
+      dayRequestRef.current = false;
+      if (aliveRef.current) setIsLoadingDays(false);
+    }
   };
 
-  const handleAdd = () => {
-    if (isClosing || !selectedTrip || !selectedDay) return;
+  const sourcePlaceId = getSourcePlaceId(place);
+  const alreadyAdded = selectedDay?.places.some(item => item.sourcePlaceId === sourcePlaceId) ?? false;
 
+  const handleAdd = async () => {
+    if (isClosing || savingRef.current || !selectedTrip || !selectedDay || alreadyAdded) return;
+    const trip = selectedTrip;
+    const day = selectedDay;
+    const requestId = requestIdRef.current ?? Date.now();
+    requestIdRef.current = requestId;
+    savingRef.current = true;
+    setIsSaving(true);
+    setAddError("");
+    let saved: TripPlacesResult;
     try {
-      // Persist before closing: Search, Saved, and Detail all use this same modal.
-      addPlaceToTrip(selectedTrip.id, selectedDay.date, place);
-      setAddError("");
-      onAdd({ place, trip: selectedTrip, day: selectedDay });
-      requestClose();
+      saved = await appendTripPlaces(trip.id, day.date, [{
+        id: requestId, placeId: sourcePlaceId,
+        title: place.name, time: "", description: "",
+        category: getScheduleCategory(place.category),
+        address: place.address ?? "", image: place.image || "",
+        stayDurationMinutes: 60,
+        transport: trip.transport || undefined,
+        x: 50, y: 50,
+        ...(typeof place.lat === "number" && Number.isFinite(place.lat) ? { lat: place.lat } : {}),
+        ...(typeof place.lng === "number" && Number.isFinite(place.lng) ? { lng: place.lng } : {}),
+      }]);
     } catch (reason) {
-      setAddError(
-        reason instanceof Error
-          ? reason.message
-          : "일정을 저장하지 못했습니다.",
-      );
+      if (aliveRef.current) setAddError(reason instanceof Error ? reason.message : "일정을 저장하지 못했습니다.");
+      return;
+    } finally {
+      savingRef.current = false;
+      if (aliveRef.current) setIsSaving(false);
+    }
+    if (!aliveRef.current) return;
+    const nextDays = toTripDays(trip.id, days.map(item => item.date), saved);
+    const savedDay = nextDays.find(item => item.date === day.date)!;
+    setDays(nextDays);
+    requestClose();
+    // 서버 저장 성공 후에만 부모에게 완료를 알립니다.
+    const query = new URLSearchParams({ tab: "schedule", date: savedDay.date });
+    try {
+      onAdd({ place, trip, day: savedDay });
+    } finally {
+      navigate(`/trip-schedule/${encodeURIComponent(trip.id)}?${query.toString()}`);
     }
   };
 
@@ -220,10 +363,12 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
         className={`add-place-dialog is-${step}-step`}
         data-open={!isClosing}
         onAnimationEnd={(event) => {
-          if (event.target === event.currentTarget && isClosing) {
+          if (event.target === event.currentTarget && isClosing && !closedRef.current) {
+            closedRef.current = true;
             onCloseRef.current();
           }
         }}
+        aria-busy={isSaving || isLoadingDays}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -239,7 +384,8 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
                 type="button"
                 className="icon-button back-button"
                 aria-label="여행 다시 선택"
-                onClick={() => setStep("trip")}
+                disabled={isSaving || isClosing}
+                onClick={() => { setStep("trip"); setAddError(""); setDayError(""); }}
               >
                 <ChevronLeft size={22} aria-hidden="true" />
               </button>
@@ -256,6 +402,7 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
             type="button"
             className="icon-button close-button"
             aria-label="모달 닫기"
+            disabled={isSaving || isClosing}
             onClick={requestClose}
           >
             <X size={24} aria-hidden="true" />
@@ -267,7 +414,7 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
         </header>
 
         <section className="place-summary" aria-label="추가할 장소">
-          <img src={place.image} alt="" />
+          <img src={place.image || defaultTripImage} alt="" />
 
           <div className="place-info">
             <h3>{place.name}</h3>
@@ -317,7 +464,8 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
                     name={`${radioName}-trip`}
                     value={trip.id}
                     checked={selectedTripId === trip.id}
-                    onChange={() => setSelectedTripId(trip.id)}
+                    disabled={isLoadingDays || isClosing}
+                    onChange={() => { setSelectedTripId(trip.id); setDays([]); setSelectedDayId(""); setDayError(""); }}
                   />
 
                   <img src={trip.image} alt="" />
@@ -336,9 +484,12 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
                 </label>
               ))}
 
-              {!filteredTrips.length && (
+              {isLoading && <p className="empty-message" role="status">여행 목록을 불러오고 있습니다.</p>}
+              {tripError && <div className="empty-message" role="alert">{tripError}<button type="button" onClick={() => { setTripError(""); setIsLoading(true); setListRetry(value => value + 1); }}>다시 시도</button></div>}
+              {dayError && <p className="empty-message" role="alert">{dayError}</p>}
+              {!isLoading && !tripError && !filteredTrips.length && (
                 <p className="empty-message" role="status">
-                  검색 결과가 없어요.
+                  {trips.length ? "검색 결과가 없어요." : "등록된 여행이 없어요."}
                 </p>
               )}
             </div>
@@ -362,10 +513,10 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
                 <button
                   type="button"
                   className="primary-button"
-                  disabled={!selectedTrip || !days.length}
+                  disabled={!selectedTrip || isLoading || !!tripError || isLoadingDays || isClosing}
                   onClick={handleNext}
                 >
-                  <Plus size={20} aria-hidden="true" />이 장소 추가하기
+                  <Plus size={20} aria-hidden="true" />{isLoadingDays ? "일정 불러오는 중…" : "이 장소 추가하기"}
                 </button>
               </div>
             </footer>
@@ -390,7 +541,8 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
                     name={`${radioName}-day`}
                     value={day.id}
                     checked={selectedDayId === day.id}
-                    onChange={() => setSelectedDayId(day.id)}
+                    disabled={isSaving || isClosing}
+                    onChange={() => { setSelectedDayId(day.id); setAddError(""); }}
                   />
 
                   <span className="day-info">
@@ -425,10 +577,10 @@ function AddPlaceModalContent({ place, onClose, onAdd }: AddPlaceModalProps) {
               <button
                 type="button"
                 className="primary-button"
-                disabled={!selectedDay}
+                disabled={!selectedDay || isSaving || isClosing || alreadyAdded}
                 onClick={handleAdd}
               >
-                <Plus size={20} aria-hidden="true" />이 장소 추가하기
+                <Plus size={20} aria-hidden="true" />{isSaving ? "일정에 추가하는 중…" : alreadyAdded ? "이미 추가된 장소" : "이 장소 추가하기"}
               </button>
             </footer>
           </>
