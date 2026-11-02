@@ -30,13 +30,15 @@ import {
   Sparkles,
 } from "lucide-react";
 import KakaoRegionPreview from "../../map/KakaoRegionPreview";
+import TourRegionThumbnail from "../../components/tour/TourRegionThumbnail";
 import where from "../../assets/where.webp";
 import TripPreviewModal from "../../components/modal/travel-preview/TripPreviewModal";
 import { CreateTripPageStyle } from "./createTripPageStyle";
 import DateRangePicker from "../../components/pickers/DateRangePicker";
 import TimePicker from "../../components/pickers/TimePicker";
 import RegionSelectModal from "../../components/modal/travel-region-selector/RegionSelectModal";
-import { REGIONS, type TravelRegion } from "../../data/regions";
+import type { TravelRegion } from "../../data/regions";
+import { searchTravelRegions } from "../../api/kakao/searchTravelRegions";
 import { Link, useNavigate } from "react-router";
 
 import {
@@ -649,6 +651,9 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
         <ul className="summary-list">
           <li>
             <MapPin aria-hidden="true" />
+            {selectedRegion && (
+              <TourRegionThumbnail region={selectedRegion} size={40} />
+            )}
             <span>
               {region || "여행 지역 미선택"}{" "}
               <span className="separator">·</span> {duration}
@@ -888,6 +893,9 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
                   aria-invalid={hasSubmitted && Boolean(regionError)}
                 >
                   <MapPin aria-hidden="true" />
+                  {selectedRegion && (
+                    <TourRegionThumbnail region={selectedRegion} size={48} />
+                  )}
                   <span
                     className={`region-name${region ? "" : " is-placeholder"}`}
                   >
@@ -1143,9 +1151,10 @@ export default function CreateTripPage({ onCancel, onCreate }: Props) {
       </main>
       <RegionSelectModal
         isOpen={regionModalOpen}
-        value={selectedRegion ?? REGIONS[0]}
+        value={selectedRegion}
         onClose={() => setRegionModalOpen(false)}
         onConfirm={setSelectedRegion}
+        searchRegions={searchTravelRegions}
         renderMap={({ selectedRegion: previewRegion }) => (
           <KakaoRegionPreview region={previewRegion} />
         )}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TravelRegion } from "../data/regions";
+import { getKakaoMapKey, loadKakaoMaps } from "../api/kakao/kakaoSdk";
 
 type LatLng = object;
 
@@ -43,80 +44,10 @@ type KakaoMaps = {
   };
 };
 
-declare global {
-  interface Window {
-    kakao?: { maps: KakaoMaps };
-  }
-}
-
-let sharedSdkPromise: Promise<KakaoMaps> | null = null;
-
-function getKakaoMaps(key: string): Promise<KakaoMaps> {
-  if (sharedSdkPromise) return sharedSdkPromise;
-
-  sharedSdkPromise = new Promise<KakaoMaps>((resolve, reject) => {
-    const initialize = () => {
-      const maps = window.kakao?.maps;
-      if (!maps) {
-        reject(new Error("카카오 지도 SDK를 찾지 못했습니다."));
-        return;
-      }
-      maps.load(() => {
-        if (!maps.services?.Geocoder) {
-          reject(
-            new Error("카카오 장소 검색 라이브러리를 불러오지 못했습니다."),
-          );
-          return;
-        }
-        resolve(maps);
-      });
-    };
-
-    if (window.kakao?.maps) {
-      initialize();
-      return;
-    }
-
-    // 다른 지도 화면에서 같은 SDK를 이미 요청했다면 해당 스크립트를 재사용합니다.
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[src*="dapi.kakao.com/v2/maps/sdk.js"]',
-    );
-    if (existing) {
-      existing.addEventListener("load", initialize, { once: true });
-      existing.addEventListener(
-        "error",
-        () => reject(new Error("카카오 지도 스크립트 로드에 실패했습니다.")),
-        { once: true },
-      );
-      // 스크립트가 이미 로드된 상황이면 SDK 등록을 기다립니다.
-      if (window.kakao?.maps) initialize();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src =
-      `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(key)}` +
-      "&autoload=false&libraries=services";
-    script.async = true;
-    script.addEventListener("load", initialize, { once: true });
-    script.addEventListener(
-      "error",
-      () =>
-        reject(
-          new Error(
-            "카카오 지도 연결에 실패했습니다. JavaScript 키와 도메인을 확인하세요.",
-          ),
-        ),
-      { once: true },
-    );
-    document.head.appendChild(script);
-  }).catch((error: unknown) => {
-    sharedSdkPromise = null;
-    throw error;
-  });
-
-  return sharedSdkPromise;
-}
+// Use the same SDK singleton as the team's map, search and schedule.
+// This prevents injecting a second Kakao script while the modal is open.
+const getKakaoMaps = (): Promise<KakaoMaps> =>
+  loadKakaoMaps() as unknown as Promise<KakaoMaps>;
 
 const DEFAULT_CENTER = { latitude: 36.35, longitude: 127.85 };
 
@@ -125,7 +56,7 @@ export default function KakaoRegionPreview({
 }: {
   region: TravelRegion | null;
 }) {
-  const key = import.meta.env.VITE_KAKAO_MAP_KEY?.trim();
+  const key = getKakaoMapKey();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapsRef = useRef<KakaoMaps | null>(null);
   const mapRef = useRef<MapInstance | null>(null);
@@ -143,7 +74,7 @@ export default function KakaoRegionPreview({
     let active = true;
     let observer: ResizeObserver | null = null;
 
-    void getKakaoMaps(key)
+    void getKakaoMaps()
       .then((maps) => {
         if (!active || !containerRef.current) return;
         const map = new maps.Map(containerRef.current, {

@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -9,8 +10,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowLeft,
-  ArrowRight,
   Car,
   ChevronDown,
   Bookmark,
@@ -22,6 +21,8 @@ import {
   X,
 } from "lucide-react";
 import * as S from "./placeAddModalStyle";
+import Dropdown from "../../dropdown/Dropdown";
+import { useSavedPlaces } from "../../../contexts/SavedPlacesContext";
 // 프로젝트의 기존 TimePicker 경로에 맞춰 이 import만 조정하세요.
 import TimePicker from "../../pickers/TimePicker";
 
@@ -33,6 +34,11 @@ export type Place = {
   address: string;
   category: string;
   image?: string;
+  description?: string;
+  lat?: number;
+  lng?: number;
+  provider?: string;
+  placeId?: string;
 };
 
 type LoadPlacesParams = {
@@ -76,7 +82,8 @@ export type Props = {
   dayLabel: string;
   dateLabel: string;
   region: string;
-  savedPlaces: Place[];
+  /** 기존 호출 호환용. 실제 목록은 Context의 서버 저장 데이터를 사용 */
+  savedPlaces?: Place[];
   /** 여행 만들기에 저장된 교통편의 실제 값 (필수) */
   defaultTransport: string;
   defaultTransportLabel?: string;
@@ -87,7 +94,8 @@ export type Props = {
   onClose: () => void;
   /** keyword가 빈 문자열이면 여행 지역 추천 장소를 반환 */
   loadPlaces: (params: LoadPlacesParams) => Promise<Place[]>;
-  onToggleSave: (place: Place, nextSaved: boolean) => Promise<void> | void;
+  /** 기존 호출 호환용. 저장·해제는 Context에서 처리 */
+  onToggleSave?: (place: Place, nextSaved: boolean) => Promise<void> | void;
   onConfirm: (places: ScheduledPlace[]) => Promise<void> | void;
 };
 
@@ -100,6 +108,38 @@ const CATEGORIES: Array<PlaceCategory | "전체"> = [
   "카페",
   "숙소",
 ];
+
+type SavedCategory =
+  | "attraction"
+  | "restaurant"
+  | "cafe"
+  | "accommodation"
+  | "other";
+
+const SAVED_CATEGORY_LABELS: Record<SavedCategory, string> = {
+  attraction: "관광지",
+  restaurant: "맛집",
+  cafe: "카페",
+  accommodation: "숙소",
+  other: "기타",
+};
+
+function getBookmarkIdentity(place: Place) {
+  if (place.provider && place.placeId) {
+    return { provider: place.provider, placeId: place.placeId };
+  }
+  if (place.id.startsWith("kakao-") && place.id.length > 6) {
+    return { provider: "kakao", placeId: place.id.slice(6) };
+  }
+  if (/^\d+$/.test(place.id)) {
+    return { provider: "kakao", placeId: place.id };
+  }
+  return null;
+}
+
+function normalizePlaceId(id: string) {
+  return /^\d+$/.test(id) ? `kakao-${id}` : id;
+}
 
 const EMPTY_IDS: string[] = [];
 
@@ -131,17 +171,41 @@ function PlaceAddModalContent({
   dayLabel,
   dateLabel,
   region,
-  savedPlaces,
   defaultTransport,
   defaultTransportLabel,
   transportOptions = DEFAULT_TRANSPORT_OPTIONS,
   existingPlaceIds = EMPTY_IDS,
   onClose,
   loadPlaces,
-  onToggleSave,
   onConfirm,
   onExited,
 }: Props & { onExited: () => void }) {
+  const {
+    savedPlaces: serverSavedPlaces,
+    isLoading: savedLoading,
+    loadError: savedLoadError,
+    reload: reloadSavedPlaces,
+  } = useSavedPlaces();
+
+  const savedPlaces = useMemo<Place[]>(
+    () =>
+      serverSavedPlaces.map((place) => ({
+        id: `${place.provider}-${place.placeId}`,
+        provider: place.provider,
+        placeId: place.placeId,
+        name: place.name,
+        address: place.address,
+        category: SAVED_CATEGORY_LABELS[place.category],
+        image: place.imageUrl || undefined,
+        description: place.description ?? "",
+        ...(typeof place.latitude === "number" ? { lat: place.latitude } : {}),
+        ...(typeof place.longitude === "number"
+          ? { lng: place.longitude }
+          : {}),
+      })),
+    [serverSavedPlaces],
+  );
+
   const titleId = useId();
   const compact = useSyncExternalStore(
     subscribeCompact,
@@ -152,12 +216,13 @@ function PlaceAddModalContent({
   const [drafts, setDrafts] = useState<Record<string, ScheduleDraft>>({});
   const [activePlaceId, setActivePlaceId] = useState<string | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
-  const transportLabel =
-    defaultTransportLabel ||
-    transportOptions.find((option) => option.value === defaultTransport)
-      ?.label ||
-    defaultTransport ||
-    "미설정";
+  // 기본 교통편의 값은 부모가 조회한 여행 데이터에서 전달받습니다.
+  // 값이 없으면 별도 라벨만으로 자동차 등 임의 기본값을 표시하지 않습니다.
+  const tripDefaultTransport = defaultTransport.trim();
+  const transportLabel = tripDefaultTransport
+    ? transportOptions.find((option) => option.value === tripDefaultTransport)?.label ||
+      defaultTransportLabel?.trim() || tripDefaultTransport
+    : "미설정";
   function updateDraft(id: string, patch: Partial<ScheduleDraft>) {
     setDrafts((current) => ({
       ...current,
@@ -185,7 +250,6 @@ function PlaceAddModalContent({
   const [selected, setSelected] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [savingIds, setSavingIds] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
@@ -193,7 +257,6 @@ function PlaceAddModalContent({
   const requestId = useRef(0);
   const aliveRef = useRef(false);
   const submitLock = useRef(false);
-  const saveLocks = useRef(new Set<string>());
 
   // API 함수 참조가 부모 렌더링마다 바뀌어도 재요청하지 않도록 보관
   const loaderRef = useRef(loadPlaces);
@@ -286,9 +349,13 @@ function PlaceAddModalContent({
     return () => window.clearTimeout(timer);
   }, [open, onExited]);
 
-  const savedIds = new Set(savedPlaces.map((place) => place.id));
-  const existingIds = new Set(existingPlaceIds);
-  const selectedIds = new Set(selected.map((place) => place.id));
+  const savedIds = new Set(
+    savedPlaces.map((place) => normalizePlaceId(place.id)),
+  );
+  const existingIds = new Set(existingPlaceIds.map(normalizePlaceId));
+  const selectedIds = new Set(
+    selected.map((place) => normalizePlaceId(place.id)),
+  );
 
   const visibleSavedPlaces = savedPlaces.filter((place) => {
     const matchesCategory = !category || place.category === category;
@@ -302,11 +369,12 @@ function PlaceAddModalContent({
 
   const visiblePlaces = tab === "saved" ? visibleSavedPlaces : results;
   const addableSelected = selected.filter(
-    (place) => !existingIds.has(place.id),
+    (place) => !existingIds.has(normalizePlaceId(place.id)),
   );
 
-  const isLoading = tab === "search" && loading;
-  const displayedError = error || (tab === "search" ? loadError : "");
+  const isLoading = tab === "search" ? loading : savedLoading;
+  const displayedError =
+    error || (tab === "search" ? loadError : (savedLoadError ?? ""));
 
   const heading =
     tab === "saved"
@@ -325,6 +393,7 @@ function PlaceAddModalContent({
   function changeTab(next: Tab) {
     setTab(next);
     setError("");
+    if (next === "saved") void reloadSavedPlaces();
   }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
@@ -354,46 +423,25 @@ function PlaceAddModalContent({
   }
 
   function toggleSelection(place: Place) {
-    if (existingIds.has(place.id) || submitting) return;
+    if (existingIds.has(normalizePlaceId(place.id)) || submitting) return;
 
-    if (!selectedIds.has(place.id)) setActivePlaceId(place.id);
+    if (!selectedIds.has(normalizePlaceId(place.id)))
+      setActivePlaceId(place.id);
     setSelected((current) =>
-      current.some((item) => item.id === place.id)
-        ? current.filter((item) => item.id !== place.id)
+      current.some(
+        (item) => normalizePlaceId(item.id) === normalizePlaceId(place.id),
+      )
+        ? current.filter(
+            (item) => normalizePlaceId(item.id) !== normalizePlaceId(place.id),
+          )
         : [...current, place],
     );
-  }
-
-  async function toggleSave(place: Place) {
-    if (saveLocks.current.has(place.id)) return;
-
-    saveLocks.current.add(place.id);
-    setSavingIds((current) => [...current, place.id]);
-    setError("");
-
-    try {
-      await onToggleSave(place, !savedIds.has(place.id));
-    } catch (cause) {
-      if (aliveRef.current) {
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "장소 저장 상태를 변경하지 못했어요.",
-        );
-      }
-    } finally {
-      saveLocks.current.delete(place.id);
-
-      if (aliveRef.current) {
-        setSavingIds((current) => current.filter((id) => id !== place.id));
-      }
-    }
   }
 
   async function confirm() {
     if (!addableSelected.length || submitLock.current) return;
 
-    if (!defaultTransport.trim()) {
+    if (!tripDefaultTransport) {
       setError("여행의 기본 교통편을 불러온 뒤 다시 시도해 주세요.");
       return;
     }
@@ -417,7 +465,7 @@ function PlaceAddModalContent({
         ...place,
         startTime: draft.startTime,
         stayDurationMinutes: duration,
-        transport: draft.transport || defaultTransport,
+        transport: draft.transport || tripDefaultTransport,
       });
     }
     submitLock.current = true;
@@ -459,7 +507,14 @@ function PlaceAddModalContent({
       return;
     }
 
-    if (event.key !== "Tab") return;
+    if (event.key !== "Tab" || event.defaultPrevented) return;
+
+    // 공통 Dropdown 메뉴는 document.body에 포털로 표시됩니다.
+    if (
+      event.target instanceof Element &&
+      event.target.closest('[role="menu"]') &&
+      !panelRef.current?.contains(event.target)
+    ) return;
 
     const focusables = Array.from(
       panelRef.current?.querySelectorAll<HTMLElement>(
@@ -519,17 +574,6 @@ function PlaceAddModalContent({
         <div className="sheet-handle" aria-hidden="true" />
 
         <header className="modal-header">
-          {compact && step === 2 && (
-            <button
-              type="button"
-              className="back-button"
-              disabled={submitting}
-              onClick={() => moveStep(1)}
-            >
-              <ArrowLeft size={18} aria-hidden="true" />
-              장소 선택
-            </button>
-          )}
           <span className="day-badge">
             {dayLabel} · {dateLabel}
           </span>
@@ -571,7 +615,8 @@ function PlaceAddModalContent({
         </header>
 
         <div className="modal-body" data-step={step}>
-          <div className="selection-pane" hidden={compact && step === 2}>
+          {(!compact || step === 1) && (
+          <div className="selection-pane">
             <div className="controls">
               <div
                 className="tabs"
@@ -727,16 +772,24 @@ function PlaceAddModalContent({
                 <div className="status" role="status">
                   장소를 불러오고 있어요.
                 </div>
-              ) : loadError && tab === "search" ? (
+              ) : (tab === "search" ? loadError : savedLoadError) ? (
                 <div className="status">
-                  <p>장소를 불러오지 못했어요.</p>
+                  <p>
+                    {tab === "saved"
+                      ? "저장한 장소를 불러오지 못했어요."
+                      : "장소를 불러오지 못했어요."}
+                  </p>
                   <button
                     type="button"
                     className="secondary"
                     onClick={() => {
-                      setLoading(true);
-                      setLoadError("");
-                      setRetryKey((value) => value + 1);
+                      if (tab === "saved") {
+                        void reloadSavedPlaces();
+                      } else {
+                        setLoading(true);
+                        setLoadError("");
+                        setRetryKey((value) => value + 1);
+                      }
                     }}
                   >
                     다시 시도
@@ -759,9 +812,16 @@ function PlaceAddModalContent({
               ) : (
                 <ul className="place-list">
                   {visiblePlaces.map((place) => {
-                    const isSaved = savedIds.has(place.id);
-                    const isExisting = existingIds.has(place.id);
-                    const isSelected = selectedIds.has(place.id);
+                    const identity = getBookmarkIdentity(place);
+                    const isSaved = identity
+                      ? savedIds.has(`${identity.provider}-${identity.placeId}`)
+                      : false;
+                    const isExisting = existingIds.has(
+                      normalizePlaceId(place.id),
+                    );
+                    const isSelected = selectedIds.has(
+                      normalizePlaceId(place.id),
+                    );
 
                     return (
                       <li
@@ -773,24 +833,16 @@ function PlaceAddModalContent({
 
                         <div className="place-info">
                           <div className="place-name-line">
-                            <button
-                              type="button"
+                            <span
                               className="bookmark-button"
-                              aria-label={`${place.name} ${
-                                isSaved ? "저장 해제" : "저장"
-                              }`}
-                              aria-pressed={isSaved}
-                              disabled={
-                                submitting || savingIds.includes(place.id)
-                              }
-                              onClick={() => void toggleSave(place)}
+                              aria-label={`${place.name} ${isSaved ? "저장된 장소" : "저장되지 않은 장소"}`}
                             >
                               <Bookmark
                                 size={20}
                                 fill={isSaved ? "currentColor" : "none"}
                                 aria-hidden="true"
                               />
-                            </button>
+                            </span>
 
                             <h4>{place.name}</h4>
 
@@ -803,7 +855,7 @@ function PlaceAddModalContent({
                             {place.category}
                           </span>
 
-                          <p className="address">
+                          <p className="address" title={place.address}>
                             <MapPin size={16} aria-hidden="true" />
                             <span>{place.address}</span>
                           </p>
@@ -841,9 +893,10 @@ function PlaceAddModalContent({
               )}
             </section>
           </div>
+          )}
+          {(!compact || step === 2) && (
           <aside
             className="schedule-pane"
-            hidden={compact && step === 1}
             aria-label="선택한 장소 일정"
           >
             {!compact && (
@@ -886,6 +939,7 @@ function PlaceAddModalContent({
                     key={place.id}
                     data-expanded={expanded}
                   >
+                    <div className="schedule-card-header">
                     <button
                       type="button"
                       className="schedule-card-trigger"
@@ -906,12 +960,26 @@ function PlaceAddModalContent({
                         } else setActivePlaceId(place.id);
                       }}
                     >
-                      <span className="place-number">{index + 1}</span>
+
                       <PlaceImage place={place} />
                       <span className="schedule-card-info">
+                        <span
+                          className="schedule-bookmark-indicator"
+                          aria-label={savedIds.has(normalizePlaceId(place.id)) ? "저장된 장소" : "저장되지 않은 장소"}
+                        >
+                          <Bookmark
+                            size={20}
+                            fill={savedIds.has(normalizePlaceId(place.id)) ? "currentColor" : "none"}
+                            aria-hidden="true"
+                          />
+                        </span>
                         <strong>{place.name}</strong>
-                        <span className="schedule-address">
-                          {place.address}
+                        <span className="schedule-place-meta">
+                          <span className="category-badge">{place.category}</span>
+                          <span className="schedule-address" title={place.address}>
+                            <MapPin size={14} aria-hidden="true" />
+                            <span>{place.address}</span>
+                          </span>
                         </span>
                         {!expanded && (
                           <span className="schedule-summary">
@@ -926,6 +994,7 @@ function PlaceAddModalContent({
                         aria-hidden="true"
                       />
                     </button>
+                    </div>
                     {expanded && (
                       <div
                         className="schedule-fields"
@@ -1000,32 +1069,31 @@ function PlaceAddModalContent({
                           </p>
                         </div>
                         <div className="schedule-field">
-                          <label
+                          <span
                             className="field-label"
-                            htmlFor={`${titleId}-transport-${index}`}
+                            id={`${titleId}-transport-label-${index}`}
                           >
                             이용 예정 교통
-                          </label>
-                          <div className="transport-select">
-                            <select
-                              id={`${titleId}-transport-${index}`}
+                          </span>
+                          <div
+                            className="transport-select"
+                            role="group"
+                            aria-labelledby={`${titleId}-transport-label-${index}`}
+                            aria-describedby={`${titleId}-transport-help-${index}`}
+                          >
+                            <Dropdown<string>
+                              label={`${place.name} 이용 예정 교통`}
                               value={draft.transport}
+                              options={[
+                                { value: "", label: "교통편 선택" },
+                                ...transportOptions.filter((option) => option.value !== ""),
+                              ]}
                               disabled={submitting}
-                              aria-describedby={`${titleId}-transport-help-${index}`}
-                              onChange={(event) =>
-                                updateDraft(place.id, {
-                                  transport: event.target.value,
-                                })
+                              onChange={(value) =>
+                                updateDraft(place.id, { transport: value })
                               }
-                            >
-                              <option value="">교통편 선택</option>
-                              {transportOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown size={18} aria-hidden="true" />
+                              className="transport-dropdown"
+                            />
                           </div>
                           <p
                             className="field-help"
@@ -1047,6 +1115,7 @@ function PlaceAddModalContent({
               })
             )}
           </aside>
+          )}
         </div>
         <footer className="modal-footer">
           {displayedError && (
@@ -1082,16 +1151,11 @@ function PlaceAddModalContent({
                   else void confirm();
                 }}
               >
-                {submitting ? (
-                  "추가 중..."
-                ) : compact && step === 1 ? (
-                  <>
-                    다음 · 일정 설정
-                    <ArrowRight size={18} aria-hidden="true" />
-                  </>
-                ) : (
-                  "일정에 추가"
-                )}
+                {submitting
+                  ? "추가 중..."
+                  : compact && step === 1
+                    ? "다음 · 일정 설정"
+                    : "일정에 추가"}
               </button>
             </div>
           </div>
@@ -1103,6 +1167,14 @@ function PlaceAddModalContent({
 
 function PlaceImage({ place }: { place: Place }) {
   const [failedSource, setFailedSource] = useState<string | undefined>();
+  const mobile = useSyncExternalStore(
+    subscribeMobile,
+    getMobile,
+    () => false,
+  );
+
+  // 모바일에서는 이미지 영역 자체를 렌더링하지 않습니다.
+  if (mobile) return null;
 
   return (
     <div className="place-image">
@@ -1118,6 +1190,16 @@ function PlaceImage({ place }: { place: Place }) {
       )}
     </div>
   );
+}
+
+function subscribeMobile(callback: () => void) {
+  const query = window.matchMedia("(max-width: 767px)");
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
+}
+
+function getMobile() {
+  return window.matchMedia("(max-width: 767px)").matches;
 }
 
 function subscribeCompact(callback: () => void) {

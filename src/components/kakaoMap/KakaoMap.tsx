@@ -13,11 +13,14 @@ import type {
 } from "../../api/kakao/kakaoTypes";
 import type { KakaoStop, LocatedStop } from "../../api/kakao/kakaoPlaces";
 
+type RouteLine = { path: { lat: number; lng: number }[] };
+
 const KAKAO_KEY = getKakaoMapKey();
 
 type Props = {
   stops: KakaoStop[];
   category: string;
+  routePaths?: RouteLine[];
   showRoute: boolean;
   zoom: number;
 };
@@ -40,7 +43,13 @@ function createMarkerContent(stop: KakaoStop, order: number): HTMLElement {
   return box;
 }
 
-export default function KakaoMap({ stops, category, showRoute, zoom }: Props) {
+export default function KakaoMap({
+  stops,
+  category,
+  routePaths,
+  showRoute,
+  zoom,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const layersRef = useRef<OverlayInstance[]>([]);
@@ -145,7 +154,22 @@ export default function KakaoMap({ stops, category, showRoute, zoom }: Props) {
     layersRef.current.forEach((layer) => layer.setMap(null));
     layersRef.current = [];
     const coordinatePoints = locatedRef.current;
-    if (showRoute && coordinatePoints.length >= 2) {
+    if (showRoute && routePaths !== undefined) {
+      // 실제 API의 경로선만 그립니다. 직선 연결을 도로 경로처럼 보여주지 않습니다.
+      for (const route of routePaths) {
+        if (route.path.length < 2) continue;
+        layersRef.current.push(
+          new sdk.Polyline({
+            map,
+            path: route.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
+            strokeWeight: 4,
+            strokeColor: "#0A414B",
+            strokeOpacity: 0.9,
+            strokeStyle: "solid",
+          }),
+        );
+      }
+    } else if (showRoute && coordinatePoints.length >= 2) {
       layersRef.current.push(
         new sdk.Polyline({
           map,
@@ -181,7 +205,7 @@ export default function KakaoMap({ stops, category, showRoute, zoom }: Props) {
       layersRef.current.forEach((layer) => layer.setMap(null));
       layersRef.current = [];
     };
-  }, [sdk, stops, category, showRoute, loading]);
+  }, [sdk, stops, category, routePaths, showRoute, loading]);
 
   useEffect(() => {
     const map = mapRef.current;

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import type { RouteLine } from "../components/Schedule/TravelRouteSummary.ts";
+import { getKakaoMapKey } from "../api/kakao/kakaoSdk";
 import * as S from "./KakaoTravelMapStyle";
 
 export type KakaoPlace = {
@@ -21,6 +23,7 @@ type Props = {
   region: string;
   stops: MapStop[];
   routeStops: MapStop[];
+  routePaths?: RouteLine[];
   showRoute: boolean;
   zoom: number;
   onAddPlace: (place: KakaoPlace) => void;
@@ -33,6 +36,7 @@ type LatLng = {
 
 type MapInstance = {
   setCenter(position: LatLng): void;
+  setBounds(bounds: { extend(position: LatLng): void }, padding?: number): void;
   setLevel(level: number): void;
   getLevel(): number;
   relayout(): void;
@@ -54,6 +58,7 @@ type PlaceRecord = {
 type KakaoSDK = {
   load(callback: () => void): void;
   LatLng: new (lat: number, lng: number) => LatLng;
+  LatLngBounds: new () => { extend(position: LatLng): void };
   Map: new (
     element: HTMLElement,
     options: { center: LatLng; level: number },
@@ -150,11 +155,12 @@ export default function KakaoTravelMap({
   region,
   stops,
   routeStops,
+  routePaths,
   showRoute,
   zoom,
   onAddPlace,
 }: Props) {
-  const key = import.meta.env.VITE_KAKAO_MAP_KEY?.trim();
+  const key = getKakaoMapKey();
 
   const mapNode = useRef<HTMLDivElement>(null);
   const sdkRef = useRef<KakaoSDK | null>(null);
@@ -248,27 +254,60 @@ export default function KakaoTravelMap({
       );
     }
 
-    const path = routeStops
-      .filter((stop) => stop.lat !== undefined && stop.lng !== undefined)
-      .map((stop) => new sdk.LatLng(stop.lat!, stop.lng!));
-
-    if (showRoute && path.length > 1) {
-      overlaysRef.current.push(
-        new sdk.Polyline({
-          map,
-          path,
-          strokeWeight: 4,
-          strokeColor: "#0A414B",
-          strokeOpacity: 0.85,
-        }),
-      );
+    if (showRoute && routePaths !== undefined) {
+      for (const route of routePaths) {
+        if (route.path.length < 2) continue;
+        overlaysRef.current.push(
+          new sdk.Polyline({
+            map,
+            path: route.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
+            strokeWeight: 4,
+            strokeColor: "#0A414B",
+            strokeOpacity: 0.85,
+          }),
+        );
+      }
+    } else {
+      const path = routeStops
+        .filter((stop) => stop.lat !== undefined && stop.lng !== undefined)
+        .map((stop) => new sdk.LatLng(stop.lat!, stop.lng!));
+      if (showRoute && path.length > 1) {
+        overlaysRef.current.push(
+          new sdk.Polyline({
+            map,
+            path,
+            strokeWeight: 4,
+            strokeColor: "#0A414B",
+            strokeOpacity: 0.85,
+          }),
+        );
+      }
     }
 
     return () => {
       overlaysRef.current.forEach((overlay) => overlay.setMap(null));
       overlaysRef.current = [];
     };
-  }, [stops, routeStops, showRoute, ready]);
+  }, [stops, routeStops, routePaths, showRoute, ready]);
+
+  // 일정 변경 시 해당 장소들이 보이도록 한 번만 지도 범위를 조정합니다.
+  useEffect(() => {
+    const sdk = sdkRef.current;
+    const map = mapRef.current;
+    if (!ready || !sdk || !map) return;
+    const located = stops.filter(
+      (stop) => Number.isFinite(stop.lat) && Number.isFinite(stop.lng),
+    );
+    if (located.length === 1) {
+      map.setCenter(new sdk.LatLng(located[0].lat!, located[0].lng!));
+      map.setLevel(4);
+    } else if (located.length > 1) {
+      const bounds = new sdk.LatLngBounds();
+      for (const stop of located)
+        bounds.extend(new sdk.LatLng(stop.lat!, stop.lng!));
+      map.setBounds(bounds, 70);
+    }
+  }, [stops, ready]);
 
   // 지도 확대 및 축소
   useEffect(() => {
