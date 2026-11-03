@@ -153,17 +153,21 @@ function detailUrl(place: ServerSavedPlace): string {
 }
 
 function detailState(place: ServerSavedPlace) {
-  return { place: toModalPlace(place) ?? {
-    id: `${place.provider}-${place.placeId}`,
-    name: place.name,
-    category: categoryLabels[place.category],
-    address: place.address,
-    description: place.description ?? "",
-    image: place.imageUrl || SearchMascot,
-    savedAt: place.createdAt,
-    lat: place.latitude ?? undefined,
-    lng: place.longitude ?? undefined,
-  } };
+  return {
+    breadcrumbRoot: "saved",
+
+    place: toModalPlace(place) ?? {
+      id: `${place.provider}-${place.placeId}`,
+      name: place.name,
+      category: categoryLabels[place.category],
+      address: place.address,
+      description: place.description ?? "",
+      image: place.imageUrl || SearchMascot,
+      savedAt: place.createdAt,
+      lat: place.latitude ?? undefined,
+      lng: place.longitude ?? undefined,
+    },
+  };
 }
 
 export default function SavedPage() {
@@ -292,14 +296,7 @@ export default function SavedPage() {
         <PageInner>
           <header className="page-header">
             <div className="trips-breadcrumb" aria-label="현재 위치">
-              <Breadcrumb
-                items={[
-                  {
-                    label: "저장한 장소",
-                    Icon: Bookmark,
-                  },
-                ]}
-              />
+              <Breadcrumb />
             </div>
 
             <h1>저장한 장소</h1>
@@ -391,8 +388,12 @@ export default function SavedPage() {
                         aria-labelledby={pagePlaceId}
                         style={{ cursor: "pointer" }}
                         onClick={(event) => {
-                          if (!(event.target as HTMLElement).closest("button,a")) {
-                            navigate(detailUrl(place), { state: detailState(place) });
+                          if (
+                            !(event.target as HTMLElement).closest("button,a")
+                          ) {
+                            navigate(detailUrl(place), {
+                              state: detailState(place),
+                            });
                           }
                         }}
                       >
@@ -401,7 +402,10 @@ export default function SavedPage() {
                           alt={place.name}
                           loading="lazy"
                           onError={(event) => {
-                            if (event.currentTarget.getAttribute("src") !== SearchMascot) {
+                            if (
+                              event.currentTarget.getAttribute("src") !==
+                              SearchMascot
+                            ) {
                               event.currentTarget.src = SearchMascot;
                             }
                           }}
@@ -409,28 +413,47 @@ export default function SavedPage() {
                         <C.PlaceContent>
                           <C.PlaceHeading>
                             <C.PlaceName id={pagePlaceId}>
-                              <Link to={detailUrl(place)} state={detailState(place)}>
+                              <Link
+                                to={detailUrl(place)}
+                                state={detailState(place)}
+                              >
                                 {place.name}
                               </Link>
                             </C.PlaceName>
-                            <C.CategoryTag>{categoryLabels[place.category]}</C.CategoryTag>
+                            <C.CategoryTag>
+                              {categoryLabels[place.category]}
+                            </C.CategoryTag>
                           </C.PlaceHeading>
                           <C.PlaceAddress>
-                            <MapPin size={14} color="#6478A5" aria-hidden="true" />
+                            <MapPin
+                              size={14}
+                              color="#6478A5"
+                              aria-hidden="true"
+                            />
                             {place.address}
                           </C.PlaceAddress>
-                          <C.PlaceDescription>{place.description}</C.PlaceDescription>
+                          <C.PlaceDescription>
+                            {place.description}
+                          </C.PlaceDescription>
                         </C.PlaceContent>
                         <C.FavoriteButton
                           type="button"
                           $active={true}
-                          aria-label={pending ? `${place.name} 저장 해제 중` : `${place.name} 저장 해제`}
+                          aria-label={
+                            pending
+                              ? `${place.name} 저장 해제 중`
+                              : `${place.name} 저장 해제`
+                          }
                           aria-pressed={true}
                           aria-busy={pending}
                           disabled={pending}
                           onClick={() => void handleRemoveSaved(place)}
                         >
-                          <Bookmark size={24} fill="currentColor" aria-hidden="true" />
+                          <Bookmark
+                            size={24}
+                            fill="currentColor"
+                            aria-hidden="true"
+                          />
                         </C.FavoriteButton>
                         <C.CardActions>
                           <C.MapButton
@@ -438,7 +461,8 @@ export default function SavedPage() {
                             aria-label={`${place.name} 지도 보기`}
                             onClick={() => handleOpenMap(place)}
                           >
-                            <Map size={17} aria-hidden="true" />지도 보기
+                            <Map size={17} aria-hidden="true" />
+                            지도 보기
                           </C.MapButton>
                           <C.AddButton
                             type="button"
@@ -446,7 +470,8 @@ export default function SavedPage() {
                             aria-label={`${place.name} 일정에 추가`}
                             onClick={() => handleOpenAddPlace(place)}
                           >
-                            <Plus size={17} aria-hidden="true" />일정에 추가
+                            <Plus size={17} aria-hidden="true" />
+                            일정에 추가
                           </C.AddButton>
                         </C.CardActions>
                       </C.PlaceCard>

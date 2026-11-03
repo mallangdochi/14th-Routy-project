@@ -30,7 +30,6 @@ import RegionSelectModal from "../../components/modal/travel-region-selector/Reg
 import { searchTravelRegions } from "../../api/kakao/searchTravelRegions";
 import React, { useEffect, useId, useRef, useState } from "react";
 import {
-  House,
   TriangleAlert,
   CircleX,
   Check,
@@ -882,6 +881,24 @@ function SchedulePage({
   );
 }
 
+// function ScheduleContent({
+//   selectedTrip,
+//   placeModalSource,
+//   loadParticipants,
+// }: {
+//   selectedTrip: ScheduleTrip;
+//   placeModalSource: PlaceModalSource;
+//   loadParticipants?: TripParticipantsSource;
+// }) {
+//   const { user } = useAuth();
+//   const [searchParams] = useSearchParams();
+//   const navigate = useNavigate();
+//   const canEditTrip =
+//     selectedTrip.permission === "owner" || selectedTrip.permission === "editor";
+//   const handleTimetable = () =>
+//     navigate(`/trips/${selectedTrip.id}`, {
+//       state: location.state,
+//     });
 function ScheduleContent({
   selectedTrip,
   placeModalSource,
@@ -894,9 +911,15 @@ function ScheduleContent({
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const routerLocation = useLocation();
+
   const canEditTrip =
     selectedTrip.permission === "owner" || selectedTrip.permission === "editor";
-  const handleTimetable = () => navigate(`/trips/${selectedTrip.id}`);
+
+  const handleTimetable = () =>
+    navigate(`/trips/${selectedTrip.id}`, {
+      state: routerLocation.state,
+    });
 
   const [tripName, setTripName] = useState(selectedTrip.name);
   const [draftTripName, setDraftTripName] = useState(selectedTrip.name);
@@ -929,26 +952,6 @@ function ScheduleContent({
       deleteAliveRef.current = false;
     };
   }, []);
-
-  // useEffect(() => {
-  //   if (!isDeleteDialogMounted) return;
-  //   const dialog = deleteDialogRef.current;
-  //   if (!dialog) return;
-  //   const previousFocus = document.activeElement;
-  //   const previousOverflow = document.body.style.overflow;
-  //   document.body.style.overflow = "hidden";
-  //   if (!dialog.open) dialog.showModal();
-  //   deleteCancelRef.current?.focus({ preventScroll: true });
-  //   return () => {
-  //     dialog.close();
-  //     document.body.style.overflow = previousOverflow;
-  //     if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
-  //       previousFocus.focus({ preventScroll: true });
-  //     } else {
-  //       tripNameEditButtonRef.current?.focus({ preventScroll: true });
-  //     }
-  //   };
-  // }, [isDeleteDialogMounted]);
 
   useEffect(() => {
     if (!isDeleteDialogMounted) return;
@@ -2058,18 +2061,7 @@ function ScheduleContent({
         <S.Container>
           <S.Header>
             <S.BreadcrumbWrapper>
-              <Breadcrumb
-                items={[
-                  {
-                    label: "내 여행",
-                    to: "/",
-                    Icon: House,
-                  },
-                  {
-                    label: "여행 상세",
-                  },
-                ]}
-              />
+              <Breadcrumb />
             </S.BreadcrumbWrapper>
 
             {showSaveStatus && (

@@ -29,6 +29,7 @@ import {
 } from "../../api/kakao/placeDetails";
 import { PlaceDetailPageStyle } from "./PlaceDetailPageStyle";
 import { useSavedPlaces } from "../../contexts/SavedPlacesContext";
+import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
 
 type Tab = "intro" | "nearby" | "reviews";
 type NearCategory = "전체" | "관광지" | "맛집" | "카페" | "숙소";
@@ -148,8 +149,14 @@ function toBookmarkInput(place: DetailPlace, image: string | null) {
     category: categoryMap[place.category] ?? "other",
     description: place.description || place.categoryName || "",
     imageUrl: candidate && /^https?:\/\//i.test(candidate) ? candidate : null,
-    latitude: typeof place.lat === "number" && Number.isFinite(place.lat) ? place.lat : null,
-    longitude: typeof place.lng === "number" && Number.isFinite(place.lng) ? place.lng : null,
+    latitude:
+      typeof place.lat === "number" && Number.isFinite(place.lat)
+        ? place.lat
+        : null,
+    longitude:
+      typeof place.lng === "number" && Number.isFinite(place.lng)
+        ? place.lng
+        : null,
   };
 }
 
@@ -339,12 +346,16 @@ export default function PlaceDetailPage() {
     ? JSON.stringify([bookmarkIdentity.provider, bookmarkIdentity.placeId])
     : "";
   const bookmarked = bookmarkIdentity ? isSaved(bookmarkIdentity) : false;
-  const bookmarkPending = bookmarkIdentity ? isPending(bookmarkIdentity) : false;
+  const bookmarkPending = bookmarkIdentity
+    ? isPending(bookmarkIdentity)
+    : false;
   const bookmarkDisabled =
-    !bookmarkIdentity || bookmarksLoading || Boolean(bookmarksLoadError) || bookmarkPending;
-  const bookmarkError = bookmarkFailure?.key === bookmarkKey
-    ? bookmarkFailure.message
-    : null;
+    !bookmarkIdentity ||
+    bookmarksLoading ||
+    Boolean(bookmarksLoadError) ||
+    bookmarkPending;
+  const bookmarkError =
+    bookmarkFailure?.key === bookmarkKey ? bookmarkFailure.message : null;
 
   async function handleToggleBookmark(): Promise<void> {
     if (!place || bookmarkDisabled) return;
@@ -355,9 +366,10 @@ export default function PlaceDetailPage() {
     } catch (error: unknown) {
       setBookmarkFailure({
         key: bookmarkKey,
-        message: error instanceof Error
-          ? error.message
-          : "장소 저장 상태를 변경하지 못했어요.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "장소 저장 상태를 변경하지 못했어요.",
       });
     }
   }
@@ -372,11 +384,12 @@ export default function PlaceDetailPage() {
       </div>
       <main className="page-content">
         <div className="detail-inner">
-          <nav className="breadcrumb" aria-label="현재 위치">
+          {/* <nav className="breadcrumb" aria-label="현재 위치">
             <Link to="/search">검색</Link>
             <ChevronRight size={17} aria-hidden="true" />
             <span aria-current="page">장소 상세</span>
-          </nav>
+          </nav> */}
+          <Breadcrumb className="breadcrumb" />
           {!place ? (
             <section className="content-card missing-place">
               <Search size={32} />
@@ -446,7 +459,9 @@ export default function PlaceDetailPage() {
                               ? "저장 목록을 다시 불러와 주세요."
                               : !bookmarkIdentity
                                 ? "장소 정보를 확인하고 있어요."
-                                : bookmarked ? "저장 해제" : "장소 저장"
+                                : bookmarked
+                                  ? "저장 해제"
+                                  : "장소 저장"
                         }
                         onClick={() => void handleToggleBookmark()}
                       >
