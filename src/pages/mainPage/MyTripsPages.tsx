@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Grid2X2, List, Plus, House, CalendarDays } from "lucide-react";
+import { Grid2X2, List, Plus, CalendarDays } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import { MyTripsPageStyle } from "./MyTripsPageStyle";
@@ -273,9 +273,7 @@ export default function MyTripsPage() {
         ) : (
           <div className="trips-page-inner">
             <div className="trips-breadcrumb" aria-label="현재 위치">
-              <Breadcrumb
-                items={[{ label: "내 여행", to: "/", Icon: House }]}
-              />
+              <Breadcrumb />
             </div>
 
             <header className="trips-header">
