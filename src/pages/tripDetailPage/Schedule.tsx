@@ -33,7 +33,6 @@ import {
   House,
   TriangleAlert,
   CircleX,
-  ChevronRight,
   Check,
   Pencil,
   Plus,
@@ -76,7 +75,12 @@ import avatarP10 from "../../assets/profileAvatars/p10.webp";
 import avatarP11 from "../../assets/profileAvatars/P11.webp";
 import avatarP12 from "../../assets/profileAvatars/P12.webp";
 import avatarP13 from "../../assets/profileAvatars/P13.webp";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 import type { SavedTrip } from "../../api/trips";
 import { useAuth } from "../../contexts/AuthContext";
 import defaultTripImage from "../../assets/where.webp";
@@ -96,7 +100,12 @@ import type { ChecklistGroup } from "../../data/checklist";
 import EmptyChecklist from "../../components/emptyUI/checklist/Checklist";
 import TravelBudgetTab from "../../components/travelBudget/TravelBudgetTab";
 import { getTripDays, saveTripDays } from "../../api/tripDays";
-import { getTripPlaces, appendTripPlaces, replaceTripPlaces, type TripPlacesResult } from "../../api/tripPlaces";
+import {
+  getTripPlaces,
+  appendTripPlaces,
+  replaceTripPlaces,
+  type TripPlacesResult,
+} from "../../api/tripPlaces";
 import TripDateModal from "../../components/modal/updateTrpDate/TripDateModal";
 
 import {
@@ -176,17 +185,25 @@ type Stop = {
 };
 
 // DB 응답을 날짜별 카드로 변환합니다. 빈 날짜는 빈 배열을 유지합니다.
-function createStoredStopsByDay(schedule: TripPlacesResult, dates: string[]): Record<number, Stop[]> {
-  return Object.fromEntries(dates.map((date, index) => [index + 1,
-    schedule.places.filter(place => place.date === date).map(place => ({
-      ...place,
-      placeId: place.placeId ?? undefined,
-      transport: place.transport ?? undefined,
-      image: place.image?.trim() || defaultTripImage,
-      lat: typeof place.lat === "number" ? place.lat : undefined,
-      lng: typeof place.lng === "number" ? place.lng : undefined,
-    })),
-  ]));
+function createStoredStopsByDay(
+  schedule: TripPlacesResult,
+  dates: string[],
+): Record<number, Stop[]> {
+  return Object.fromEntries(
+    dates.map((date, index) => [
+      index + 1,
+      schedule.places
+        .filter((place) => place.date === date)
+        .map((place) => ({
+          ...place,
+          placeId: place.placeId ?? undefined,
+          transport: place.transport ?? undefined,
+          image: place.image?.trim() || defaultTripImage,
+          lat: typeof place.lat === "number" ? place.lat : undefined,
+          lng: typeof place.lng === "number" ? place.lng : undefined,
+        })),
+    ]),
+  );
 }
 
 type Day = {
@@ -801,7 +818,8 @@ function SchedulePage({
     result?.tripId === tripId &&
     result?.retry === retry &&
     (result.trip === null ||
-      (result.trip.schedule != null && Array.isArray(result.trip.schedule.places)))
+      (result.trip.schedule != null &&
+        Array.isArray(result.trip.schedule.places)))
       ? result
       : null;
 
@@ -1512,24 +1530,38 @@ function ScheduleContent({
     setScheduleSaving(true);
     setScheduleError("");
     try {
-      const payload = days.flatMap(day => (stopsByDay[day.id] ?? []).map(stop => ({
-        ...stop, date: day.isoDate,
-      })));
-      const saved = await replaceTripPlaces(String(selectedTrip.id), scheduleVersionRef.current, payload);
+      const payload = days.flatMap((day) =>
+        (stopsByDay[day.id] ?? []).map((stop) => ({
+          ...stop,
+          date: day.isoDate,
+        })),
+      );
+      const saved = await replaceTripPlaces(
+        String(selectedTrip.id),
+        scheduleVersionRef.current,
+        payload,
+      );
       scheduleVersionRef.current = saved.version;
-      setStopsByDay(createStoredStopsByDay(saved, days.map(day => day.isoDate)));
+      setStopsByDay(
+        createStoredStopsByDay(
+          saved,
+          days.map((day) => day.isoDate),
+        ),
+      );
 
-    setExpandedStopId(null);
-    setSelectedStopIds([]);
+      setExpandedStopId(null);
+      setSelectedStopIds([]);
 
-    editAllSnapshotRef.current = null;
-    setIsEditMode(false);
-    setMenuId(null);
-    resetDrag();
-    editSnapshotRef.current = null;
-    setShowSaveStatus(true);
+      editAllSnapshotRef.current = null;
+      setIsEditMode(false);
+      setMenuId(null);
+      resetDrag();
+      editSnapshotRef.current = null;
+      setShowSaveStatus(true);
     } catch (error) {
-      setScheduleError(error instanceof Error ? error.message : "일정을 저장하지 못했습니다.");
+      setScheduleError(
+        error instanceof Error ? error.message : "일정을 저장하지 못했습니다.",
+      );
     } finally {
       scheduleSaveLock.current = false;
       setScheduleSaving(false);
@@ -1834,7 +1866,8 @@ function ScheduleContent({
 
   const handleAddPlaces = async (places: ScheduledPlace[]) => {
     if (!canEditTrip) throw new Error("일정을 추가할 권한이 없습니다.");
-    if (scheduleSaveLock.current) throw new Error("저장 중입니다. 잠시 후 다시 시도해주세요.");
+    if (scheduleSaveLock.current)
+      throw new Error("저장 중입니다. 잠시 후 다시 시도해주세요.");
     const targetDay = days.find(
       (day) => day.isoDate === placeModalDay?.isoDate,
     );
@@ -1868,24 +1901,35 @@ function ScheduleContent({
     scheduleSaveLock.current = true;
     try {
       // append는 이 날짜의 새 장소만 저장합니다. 다른 날짜/편집 중인 변경은 건드리지 않습니다.
-      const saved = await appendTripPlaces(String(selectedTrip.id), targetDay.isoDate, added);
+      const saved = await appendTripPlaces(
+        String(selectedTrip.id),
+        targetDay.isoDate,
+        added,
+      );
       // 편집 중 다른 사용자의 변경이 있으면 이후 전체 저장 시 충돌을 감지하도록
       // 기존 버전을 유지합니다. 우리 append만 있었다면 한 버전 증가합니다.
       const previousVersion = scheduleVersionRef.current;
-      if (!isEditMode || saved.version === previousVersion + 1) scheduleVersionRef.current = saved.version;
-      const persisted = createStoredStopsByDay(saved, days.map(day => day.isoDate));
+      if (!isEditMode || saved.version === previousVersion + 1)
+        scheduleVersionRef.current = saved.version;
+      const persisted = createStoredStopsByDay(
+        saved,
+        days.map((day) => day.isoDate),
+      );
       const mergeAdded = (previous: Record<number, Stop[]>) => {
         const existing = previous[targetDay.id] ?? [];
-        const addedIds = new Set(added.map(stop => stop.placeId));
-        const newStops = (persisted[targetDay.id] ?? []).filter(stop =>
-          addedIds.has(stop.placeId) && !existing.some(item => item.placeId === stop.placeId),
+        const addedIds = new Set(added.map((stop) => stop.placeId));
+        const newStops = (persisted[targetDay.id] ?? []).filter(
+          (stop) =>
+            addedIds.has(stop.placeId) &&
+            !existing.some((item) => item.placeId === stop.placeId),
         );
         return { ...previous, [targetDay.id]: [...existing, ...newStops] };
       };
       if (isEditMode) {
         setStopsByDay(mergeAdded);
         // 추가는 이미 DB에 저장되었습니다. 편집 취소로 사라지지 않도록 기준도 갱신합니다.
-        if (editAllSnapshotRef.current) editAllSnapshotRef.current = mergeAdded(editAllSnapshotRef.current);
+        if (editAllSnapshotRef.current)
+          editAllSnapshotRef.current = mergeAdded(editAllSnapshotRef.current);
       } else setStopsByDay(persisted);
       setShowSaveStatus(false);
       setIsPlaceModalOpen(false);
@@ -1991,7 +2035,11 @@ function ScheduleContent({
   };
   return (
     <S.Page inert={scheduleSaving} aria-busy={scheduleSaving}>
-      {scheduleError && <div role="alert" style={{ color: "#B42318", padding: "12px" }}>{scheduleError}</div>}
+      {scheduleError && (
+        <div role="alert" style={{ color: "#B42318", padding: "12px" }}>
+          {scheduleError}
+        </div>
+      )}
       <Global
         styles={{
           '[role="menu"][aria-label="이동"], [role="menu"][aria-label="이동"] > button':
@@ -2247,11 +2295,7 @@ function ScheduleContent({
                         {activeDay.weekday})
                       </span>
                     </div>
-                    <S.Weather>
-                      <Cloud size={20} />
-                      <span>{tripRegion} · 날씨 정보 없음</span>
-                      <ChevronRight size={14} />
-                    </S.Weather>
+                    <S.Weather locationName={tripRegion} />
                   </S.ScheduleHeadingLeft>
 
                   {(stops.length > 0 || isEditMode) && (

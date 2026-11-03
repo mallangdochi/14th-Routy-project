@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
 import { dropdownAnimation, modalAnimation } from "../../styles/animation";
+import WeatherPopover from "../../components/modal/weather/WeatherPopover";
 
 const CENTERED_FLEX = {
   display: "flex",
@@ -848,7 +849,7 @@ export const ScheduleHeadingLeft = styled.div({
   },
 });
 
-export const Weather = styled.div({
+export const Weather = styled(WeatherPopover)({
   display: "flex",
   alignItems: "center",
   gap: "5px",
