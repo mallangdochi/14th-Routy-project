@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import { dropdownAnimation } from "../../styles/animation";
 
 type PlaceCardStyleProps = {
   startOffsetMinutes: number;
@@ -230,6 +231,7 @@ export const TripDaysPageStyle = styled.div({
   },
 
   "& .heading-actions": {
+    flexWrap: "wrap",
     display: "flex",
     flexShrink: 0,
     gap: "10px",
@@ -284,6 +286,50 @@ export const TripDaysPageStyle = styled.div({
     },
   },
 
+  "& .add-place-anchor": {
+    position: "relative",
+    minWidth: 0,
+    "& > .add-button": { width: "100%" },
+  },
+  "& .add-date-popover": {
+    ...dropdownAnimation,
+    position: "absolute",
+    top: "calc(100% + 12px)", right: 0,
+    zIndex: 30,
+    width: "320px", maxWidth: "calc(100vw - 32px)",
+    padding: "16px",
+    border: "1px solid #DCE5E3", borderRadius: "14px",
+    backgroundColor: "#FFFFFF",
+    boxShadow: "0 8px 28px rgba(13, 62, 65, 0.16)",
+    "& h2": { margin: "0 0 12px", color: "#0D3E41", fontSize: "17px", fontWeight: 700 },
+  },
+  "& .add-date-options": {
+    display: "grid", gap: "4px",
+    maxHeight: "min(300px, 40dvh)", overflowY: "auto", overscrollBehavior: "contain",
+  },
+  "& .add-date-option": {
+    display: "flex", alignItems: "center", gap: "10px",
+    padding: "12px 10px", minHeight: "68px", borderRadius: "9px", cursor: "pointer",
+    color: "#263E40",
+    "&[data-selected='true']": { backgroundColor: "#E8F5F0" },
+    "& input": { width: "18px", height: "18px", margin: 0, accentColor: "#0D5357", flexShrink: 0 },
+    "&:focus-within": { outline: "2px solid #527F79", outlineOffset: "-2px" },
+    "@media (hover: hover)": { "&:hover": { backgroundColor: "#F0F7F4" } },
+  },
+  "& .add-date-copy": {
+    display: "flex", flexDirection: "column", gap: "4px", minWidth: 0, flex: 1,
+    "& strong": { fontSize: "15px", fontWeight: 700, lineHeight: 1.4, overflowWrap: "anywhere" },
+    "& > span": { color: "#718596", fontSize: "14px", lineHeight: 1.4 },
+  },
+  "& .add-date-check": { flexShrink: 0, color: "#0D5357" },
+  "& .add-date-popover .date-search-button": {
+    width: "100%", marginTop: "12px", minHeight: "44px", padding: "10px 14px",
+    display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+    border: 0, borderRadius: "8px", backgroundColor: "#0D5357", color: "#FFFFFF",
+    fontSize: "16px", fontWeight: 700,
+    "@media (hover: hover)": { "&:hover": { backgroundColor: "#093E41" } },
+  },
+  "& .day-heading strong": { color: "inherit" },
   "& .share-feedback": {
     margin: "-12px 0 16px",
     color: "#347F68",

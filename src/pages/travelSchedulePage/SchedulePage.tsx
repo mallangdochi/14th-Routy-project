@@ -1,11 +1,15 @@
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { ChevronRight, House, MapPin, Plus } from "lucide-react";
 import {
   createScheduleColorMap,
   getScheduleColorStyle,
 } from "../../utils/colorUtils";
-import { trips, type Trip } from "../../data/trips";
+import type { Trip } from "../../data/trips";
+import { getMyTrips, type SavedTrip } from "../../api/trips";
+import { useAuth } from "../../contexts/AuthContext";
+import Loader from "../../components/loader/Loader";
+import Logout from "../../components/emptyUI/logout/Logout";
 import { SchedulePageLayout, SchedulePageStyle } from "./schedulePageStyle";
 import MonthPicker from "../../components/pickers/MonthPicker";
 import {
@@ -22,10 +26,35 @@ import { Link } from "react-router";
 import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
 
 type SchedulePageProps = {
-  schedules?: Trip[];
   createTripHref?: string;
   getTripHref?: (trip: Trip) => string;
 };
+
+type TripQueryResult = {
+  userId: string;
+  attempt: number;
+  trips: SavedTrip[];
+  error: string;
+};
+
+function toCalendarTrip(trip: SavedTrip, today: string): Trip {
+  return {
+    id: trip.id,
+    title: trip.name || `${trip.region} 여행`,
+    region: trip.region,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    startTime: trip.startTime || "00:00",
+    status: today < trip.startDate
+      ? "PLANNING"
+      : today > trip.endDate ? "COMPLETED" : "IN_PROGRESS",
+    image: "",
+    places: 0,
+    schedules: 0,
+    items: trip.region ? [trip.region] : [],
+    updatedAt: trip.updatedAt,
+  };
+}
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -39,10 +68,43 @@ const shortDate = (value: string) => {
 };
 
 export default function SchedulePage({
-  schedules = trips,
   createTripHref = "/trips/new",
-  getTripHref = (trip) => `/trips/${encodeURIComponent(trip.id)}`,
+  getTripHref = (trip) => `/trip-schedule/${encodeURIComponent(trip.id)}`,
 }: SchedulePageProps) {
+  const { user } = useAuth();
+  const userId = user?.id;
+  const [attempt, setAttempt] = useState(0);
+  const [queryResult, setQueryResult] = useState<TripQueryResult | null>(null);
+  const currentResult = userId && queryResult?.userId === userId &&
+    queryResult.attempt === attempt ? queryResult : null;
+  const isLoading = Boolean(userId) && currentResult === null;
+  const loadError = currentResult?.error ?? "";
+  const today = dateKey(new Date());
+  const schedules = useMemo(
+    () => (currentResult?.trips ?? []).map((trip) => toCalendarTrip(trip, today)),
+    [currentResult, today],
+  );
+
+  useEffect(() => {
+    if (!userId) return;
+    const controller = new AbortController();
+    void getMyTrips(controller.signal)
+      .then((savedTrips) => {
+        if (controller.signal.aborted) return;
+        setQueryResult({ userId, attempt, trips: savedTrips, error: "" });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setQueryResult({
+          userId,
+          attempt,
+          trips: [],
+          error: error instanceof Error ? error.message : "여행 목록을 조회하지 못했습니다.",
+        });
+      });
+    return () => controller.abort();
+  }, [userId, attempt]);
+
   const titleId = useId();
   const scheduleColorMap = useMemo(
     () => createScheduleColorMap(schedules),
@@ -113,10 +175,10 @@ export default function SchedulePage({
   function tripCard(trip: Trip, showDates: boolean) {
     return (
       <li key={trip.id}>
-        <a
+        <Link
           className="trip-card"
           style={getScheduleColorStyle(trip.id, scheduleColorMap)}
-          href={getTripHref(trip)}
+          to={getTripHref(trip)}
         >
           <MapPin aria-hidden="true" className="pin" />
 
@@ -132,7 +194,7 @@ export default function SchedulePage({
           )}
 
           <ChevronRight aria-hidden="true" className="card-chevron" />
-        </a>
+        </Link>
       </li>
     );
   }
@@ -161,6 +223,19 @@ export default function SchedulePage({
           />
         </div>
 
+        {!user ? (
+          <Logout />
+        ) : isLoading ? (
+          <Loader />
+        ) : loadError ? (
+          <div role="alert">
+            <p>{loadError}</p>
+            <button type="button" onClick={() => setAttempt((value) => value + 1)}>
+              다시 시도
+            </button>
+          </div>
+        ) : (
+          <>
         <header className="schedule-header">
           <div className="heading-row">
             <div className="heading-copy">
@@ -264,10 +339,10 @@ export default function SchedulePage({
                 })}
 
                 {segments.map(({ trip, start, end, lane }) => (
-                  <a
+                  <Link
                     key={trip.id}
                     className="calendar-event"
-                    href={getTripHref(trip)}
+                    to={getTripHref(trip)}
                     aria-label={`${trip.title}, ${shortDate(trip.startDate)}부터 ${shortDate(trip.endDate)}까지, ${trip.items.join(", ")}`}
                     style={{
                       ...getScheduleColorStyle(trip.id, scheduleColorMap),
@@ -277,7 +352,7 @@ export default function SchedulePage({
                   >
                     <strong>{trip.title}</strong>
                     <span>{trip.items.join(" · ")}</span>
-                  </a>
+                  </Link>
                 ))}
               </div>
             );
@@ -325,6 +400,9 @@ export default function SchedulePage({
             )}
           </section>
         </div>
+
+          </>
+        )}
 
         <div className="page-mobile">
           <MobileNav />
