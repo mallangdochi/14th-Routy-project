@@ -18,6 +18,8 @@ import {
   Footprints,
   Plane,
   CircleHelp,
+  CircleMinus,
+  RotateCcw,
   type LucideIcon,
   ChevronDown,
   Bookmark,
@@ -86,12 +88,22 @@ const DEFAULT_TRANSPORT_OPTIONS: TransportOption[] = [
   { value: "비행기", label: "비행기" },
 ];
 const TRANSPORT_ALIASES: Record<string, string> = {
-  car: "자동차", train: "기차", subway: "지하철", bus: "버스",
-  taxi: "택시", walk: "도보", plane: "비행기",
+  car: "자동차",
+  train: "기차",
+  subway: "지하철",
+  bus: "버스",
+  taxi: "택시",
+  walk: "도보",
+  plane: "비행기",
 };
 const TRANSPORT_ICONS: Record<string, LucideIcon> = {
-  자동차: Car, 기차: TrainFront, 지하철: TramFront, 버스: BusFront,
-  택시: CarTaxiFront, 도보: Footprints, 비행기: Plane,
+  자동차: Car,
+  기차: TrainFront,
+  지하철: TramFront,
+  버스: BusFront,
+  택시: CarTaxiFront,
+  도보: Footprints,
+  비행기: Plane,
 };
 function getTransportIcon(value: string) {
   return TRANSPORT_ICONS[TRANSPORT_ALIASES[value] ?? value] ?? CircleHelp;
@@ -239,8 +251,11 @@ function PlaceAddModalContent({
   // 값이 없으면 별도 라벨만으로 자동차 등 임의 기본값을 표시하지 않습니다.
   const tripDefaultTransport = (defaultTransport ?? "").trim();
   const transportLabel = tripDefaultTransport
-    ? transportOptions.find((option) => option.value === tripDefaultTransport)?.label ||
-      defaultTransportLabel?.trim() || TRANSPORT_ALIASES[tripDefaultTransport] || tripDefaultTransport
+    ? transportOptions.find((option) => option.value === tripDefaultTransport)
+        ?.label ||
+      defaultTransportLabel?.trim() ||
+      TRANSPORT_ALIASES[tripDefaultTransport] ||
+      tripDefaultTransport
     : "미설정";
   function updateDraft(id: string, patch: Partial<ScheduleDraft>) {
     setDrafts((current) => ({
@@ -444,17 +459,45 @@ function PlaceAddModalContent({
   function toggleSelection(place: Place) {
     if (existingIds.has(normalizePlaceId(place.id)) || submitting) return;
 
-    if (!selectedIds.has(normalizePlaceId(place.id)))
-      setActivePlaceId(place.id);
-    setSelected((current) =>
-      current.some(
-        (item) => normalizePlaceId(item.id) === normalizePlaceId(place.id),
-      )
-        ? current.filter(
-            (item) => normalizePlaceId(item.id) !== normalizePlaceId(place.id),
-          )
-        : [...current, place],
+    if (selectedIds.has(normalizePlaceId(place.id))) {
+      removeSelection(place.id);
+      return;
+    }
+    if (!addableSelected.length) setActivePlaceId(place.id);
+    setCollapsedIds((current) => current.filter((id) => id !== place.id));
+    setSelected((current) => [...current, place]);
+    setError("");
+  }
+
+  function removeSelection(placeId: string) {
+    if (submitting) return;
+    const removedIds = new Set(
+      selected
+        .filter(
+          (place) => normalizePlaceId(place.id) === normalizePlaceId(placeId),
+        )
+        .map((place) => place.id),
     );
+    setSelected((current) =>
+      current.filter((place) => !removedIds.has(place.id)),
+    );
+    setDrafts((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([id]) => !removedIds.has(id)),
+      ),
+    );
+    setCollapsedIds((current) => current.filter((id) => !removedIds.has(id)));
+    if (activePlaceId && removedIds.has(activePlaceId)) setActivePlaceId(null);
+    setError("");
+  }
+
+  function resetSelection() {
+    if (submitting) return;
+    setSelected([]);
+    setDrafts({});
+    setActivePlaceId(null);
+    setCollapsedIds([]);
+    setError("");
   }
 
   async function confirm() {
@@ -529,7 +572,8 @@ function PlaceAddModalContent({
       event.target instanceof Element &&
       event.target.closest('[role="menu"]') &&
       !panelRef.current?.contains(event.target)
-    ) return;
+    )
+      return;
 
     const focusables = Array.from(
       panelRef.current?.querySelectorAll<HTMLElement>(
@@ -631,510 +675,558 @@ function PlaceAddModalContent({
 
         <div className="modal-body" data-step={step}>
           {(!compact || step === 1) && (
-          <div className="selection-pane">
-            <div className="controls">
-              <div
-                className="tabs"
-                role="tablist"
-                aria-label="장소 찾기 방식"
-                onKeyDown={(event) => {
-                  if (
-                    !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
-                      event.key,
-                    )
-                  ) {
-                    return;
-                  }
+            <div className="selection-pane">
+              <div className="controls">
+                <div
+                  className="tabs"
+                  role="tablist"
+                  aria-label="장소 찾기 방식"
+                  onKeyDown={(event) => {
+                    if (
+                      !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                        event.key,
+                      )
+                    ) {
+                      return;
+                    }
 
-                  event.preventDefault();
+                    event.preventDefault();
 
-                  const next =
-                    event.key === "Home"
-                      ? "search"
-                      : event.key === "End"
-                        ? "saved"
-                        : tab === "search"
+                    const next =
+                      event.key === "Home"
+                        ? "search"
+                        : event.key === "End"
                           ? "saved"
-                          : "search";
+                          : tab === "search"
+                            ? "saved"
+                            : "search";
 
-                  changeTab(next);
+                    changeTab(next);
 
-                  (next === "search"
-                    ? searchTabRef
-                    : savedTabRef
-                  ).current?.focus();
-                }}
-              >
-                <button
-                  ref={searchTabRef}
-                  id={`${titleId}-search-tab`}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === "search"}
-                  aria-controls={`${titleId}-results`}
-                  tabIndex={tab === "search" ? 0 : -1}
-                  onClick={() => changeTab("search")}
+                    (next === "search"
+                      ? searchTabRef
+                      : savedTabRef
+                    ).current?.focus();
+                  }}
                 >
-                  <Search size={21} aria-hidden="true" />
-                  장소 검색
-                </button>
+                  <button
+                    ref={searchTabRef}
+                    id={`${titleId}-search-tab`}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "search"}
+                    aria-controls={`${titleId}-results`}
+                    tabIndex={tab === "search" ? 0 : -1}
+                    onClick={() => changeTab("search")}
+                  >
+                    <Search size={21} aria-hidden="true" />
+                    장소 검색
+                  </button>
 
-                <button
-                  ref={savedTabRef}
-                  id={`${titleId}-saved-tab`}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === "saved"}
-                  aria-controls={`${titleId}-results`}
-                  tabIndex={tab === "saved" ? 0 : -1}
-                  onClick={() => changeTab("saved")}
-                >
-                  <Bookmark size={20} aria-hidden="true" />
-                  저장한 장소
-                  <span className="tab-count">{savedPlaces.length}</span>
-                </button>
+                  <button
+                    ref={savedTabRef}
+                    id={`${titleId}-saved-tab`}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "saved"}
+                    aria-controls={`${titleId}-results`}
+                    tabIndex={tab === "saved" ? 0 : -1}
+                    onClick={() => changeTab("saved")}
+                  >
+                    <Bookmark size={20} aria-hidden="true" />
+                    저장한 장소
+                    <span className="tab-count">{savedPlaces.length}</span>
+                  </button>
 
-                <span
-                  className="tab-indicator"
-                  data-tab={tab}
-                  aria-hidden="true"
-                />
-              </div>
-
-              <form className="search-form" onSubmit={submitSearch}>
-                <div className="search-field">
-                  <Search size={21} aria-hidden="true" />
-
-                  <input
-                    aria-label={
-                      tab === "saved"
-                        ? "저장한 장소 검색"
-                        : "장소명 또는 주소 검색"
-                    }
-                    placeholder={
-                      tab === "saved"
-                        ? "저장한 장소에서 검색"
-                        : "장소명이나 주소를 검색해 보세요"
-                    }
-                    value={tab === "saved" ? savedInput : searchInput}
-                    onChange={(event) => {
-                      if (tab === "saved") {
-                        setSavedInput(event.target.value);
-                      } else {
-                        setSearchInput(event.target.value);
-                      }
-                    }}
+                  <span
+                    className="tab-indicator"
+                    data-tab={tab}
+                    aria-hidden="true"
                   />
-
-                  {(tab === "saved" ? savedInput : searchInput) && (
-                    <button
-                      type="button"
-                      className="clear-button icon-button"
-                      aria-label="검색어 지우기"
-                      onClick={clearSearch}
-                    >
-                      <X size={18} aria-hidden="true" />
-                    </button>
-                  )}
                 </div>
 
-                {tab === "search" && (
-                  <button type="submit" className="primary search-button">
-                    검색
-                  </button>
-                )}
-              </form>
+                <form className="search-form" onSubmit={submitSearch}>
+                  <div className="search-field">
+                    <Search size={21} aria-hidden="true" />
 
-              <div className="categories" aria-label="장소 분류">
-                {CATEGORIES.map((item) => {
-                  const value = item === "전체" ? null : item;
+                    <input
+                      aria-label={
+                        tab === "saved"
+                          ? "저장한 장소 검색"
+                          : "장소명 또는 주소 검색"
+                      }
+                      placeholder={
+                        tab === "saved"
+                          ? "저장한 장소에서 검색"
+                          : "장소명이나 주소를 검색해 보세요"
+                      }
+                      value={tab === "saved" ? savedInput : searchInput}
+                      onChange={(event) => {
+                        if (tab === "saved") {
+                          setSavedInput(event.target.value);
+                        } else {
+                          setSearchInput(event.target.value);
+                        }
+                      }}
+                    />
 
-                  return (
+                    {(tab === "saved" ? savedInput : searchInput) && (
+                      <button
+                        type="button"
+                        className="clear-button icon-button"
+                        aria-label="검색어 지우기"
+                        onClick={clearSearch}
+                      >
+                        <X size={18} aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+
+                  {tab === "search" && (
+                    <button type="submit" className="primary search-button">
+                      검색
+                    </button>
+                  )}
+                </form>
+
+                <div className="categories" aria-label="장소 분류">
+                  {CATEGORIES.map((item) => {
+                    const value = item === "전체" ? null : item;
+
+                    return (
+                      <button
+                        type="button"
+                        key={item}
+                        aria-pressed={category === value}
+                        onClick={() => {
+                          setCategory(value);
+
+                          if (tab === "search" && category !== value) {
+                            setLoading(true);
+                            setLoadError("");
+                          }
+                        }}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <section
+                id={`${titleId}-results`}
+                role="tabpanel"
+                aria-labelledby={`${titleId}-${tab}-tab`}
+                aria-busy={isLoading}
+                className="results"
+                tabIndex={0}
+              >
+                <div className="results-heading">
+                  <h3>{heading}</h3>
+                  <p>{description}</p>
+                </div>
+
+                {isLoading ? (
+                  <div className="status" role="status">
+                    장소를 불러오고 있어요.
+                  </div>
+                ) : (tab === "search" ? loadError : savedLoadError) ? (
+                  <div className="status">
+                    <p>
+                      {tab === "saved"
+                        ? "저장한 장소를 불러오지 못했어요."
+                        : "장소를 불러오지 못했어요."}
+                    </p>
                     <button
                       type="button"
-                      key={item}
-                      aria-pressed={category === value}
+                      className="secondary"
                       onClick={() => {
-                        setCategory(value);
-
-                        if (tab === "search" && category !== value) {
+                        if (tab === "saved") {
+                          void reloadSavedPlaces();
+                        } else {
                           setLoading(true);
                           setLoadError("");
+                          setRetryKey((value) => value + 1);
                         }
                       }}
                     >
-                      {item}
+                      다시 시도
                     </button>
-                  );
-                })}
-              </div>
+                  </div>
+                ) : visiblePlaces.length === 0 ? (
+                  <div className="status">
+                    <MapPin size={30} aria-hidden="true" />
+                    <strong>
+                      {tab === "saved" && !savedPlaces.length
+                        ? "아직 저장한 장소가 없어요."
+                        : "조건에 맞는 장소가 없어요."}
+                    </strong>
+                    <p>
+                      {tab === "saved" && !savedPlaces.length
+                        ? "장소 검색에서 책갈피를 눌러 저장해 보세요."
+                        : "다른 검색어나 분류로 찾아보세요."}
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="place-list">
+                    {visiblePlaces.map((place) => {
+                      const identity = getBookmarkIdentity(place);
+                      const isSaved = identity
+                        ? savedIds.has(
+                            `${identity.provider}-${identity.placeId}`,
+                          )
+                        : false;
+                      const isExisting = existingIds.has(
+                        normalizePlaceId(place.id),
+                      );
+                      const isSelected = selectedIds.has(
+                        normalizePlaceId(place.id),
+                      );
+
+                      return (
+                        <li
+                          key={place.id}
+                          className="place-row"
+                          data-selected={isSelected && !isExisting}
+                        >
+                          <PlaceImage place={place} />
+
+                          <div className="place-info">
+                            <div className="place-name-line">
+                              <span
+                                className="bookmark-button"
+                                aria-label={`${place.name} ${isSaved ? "저장된 장소" : "저장되지 않은 장소"}`}
+                              >
+                                <Bookmark
+                                  size={20}
+                                  fill={isSaved ? "currentColor" : "none"}
+                                  aria-hidden="true"
+                                />
+                              </span>
+
+                              <h4>{place.name}</h4>
+
+                              {isSaved && tab === "search" && (
+                                <span className="saved-badge">저장한 장소</span>
+                              )}
+                            </div>
+
+                            <span className="category-badge">
+                              {place.category}
+                            </span>
+
+                            <p className="address" title={place.address}>
+                              <MapPin size={16} aria-hidden="true" />
+                              <span>{place.address}</span>
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="select-button"
+                            data-selected={isSelected || isExisting}
+                            aria-label={`${place.name} ${
+                              isExisting
+                                ? "이미 일정에 추가됨"
+                                : isSelected
+                                  ? "선택 해제"
+                                  : "선택"
+                            }`}
+                            aria-pressed={isSelected || isExisting}
+                            disabled={submitting || isExisting}
+                            onClick={() => toggleSelection(place)}
+                          >
+                            {isSelected || isExisting ? (
+                              <Check size={22} aria-hidden="true" />
+                            ) : (
+                              <Plus size={22} aria-hidden="true" />
+                            )}
+                          </button>
+
+                          {isExisting && (
+                            <span className="existing-label">추가됨</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
             </div>
-
-            <section
-              id={`${titleId}-results`}
-              role="tabpanel"
-              aria-labelledby={`${titleId}-${tab}-tab`}
-              aria-busy={isLoading}
-              className="results"
-              tabIndex={0}
-            >
-              <div className="results-heading">
-                <h3>{heading}</h3>
-                <p>{description}</p>
-              </div>
-
-              {isLoading ? (
-                <div className="status" role="status">
-                  장소를 불러오고 있어요.
-                </div>
-              ) : (tab === "search" ? loadError : savedLoadError) ? (
-                <div className="status">
-                  <p>
-                    {tab === "saved"
-                      ? "저장한 장소를 불러오지 못했어요."
-                      : "장소를 불러오지 못했어요."}
-                  </p>
+          )}
+          {(!compact || step === 2) && (
+            <aside className="schedule-pane" aria-label="선택한 장소 일정">
+              <div className="schedule-heading">
+                <div className="schedule-heading-actions">
+                  {!compact && <h3>선택한 장소 일정</h3>}
                   <button
                     type="button"
-                    className="secondary"
-                    onClick={() => {
-                      if (tab === "saved") {
-                        void reloadSavedPlaces();
-                      } else {
-                        setLoading(true);
-                        setLoadError("");
-                        setRetryKey((value) => value + 1);
-                      }
-                    }}
+                    className="selection-reset-button"
+                    disabled={submitting || !addableSelected.length}
+                    onClick={resetSelection}
                   >
-                    다시 시도
+                    <RotateCcw size={16} aria-hidden="true" />
+                    전체 초기화
                   </button>
                 </div>
-              ) : visiblePlaces.length === 0 ? (
+                <p>장소별 시간과 이동 수단을 설정해요.</p>
+              </div>
+              {!addableSelected.length ? (
                 <div className="status">
                   <MapPin size={30} aria-hidden="true" />
-                  <strong>
-                    {tab === "saved" && !savedPlaces.length
-                      ? "아직 저장한 장소가 없어요."
-                      : "조건에 맞는 장소가 없어요."}
-                  </strong>
-                  <p>
-                    {tab === "saved" && !savedPlaces.length
-                      ? "장소 검색에서 책갈피를 눌러 저장해 보세요."
-                      : "다른 검색어나 분류로 찾아보세요."}
-                  </p>
+                  <strong>장소를 먼저 선택해 주세요.</strong>
+                  <p>선택한 장소의 일정을 여기서 설정할 수 있어요.</p>
+                  {compact && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => moveStep(1)}
+                    >
+                      장소 다시 고르기
+                    </button>
+                  )}
                 </div>
               ) : (
-                <ul className="place-list">
-                  {visiblePlaces.map((place) => {
-                    const identity = getBookmarkIdentity(place);
-                    const isSaved = identity
-                      ? savedIds.has(`${identity.provider}-${identity.placeId}`)
-                      : false;
-                    const isExisting = existingIds.has(
-                      normalizePlaceId(place.id),
-                    );
-                    const isSelected = selectedIds.has(
-                      normalizePlaceId(place.id),
-                    );
-
-                    return (
-                      <li
-                        key={place.id}
-                        className="place-row"
-                        data-selected={isSelected && !isExisting}
-                      >
-                        <PlaceImage place={place} />
-
-                        <div className="place-info">
-                          <div className="place-name-line">
+                addableSelected.map((place, index) => {
+                  const draft = drafts[place.id] ?? EMPTY_DRAFT;
+                  const activeId = addableSelected.some(
+                    (item) => item.id === activePlaceId,
+                  )
+                    ? activePlaceId
+                    : addableSelected[0]?.id;
+                  const expanded =
+                    place.id === activeId && !collapsedIds.includes(place.id);
+                  const duration = resolveDuration(draft.hours, draft.minutes);
+                  const durationText =
+                    duration === null
+                      ? "체류 시간 확인 필요"
+                      : `체류 ${Math.floor(duration / 60) ? `${Math.floor(duration / 60)}시간` : ""}${duration % 60 ? ` ${duration % 60}분` : ""}`;
+                  const selectedTransportLabel =
+                    transportOptions.find(
+                      (option) => option.value === draft.transport,
+                    )?.label ||
+                    draft.transport ||
+                    transportLabel;
+                  const EffectiveTransportIcon = getTransportIcon(
+                    draft.transport || tripDefaultTransport,
+                  );
+                  return (
+                    <section
+                      className="schedule-card"
+                      key={place.id}
+                      data-expanded={expanded}
+                    >
+                      <div className="schedule-card-header">
+                        <button
+                          type="button"
+                          className="schedule-card-trigger"
+                          aria-expanded={expanded}
+                          aria-controls={`${titleId}-settings-${index}`}
+                          disabled={submitting}
+                          onClick={() => {
+                            setActivePlaceId(place.id);
+                            setCollapsedIds((current) =>
+                              expanded
+                                ? [
+                                    ...current.filter((id) => id !== place.id),
+                                    place.id,
+                                  ]
+                                : current.filter((id) => id !== place.id),
+                            );
+                          }}
+                        >
+                          <PlaceImage place={place} />
+                          <span className="schedule-card-info">
                             <span
-                              className="bookmark-button"
-                              aria-label={`${place.name} ${isSaved ? "저장된 장소" : "저장되지 않은 장소"}`}
+                              className="schedule-bookmark-indicator"
+                              aria-label={
+                                savedIds.has(normalizePlaceId(place.id))
+                                  ? "저장된 장소"
+                                  : "저장되지 않은 장소"
+                              }
                             >
                               <Bookmark
                                 size={20}
-                                fill={isSaved ? "currentColor" : "none"}
+                                fill={
+                                  savedIds.has(normalizePlaceId(place.id))
+                                    ? "currentColor"
+                                    : "none"
+                                }
                                 aria-hidden="true"
                               />
                             </span>
-
-                            <h4>{place.name}</h4>
-
-                            {isSaved && tab === "search" && (
-                              <span className="saved-badge">저장한 장소</span>
+                            <strong>{place.name}</strong>
+                            <span className="schedule-place-meta">
+                              <span className="category-badge">
+                                {place.category}
+                              </span>
+                              <span
+                                className="schedule-address"
+                                title={place.address}
+                              >
+                                <MapPin size={14} aria-hidden="true" />
+                                <span>{place.address}</span>
+                              </span>
+                            </span>
+                            {!expanded && (
+                              <span className="schedule-summary">
+                                {draft.startTime || "시작 시간 미설정"} ·{" "}
+                                {durationText} · {selectedTransportLabel}
+                              </span>
                             )}
-                          </div>
-
-                          <span className="category-badge">
-                            {place.category}
                           </span>
-
-                          <p className="address" title={place.address}>
-                            <MapPin size={16} aria-hidden="true" />
-                            <span>{place.address}</span>
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="select-button"
-                          data-selected={isSelected || isExisting}
-                          aria-label={`${place.name} ${
-                            isExisting
-                              ? "이미 일정에 추가됨"
-                              : isSelected
-                                ? "선택 해제"
-                                : "선택"
-                          }`}
-                          aria-pressed={isSelected || isExisting}
-                          disabled={submitting || isExisting}
-                          onClick={() => toggleSelection(place)}
-                        >
-                          {isSelected || isExisting ? (
-                            <Check size={22} aria-hidden="true" />
-                          ) : (
-                            <Plus size={22} aria-hidden="true" />
-                          )}
-                        </button>
-
-                        {isExisting && (
-                          <span className="existing-label">추가됨</span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-          </div>
-          )}
-          {(!compact || step === 2) && (
-          <aside
-            className="schedule-pane"
-            aria-label="선택한 장소 일정"
-          >
-            {!compact && (
-              <div className="schedule-heading">
-                <h3>선택한 장소 일정</h3>
-                <p>장소별 시간과 이동 수단을 설정해요.</p>
-              </div>
-            )}
-            {!addableSelected.length ? (
-              <div className="status">
-                <MapPin size={30} aria-hidden="true" />
-                <strong>장소를 먼저 선택해 주세요.</strong>
-                <p>선택한 장소의 일정을 여기서 설정할 수 있어요.</p>
-              </div>
-            ) : (
-              addableSelected.map((place, index) => {
-                const draft = drafts[place.id] ?? EMPTY_DRAFT;
-                const activeId = addableSelected.some(
-                  (item) => item.id === activePlaceId,
-                )
-                  ? activePlaceId
-                  : addableSelected[0]?.id;
-                const expanded =
-                  place.id === activeId &&
-                  (!compact || !collapsedIds.includes(place.id));
-                const duration = resolveDuration(draft.hours, draft.minutes);
-                const durationText =
-                  duration === null
-                    ? "체류 시간 확인 필요"
-                    : `체류 ${Math.floor(duration / 60) ? `${Math.floor(duration / 60)}시간` : ""}${duration % 60 ? ` ${duration % 60}분` : ""}`;
-                const selectedTransportLabel =
-                  transportOptions.find(
-                    (option) => option.value === draft.transport,
-                  )?.label ||
-                  draft.transport ||
-                  transportLabel;
-                const EffectiveTransportIcon = getTransportIcon(
-                  draft.transport || tripDefaultTransport,
-                );
-                return (
-                  <section
-                    className="schedule-card"
-                    key={place.id}
-                    data-expanded={expanded}
-                  >
-                    <div className="schedule-card-header">
-                    <button
-                      type="button"
-                      className="schedule-card-trigger"
-                      aria-expanded={expanded}
-                      aria-controls={`${titleId}-settings-${index}`}
-                      disabled={submitting}
-                      onClick={() => {
-                        if (compact) {
-                          setActivePlaceId(place.id);
-                          setCollapsedIds((current) =>
-                            expanded
-                              ? [
-                                  ...current.filter((id) => id !== place.id),
-                                  place.id,
-                                ]
-                              : current.filter((id) => id !== place.id),
-                          );
-                        } else setActivePlaceId(place.id);
-                      }}
-                    >
-
-                      <PlaceImage place={place} />
-                      <span className="schedule-card-info">
-                        <span
-                          className="schedule-bookmark-indicator"
-                          aria-label={savedIds.has(normalizePlaceId(place.id)) ? "저장된 장소" : "저장되지 않은 장소"}
-                        >
-                          <Bookmark
+                          <ChevronDown
                             size={20}
-                            fill={savedIds.has(normalizePlaceId(place.id)) ? "currentColor" : "none"}
+                            className="accordion-chevron"
                             aria-hidden="true"
                           />
-                        </span>
-                        <strong>{place.name}</strong>
-                        <span className="schedule-place-meta">
-                          <span className="category-badge">{place.category}</span>
-                          <span className="schedule-address" title={place.address}>
-                            <MapPin size={14} aria-hidden="true" />
-                            <span>{place.address}</span>
-                          </span>
-                        </span>
-                        {!expanded && (
-                          <span className="schedule-summary">
-                            {draft.startTime || "시작 시간 미설정"} ·{" "}
-                            {durationText} · {selectedTransportLabel}
-                          </span>
-                        )}
-                      </span>
-                      <ChevronDown
-                        size={20}
-                        className="accordion-chevron"
-                        aria-hidden="true"
-                      />
-                    </button>
-                    </div>
-                    {expanded && (
-                      <div
-                        className="schedule-fields"
-                        id={`${titleId}-settings-${index}`}
-                      >
-                        <div className="schedule-field">
-                          <ScheduleTimePicker
-                            value={draft.startTime}
-                            onChange={(value) =>
-                              updateDraft(place.id, { startTime: value })
-                            }
-                            disabled={submitting}
-                          />
-                        </div>
-                        <div className="schedule-field">
-                          <span
-                            className="field-label"
-                            id={`${titleId}-duration-label-${index}`}
-                          >
-                            예정 체류 시간
-                          </span>
-                          <div
-                            className="duration-inputs"
-                            role="group"
-                            aria-labelledby={`${titleId}-duration-label-${index}`}
-                            aria-describedby={`${titleId}-duration-help-${index}`}
-                          >
-                            <label>
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                min={0}
-                                max={167}
-                                step={1}
-                                placeholder="시간"
-                                aria-label={`${place.name} 체류 시간 (시간)`}
-                                disabled={submitting}
-                                value={draft.hours}
-                                onChange={(event) =>
-                                  updateDraft(place.id, {
-                                    hours: event.target.value,
-                                  })
-                                }
-                              />
-                              <span>시간</span>
-                            </label>
-                            <label>
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                min={0}
-                                max={59}
-                                step={1}
-                                placeholder="분"
-                                aria-label={`${place.name} 체류 시간 (분)`}
-                                disabled={submitting}
-                                value={draft.minutes}
-                                onChange={(event) =>
-                                  updateDraft(place.id, {
-                                    minutes: event.target.value,
-                                  })
-                                }
-                              />
-                              <span>분</span>
-                            </label>
-                          </div>
-                          <p
-                            className="field-help"
-                            id={`${titleId}-duration-help-${index}`}
-                          >
-                            입력하지 않으면 <strong>1시간</strong>으로 설정돼요.
-                          </p>
-                        </div>
-                        <div className="schedule-field">
-                          <span
-                            className="field-label"
-                            id={`${titleId}-transport-label-${index}`}
-                          >
-                            이용 예정 교통
-                          </span>
-                          <div
-                            className="transport-select"
-                            role="group"
-                            aria-labelledby={`${titleId}-transport-label-${index}`}
-                            aria-describedby={`${titleId}-transport-help-${index}`}
-                          >
-                            <Dropdown<string>
-                              label={`${place.name} 이용 예정 교통`}
-                              value={draft.transport}
-                              options={[
-                                { value: "", label: "교통편 선택" },
-                                ...transportOptions.filter((option) => option.value !== ""),
-                              ]}
-                              disabled={submitting}
+                        </button>
+                      </div>
+                      {expanded && (
+                        <div
+                          className="schedule-fields"
+                          id={`${titleId}-settings-${index}`}
+                        >
+                          <div className="schedule-field">
+                            <ScheduleTimePicker
+                              value={draft.startTime}
                               onChange={(value) =>
-                                updateDraft(place.id, { transport: value })
+                                updateDraft(place.id, { startTime: value })
                               }
-                              className="transport-dropdown"
+                              disabled={submitting}
                             />
                           </div>
-                          <p
-                            className="field-help"
-                            id={`${titleId}-transport-help-${index}`}
-                          >
-                            선택하지 않으면{" "}
-                            <strong>여행 만들기에서 설정한 교통편</strong>이
-                            적용돼요.
-                          </p>
-                          <div className="default-transport" role="status" aria-live="polite">
-                            <EffectiveTransportIcon size={18} aria-hidden="true" />
-                            {draft.transport
-                              ? `개별 교통 설정 · ${selectedTransportLabel}`
-                              : `여행 기본 교통 · ${transportLabel}`}
+                          <div className="schedule-field">
+                            <span
+                              className="field-label"
+                              id={`${titleId}-duration-label-${index}`}
+                            >
+                              예정 체류 시간
+                            </span>
+                            <div
+                              className="duration-inputs"
+                              role="group"
+                              aria-labelledby={`${titleId}-duration-label-${index}`}
+                              aria-describedby={`${titleId}-duration-help-${index}`}
+                            >
+                              <label>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={0}
+                                  max={167}
+                                  step={1}
+                                  placeholder="시간"
+                                  aria-label={`${place.name} 체류 시간 (시간)`}
+                                  disabled={submitting}
+                                  value={draft.hours}
+                                  onChange={(event) =>
+                                    updateDraft(place.id, {
+                                      hours: event.target.value,
+                                    })
+                                  }
+                                />
+                                <span>시간</span>
+                              </label>
+                              <label>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={0}
+                                  max={59}
+                                  step={1}
+                                  placeholder="분"
+                                  aria-label={`${place.name} 체류 시간 (분)`}
+                                  disabled={submitting}
+                                  value={draft.minutes}
+                                  onChange={(event) =>
+                                    updateDraft(place.id, {
+                                      minutes: event.target.value,
+                                    })
+                                  }
+                                />
+                                <span>분</span>
+                              </label>
+                            </div>
+                            <p
+                              className="field-help"
+                              id={`${titleId}-duration-help-${index}`}
+                            >
+                              입력하지 않으면 <strong>1시간</strong>으로
+                              설정돼요.
+                            </p>
+                          </div>
+                          <div className="schedule-field">
+                            <span
+                              className="field-label"
+                              id={`${titleId}-transport-label-${index}`}
+                            >
+                              이용 예정 교통
+                            </span>
+                            <div
+                              className="transport-select"
+                              role="group"
+                              aria-labelledby={`${titleId}-transport-label-${index}`}
+                              aria-describedby={`${titleId}-transport-help-${index}`}
+                            >
+                              <Dropdown<string>
+                                label={`${place.name} 이용 예정 교통`}
+                                value={draft.transport}
+                                options={[
+                                  { value: "", label: "여행 기본 교통 선택" },
+                                  ...transportOptions.filter(
+                                    (option) => option.value !== "",
+                                  ),
+                                ]}
+                                disabled={submitting}
+                                onChange={(value) =>
+                                  updateDraft(place.id, { transport: value })
+                                }
+                                className="transport-dropdown"
+                              />
+                            </div>
+                            {/* <p
+                              className="field-help"
+                              id={`${titleId}-transport-help-${index}`}
+                            >
+                              선택하지 않으면{" "}
+                              <strong>여행 만들기에서 설정한 교통편</strong>이
+                              적용돼요.
+                            </p> */}
+                            <div
+                              className="default-transport"
+                              role="status"
+                              aria-live="polite"
+                            >
+                              <EffectiveTransportIcon
+                                size={18}
+                                aria-hidden="true"
+                              />
+                              {draft.transport
+                                ? `개별 교통 설정 · ${selectedTransportLabel}`
+                                : `여행 기본 교통 · ${transportLabel}`}
+                            </div>
                           </div>
                         </div>
+                      )}
+                      <div className="schedule-card-actions">
+                        <button
+                          type="button"
+                          className="selection-remove-button"
+                          aria-label={`${place.name} 선택 해제`}
+                          disabled={submitting}
+                          onClick={() => removeSelection(place.id)}
+                        >
+                          <CircleMinus size={17} aria-hidden="true" />
+                          선택 해제
+                        </button>
                       </div>
-                    )}
-                  </section>
-                );
-              })
-            )}
-          </aside>
+                    </section>
+                  );
+                })
+              )}
+            </aside>
           )}
         </div>
         <footer className="modal-footer">
@@ -1187,11 +1279,7 @@ function PlaceAddModalContent({
 
 function PlaceImage({ place }: { place: Place }) {
   const [failedSource, setFailedSource] = useState<string | undefined>();
-  const mobile = useSyncExternalStore(
-    subscribeMobile,
-    getMobile,
-    () => false,
-  );
+  const mobile = useSyncExternalStore(subscribeMobile, getMobile, () => false);
 
   // 모바일에서는 이미지 영역 자체를 렌더링하지 않습니다.
   if (mobile) return null;

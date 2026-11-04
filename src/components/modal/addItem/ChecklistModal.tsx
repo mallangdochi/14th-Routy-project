@@ -27,6 +27,7 @@ const recommendations = {
     ["충전기", "휴대폰 충전용", "개인용품"],
     ["보조배터리", "외출 중 충전용", "개인용품"],
     ["세안용품", "개인 세면용품", "개인용품"],
+    ["여벌 옷", "갈아 입을 옷", "개인용품"],
   ],
   물놀이: [
     ["수영복", "물놀이용 복장", "개인용품"],
@@ -36,7 +37,7 @@ const recommendations = {
     ["젖은 옷 보관 봉투", "마른 짐과 분리 보관", "기타"],
   ],
   아웃도어: [
-    ["등산화", "걷기 편한 신발", "개인용품"],
+    ["등산복·등산화", "걷기 편한 옷과 신발", "개인용품"],
     ["바람막이", "기온 변화 대비", "개인용품"],
     ["물병", "이동 중 마실 물", "개인용품"],
     ["간식", "이동 중 먹을 간식", "기타"],
@@ -170,24 +171,38 @@ export default function ChecklistModal({
     event.preventDefault();
     if (closing.current || submitLock.current) return;
     if (tab === "manual" && !editor.title.trim()) return;
-    const unique = new Map(selectedItems.map(item => [normalize(item[0]), item]));
+    const unique = new Map(
+      selectedItems.map((item) => [normalize(item[0]), item]),
+    );
     if (tab === "recommended" && !unique.size) return;
     submitLock.current = true;
     setSaving(true);
     setSaveError("");
     try {
       if (tab === "recommended" && !editor.itemId) {
-        await onSaveBatch(Array.from(unique.values()).map(([title, description, category]) => ({
-          groupId: groups.find(group => group.title === category)?.id ?? category,
-          title, description,
-        })));
+        await onSaveBatch(
+          Array.from(unique.values()).map(([title, description, category]) => ({
+            groupId:
+              groups.find((group) => group.title === category)?.id ?? category,
+            title,
+            description,
+          })),
+        );
       } else {
-        await onSave({ ...editor, title: editor.title.trim(), description: editor.description.trim() });
+        await onSave({
+          ...editor,
+          title: editor.title.trim(),
+          description: editor.description.trim(),
+        });
       }
       submitLock.current = false;
       close();
     } catch (reason) {
-      setSaveError(reason instanceof Error ? reason.message : "저장하지 못했습니다. 다시 시도해주세요.");
+      setSaveError(
+        reason instanceof Error
+          ? reason.message
+          : "저장하지 못했습니다. 다시 시도해주세요.",
+      );
     } finally {
       submitLock.current = false;
       setSaving(false);
@@ -279,152 +294,162 @@ export default function ChecklistModal({
               ))}
             </div>
           )}
-          <fieldset disabled={saving} className="editor-fields"><div
-            key={tab}
-            className="tab-panel"
-            role={editor.itemId ? undefined : "tabpanel"}
-            id={`${tabsId}-${tab}`}
-            aria-labelledby={editor.itemId ? undefined : `${tabsId}-${tab}-tab`}
-          >
-            {tab === "recommended" ? (
-              <>
-                <div
-                  ref={typesRef}
-                  className="recommendation-types"
-                  aria-label="추천 유형"
-                >
-                  <span
-                    ref={indicatorRef}
-                    className="recommendation-indicator"
-                    aria-hidden="true"
-                  />
-                  {(Object.keys(recommendations) as RecommendationType[]).map(
-                    (value) => (
-                      <button
-                        type="button"
-                        key={value}
-                        aria-pressed={recommendationType === value}
-                        onClick={() => setRecommendationType(value)}
-                      >
-                        {value}
-                      </button>
-                    ),
-                  )}
-                </div>
-                <div className="recommendation-heading">
-                  <strong>{recommendationType} 준비물</strong>
-                  <button
-                    type="button"
-                    disabled={!available.length}
-                    onClick={() =>
-                      setSelected((current) =>
-                        selectAll
-                          ? current.filter(
-                              (title) =>
-                                !available.some((item) => item[0] === title),
-                            )
-                          : Array.from(
-                              new Set([
-                                ...current,
-                                ...available.map((item) => item[0]),
-                              ]),
-                            ),
-                      )
-                    }
+          <fieldset disabled={saving} className="editor-fields">
+            <div
+              key={tab}
+              className="tab-panel"
+              role={editor.itemId ? undefined : "tabpanel"}
+              id={`${tabsId}-${tab}`}
+              aria-labelledby={
+                editor.itemId ? undefined : `${tabsId}-${tab}-tab`
+              }
+            >
+              {tab === "recommended" ? (
+                <>
+                  <div
+                    ref={typesRef}
+                    className="recommendation-types"
+                    aria-label="추천 유형"
                   >
-                    {selectAll ? "선택 해제" : "전체 선택"}
-                  </button>
-                </div>
-                <div className="recommendation-viewport">
-                  <div className="recommendation-list">
-                    {recommendations[recommendationType].map(
-                      ([title, description, category]) => {
-                        const isExisting = existing.has(normalize(title));
-                        return (
-                          <label
-                            className="recommendation-item"
-                            key={title}
-                            data-disabled={isExisting}
-                          >
-                            <input
-                              type="checkbox"
-                              disabled={isExisting || !open}
-                              checked={!isExisting && selected.includes(title)}
-                              onChange={() =>
-                                setSelected((current) =>
-                                  current.includes(title)
-                                    ? current.filter((value) => value !== title)
-                                    : [...current, title],
-                                )
-                              }
-                            />
-                            <span className="recommendation-copy">
-                              <strong>{title}</strong>
-                              <span>
-                                {isExisting
-                                  ? "이미 추가된 준비물"
-                                  : description}
-                              </span>
-                            </span>
-                            <span className="recommendation-category">
-                              {category}
-                            </span>
-                          </label>
-                        );
-                      },
+                    <span
+                      ref={indicatorRef}
+                      className="recommendation-indicator"
+                      aria-hidden="true"
+                    />
+                    {(Object.keys(recommendations) as RecommendationType[]).map(
+                      (value) => (
+                        <button
+                          type="button"
+                          key={value}
+                          aria-pressed={recommendationType === value}
+                          onClick={() => setRecommendationType(value)}
+                        >
+                          {value}
+                        </button>
+                      ),
                     )}
                   </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="editor-field">
-                  <span>카테고리</span>
-                  <Dropdown
-                    className="category-dropdown"
-                    label="카테고리"
-                    value={editor.groupId}
-                    options={categories.map((title) => ({
-                      value:
-                        groups.find((group) => group.title === title)?.id ??
-                        title,
-                      label: title,
-                    }))}
-                    disabled={Boolean(editor.itemId)}
-                    onChange={(groupId) =>
-                      setEditor((current) => ({ ...current, groupId }))
-                    }
-                  />
-                </div>
-                <label className="editor-field" htmlFor={nameId}>
-                  준비물 이름
-                  <input
-                    ref={titleRef}
-                    id={nameId}
-                    required
-                    maxLength={60}
-                    value={editor.title}
-                    onChange={(event) =>
-                      setEditor({ ...editor, title: event.target.value })
-                    }
-                    placeholder="준비물을 입력해주세요"
-                  />
-                </label>
-                <label className="editor-field" htmlFor={descriptionId}>
-                  설명 (선택)
-                  <textarea
-                    id={descriptionId}
-                    maxLength={200}
-                    value={editor.description}
-                    onChange={(event) =>
-                      setEditor({ ...editor, description: event.target.value })
-                    }
-                    placeholder="확인할 내용을 입력해주세요"
-                  />
-                </label>
-              </>
-            )}
-          </div>
+                  <div className="recommendation-heading">
+                    <strong>{recommendationType} 준비물</strong>
+                    <button
+                      type="button"
+                      disabled={!available.length}
+                      onClick={() =>
+                        setSelected((current) =>
+                          selectAll
+                            ? current.filter(
+                                (title) =>
+                                  !available.some((item) => item[0] === title),
+                              )
+                            : Array.from(
+                                new Set([
+                                  ...current,
+                                  ...available.map((item) => item[0]),
+                                ]),
+                              ),
+                        )
+                      }
+                    >
+                      {selectAll ? "선택 해제" : "전체 선택"}
+                    </button>
+                  </div>
+                  <div className="recommendation-viewport">
+                    <div className="recommendation-list">
+                      {recommendations[recommendationType].map(
+                        ([title, description, category]) => {
+                          const isExisting = existing.has(normalize(title));
+                          return (
+                            <label
+                              className="recommendation-item"
+                              key={title}
+                              data-disabled={isExisting}
+                            >
+                              <input
+                                type="checkbox"
+                                disabled={isExisting || !open}
+                                checked={
+                                  !isExisting && selected.includes(title)
+                                }
+                                onChange={() =>
+                                  setSelected((current) =>
+                                    current.includes(title)
+                                      ? current.filter(
+                                          (value) => value !== title,
+                                        )
+                                      : [...current, title],
+                                  )
+                                }
+                              />
+                              <span className="recommendation-copy">
+                                <strong>{title}</strong>
+                                <span>
+                                  {isExisting
+                                    ? "이미 추가된 준비물"
+                                    : description}
+                                </span>
+                              </span>
+                              <span className="recommendation-category">
+                                {category}
+                              </span>
+                            </label>
+                          );
+                        },
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="editor-field">
+                    <span>카테고리</span>
+                    <Dropdown
+                      className="category-dropdown"
+                      label="카테고리"
+                      value={editor.groupId}
+                      options={categories.map((title) => ({
+                        value:
+                          groups.find((group) => group.title === title)?.id ??
+                          title,
+                        label: title,
+                      }))}
+                      disabled={Boolean(editor.itemId)}
+                      onChange={(groupId) =>
+                        setEditor((current) => ({ ...current, groupId }))
+                      }
+                    />
+                  </div>
+                  <label className="editor-field" htmlFor={nameId}>
+                    준비물 이름
+                    <input
+                      ref={titleRef}
+                      id={nameId}
+                      required
+                      maxLength={60}
+                      value={editor.title}
+                      onChange={(event) =>
+                        setEditor({ ...editor, title: event.target.value })
+                      }
+                      placeholder="준비물을 입력해주세요"
+                    />
+                  </label>
+                  <label className="editor-field" htmlFor={descriptionId}>
+                    설명 (선택)
+                    <textarea
+                      id={descriptionId}
+                      maxLength={200}
+                      value={editor.description}
+                      onChange={(event) =>
+                        setEditor({
+                          ...editor,
+                          description: event.target.value,
+                        })
+                      }
+                      placeholder="확인할 내용을 입력해주세요"
+                    />
+                  </label>
+                </>
+              )}
+            </div>
           </fieldset>
           {saveError && <p role="alert">{saveError}</p>}
           <div className="editor-buttons">
@@ -441,15 +466,19 @@ export default function ChecklistModal({
               disabled={
                 (tab === "recommended"
                   ? !selectedItems.length
-                  : !editor.title.trim()) || !open || saving
+                  : !editor.title.trim()) ||
+                !open ||
+                saving
               }
               type="submit"
             >
-              {saving ? "저장 중…" : editor.itemId
-                ? "저장"
-                : tab === "recommended"
-                  ? "선택한 준비물 추가"
-                  : "추가"}
+              {saving
+                ? "저장 중…"
+                : editor.itemId
+                  ? "저장"
+                  : tab === "recommended"
+                    ? "선택한 준비물 추가"
+                    : "추가"}
             </button>
           </div>
         </form>

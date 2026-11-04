@@ -49,6 +49,7 @@ import handler6 from "../../server/handlers/trips/share.js";
 import schedulePlacesHandler from "../../server/handlers/trips/places.js";
 
 import checklistHandler from "../../server/handlers/trips/checklist.js";
+import budgetHandler from "../../server/handlers/trips/budget.js";
 
 type Handler = (request: VercelRequest, response: VercelResponse) => unknown;
 
@@ -62,6 +63,7 @@ const handlers: Record<string, Handler> = {
   share: handler6,
   places: schedulePlacesHandler,
   checklist: checklistHandler,
+  budget: budgetHandler,
 };
 
 export default function handler(
