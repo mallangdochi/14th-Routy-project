@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { modalAnimation } from "../../../styles/animation";
+import { modalAnimation, menuAnimation } from "../../../styles/animation";
 
 export const ChecklistModalStyle = styled.div({
   color: "#142047",
@@ -25,21 +25,21 @@ export const ChecklistModalStyle = styled.div({
   "& .item-editor": {
     ...modalAnimation,
     width: "100%",
-    maxWidth: 440,
+    maxWidth: 480,
     maxHeight: "calc(100dvh - 40px)",
     overflowY: "auto",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 24,
     boxShadow: "0 20px 80px #102C3633",
-    "& > .editor-field": {
+    "& .editor-field": {
       display: "flex",
       flexDirection: "column",
       gap: 8,
       marginTop: 18,
       fontWeight: 600,
     },
-    "& input, & textarea": {
+    "& .editor-field input, & .editor-field textarea": {
       width: "100%",
       padding: "10px 12px",
       border: "1px solid #D9E1DD",
@@ -48,6 +48,7 @@ export const ChecklistModalStyle = styled.div({
       backgroundColor: "#FFFFFF",
       fontWeight: 400,
     },
+    "& .editor-field input": { height: 46 },
     "& textarea": { minHeight: 90 },
   },
   "& .editor-heading": {
@@ -66,6 +67,8 @@ export const ChecklistModalStyle = styled.div({
   "& .editor-buttons": {
     display: "flex",
     justifyContent: "flex-end",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: 8,
     marginTop: 24,
     "& > button": {
@@ -82,7 +85,10 @@ export const ChecklistModalStyle = styled.div({
     fontWeight: 400,
     "& .sort-trigger": {
       width: "100%",
+      height: 46,
       minHeight: 46,
+      maxHeight: 46,
+      boxSizing: "border-box",
       padding: "10px 12px",
       border: "1px solid #D9E1DD",
       borderRadius: 8,
@@ -104,8 +110,42 @@ export const ChecklistModalStyle = styled.div({
     fontWeight: 600,
     whiteSpace: "nowrap",
     flexShrink: 0,
-    "&:hover": { backgroundColor: "#0D3E41" },
+    "@media (hover: hover) and (pointer: fine)": { "&:hover": { backgroundColor: "#0D3E41" } },
   },
+  "& .editor-tabs": {
+    position: "relative", display: "flex", borderBottom: "1px solid #D9E1DD", marginTop: 12,
+    "& > button": { ...menuAnimation.button, width: "50%", minHeight: 46, color: "#667982", position: "relative", "&[aria-selected=true]": { color: "#0D5355", fontWeight: 600 } },
+  },
+  "& .tab-indicator": { ...menuAnimation.indicator, position: "absolute", bottom: -1, left: 0, width: "50%", height: 2, backgroundColor: "#0D5355" },
+  "& .recommendation-types": {
+    position: "relative", isolation: "isolate", display: "flex", flexWrap: "wrap", gap: 7, marginTop: 20,
+    "& button": {
+      ...menuAnimation.button, position: "relative", zIndex: 1, flexShrink: 0, whiteSpace: "nowrap",
+      minHeight: 40, padding: "6px 12px", border: "1px solid #D9E1DD", borderRadius: 22, fontSize: "inherit",
+      "&[aria-pressed=true]": { color: "#FFFFFF", borderColor: "transparent" },
+    },
+  },
+  "& .recommendation-indicator": {
+    ...menuAnimation.indicator, position: "absolute", top: 0, left: 0, zIndex: 0,
+    borderRadius: 22, backgroundColor: "#0D5355", pointerEvents: "none",
+  },
+  "& .recommendation-heading": { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "18px 0 8px", "& button": { minHeight: 40, color: "#0D5355", fontSize: "inherit" } },
+  "& .recommendation-viewport": {
+    overflow: "hidden", height: "clamp(220px, 42dvh, 420px)", minWidth: 0,
+  },
+  "& .recommendation-list": {
+    minWidth: 0, height: "100%", overflowY: "auto",
+    overscrollBehavior: "contain", scrollbarGutter: "stable",
+    display: "flex", flexDirection: "column", gap: 8, padding: "3px 4px",
+  },
+  "& .recommendation-item": { flexShrink: 0, display: "flex", alignItems: "center", gap: 10, minWidth: 0, padding: "11px 12px", border: "1px solid #D9E1DD", borderRadius: 9,
+    "&:has(input:checked)": { backgroundColor: "#EDF8F4", borderColor: "#0D5355" },
+    "&[data-disabled=true]": { opacity: 0.55 },
+    "& input": { width: 19, height: 19, flexShrink: 0, accentColor: "#0D5355" },
+  },
+  "& .recommendation-copy": { display: "flex", flexDirection: "column", minWidth: 0, flex: 1, overflowWrap: "anywhere", "& strong": { fontWeight: 600 }, "& > span": { color: "#667982", fontSize: 14 } },
+  "& .recommendation-category": { color: "#667982", fontSize: 14, whiteSpace: "nowrap" },
+  "& .selection-count": { color: "#0D5355", marginRight: "auto", fontSize: 14 },
   "@media (min-width: 768px) and (max-width: 1023px)": { fontSize: "15px" },
   "@media (max-width: 767px)": {
     fontSize: "14px",
@@ -117,5 +157,6 @@ export const ChecklistModalStyle = styled.div({
       padding: "20px 20px max(20px, env(safe-area-inset-bottom))",
     },
     "& .primary-button": { gap: 4 },
+    "& .selection-count": { width: "100%" },
   },
 });

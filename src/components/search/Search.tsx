@@ -8,7 +8,6 @@ import {
 } from "react";
 import { Link, useNavigate } from "react-router";
 import {
-  House,
   Search as SearchIcon,
   X,
   Bookmark,
@@ -253,8 +252,14 @@ function toBookmarkInput(place: SearchPlace) {
     description: place.description ?? "",
     // 현재 이미지는 번들 마스코트이므로 DB에는 저장하지 않습니다.
     imageUrl: null,
-    latitude: typeof place.lat === "number" && Number.isFinite(place.lat) ? place.lat : null,
-    longitude: typeof place.lng === "number" && Number.isFinite(place.lng) ? place.lng : null,
+    latitude:
+      typeof place.lat === "number" && Number.isFinite(place.lat)
+        ? place.lat
+        : null,
+    longitude:
+      typeof place.lng === "number" && Number.isFinite(place.lng)
+        ? place.lng
+        : null,
   };
 }
 
@@ -485,12 +490,7 @@ export default function Search() {
       <S.MainContent>
         <S.Container>
           <S.BreadcrumbArea>
-            <Breadcrumb
-              items={[
-                { label: "내 여행", to: "/", Icon: House },
-                { label: "검색" },
-              ]}
-            />
+            <Breadcrumb />
           </S.BreadcrumbArea>
 
           <S.PageTitle>여행지 검색</S.PageTitle>
@@ -659,7 +659,11 @@ export default function Search() {
                             isFavorite ? "저장 취소" : "장소 저장"
                           }`}
                           aria-pressed={isFavorite}
-                          disabled={bookmarksLoading || bookmarkPending || Boolean(bookmarksLoadError)}
+                          disabled={
+                            bookmarksLoading ||
+                            bookmarkPending ||
+                            Boolean(bookmarksLoadError)
+                          }
                           aria-busy={bookmarkPending}
                           title={
                             bookmarksLoading

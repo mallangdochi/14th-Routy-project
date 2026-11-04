@@ -1,11 +1,15 @@
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { ChevronRight, House, MapPin, Plus } from "lucide-react";
+import { ChevronRight, MapPin, Plus } from "lucide-react";
 import {
   createScheduleColorMap,
   getScheduleColorStyle,
 } from "../../utils/colorUtils";
-import { trips, type Trip } from "../../data/trips";
+import type { Trip } from "../../data/trips";
+import { getMyTrips, type SavedTrip } from "../../api/trips";
+import { useAuth } from "../../contexts/AuthContext";
+import Loader from "../../components/loader/Loader";
+import Logout from "../../components/emptyUI/logout/Logout";
 import { SchedulePageLayout, SchedulePageStyle } from "./schedulePageStyle";
 import MonthPicker from "../../components/pickers/MonthPicker";
 import {
@@ -22,10 +26,38 @@ import { Link } from "react-router";
 import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
 
 type SchedulePageProps = {
-  schedules?: Trip[];
   createTripHref?: string;
   getTripHref?: (trip: Trip) => string;
 };
+
+type TripQueryResult = {
+  userId: string;
+  attempt: number;
+  trips: SavedTrip[];
+  error: string;
+};
+
+function toCalendarTrip(trip: SavedTrip, today: string): Trip {
+  return {
+    id: trip.id,
+    title: trip.name || `${trip.region} 여행`,
+    region: trip.region,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    startTime: trip.startTime || "00:00",
+    status:
+      today < trip.startDate
+        ? "PLANNING"
+        : today > trip.endDate
+          ? "COMPLETED"
+          : "IN_PROGRESS",
+    image: "",
+    places: 0,
+    schedules: 0,
+    items: trip.region ? [trip.region] : [],
+    updatedAt: trip.updatedAt,
+  };
+}
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -39,10 +71,49 @@ const shortDate = (value: string) => {
 };
 
 export default function SchedulePage({
-  schedules = trips,
   createTripHref = "/trips/new",
-  getTripHref = (trip) => `/trips/${encodeURIComponent(trip.id)}`,
+  getTripHref = (trip) => `/trip-schedule/${encodeURIComponent(trip.id)}`,
 }: SchedulePageProps) {
+  const { user } = useAuth();
+  const userId = user?.id;
+  const [attempt, setAttempt] = useState(0);
+  const [queryResult, setQueryResult] = useState<TripQueryResult | null>(null);
+  const currentResult =
+    userId && queryResult?.userId === userId && queryResult.attempt === attempt
+      ? queryResult
+      : null;
+  const isLoading = Boolean(userId) && currentResult === null;
+  const loadError = currentResult?.error ?? "";
+  const today = dateKey(new Date());
+  const schedules = useMemo(
+    () =>
+      (currentResult?.trips ?? []).map((trip) => toCalendarTrip(trip, today)),
+    [currentResult, today],
+  );
+
+  useEffect(() => {
+    if (!userId) return;
+    const controller = new AbortController();
+    void getMyTrips(controller.signal)
+      .then((savedTrips) => {
+        if (controller.signal.aborted) return;
+        setQueryResult({ userId, attempt, trips: savedTrips, error: "" });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setQueryResult({
+          userId,
+          attempt,
+          trips: [],
+          error:
+            error instanceof Error
+              ? error.message
+              : "여행 목록을 조회하지 못했습니다.",
+        });
+      });
+    return () => controller.abort();
+  }, [userId, attempt]);
+
   const titleId = useId();
   const scheduleColorMap = useMemo(
     () => createScheduleColorMap(schedules),
@@ -113,10 +184,11 @@ export default function SchedulePage({
   function tripCard(trip: Trip, showDates: boolean) {
     return (
       <li key={trip.id}>
-        <a
+        <Link
           className="trip-card"
           style={getScheduleColorStyle(trip.id, scheduleColorMap)}
-          href={getTripHref(trip)}
+          to={getTripHref(trip)}
+          state={{ breadcrumbRoot: "schedule" }}
         >
           <MapPin aria-hidden="true" className="pin" />
 
@@ -132,7 +204,7 @@ export default function SchedulePage({
           )}
 
           <ChevronRight aria-hidden="true" className="card-chevron" />
-        </a>
+        </Link>
       </li>
     );
   }
@@ -153,178 +225,194 @@ export default function SchedulePage({
         aria-labelledby={titleId}
       >
         <div className="trips-breadcrumb" aria-label="현재 위치">
-          <Breadcrumb
-            items={[
-              { label: "내 여행", to: "/", Icon: House },
-              { label: "일정", to: "/schedule" },
-            ]}
-          />
+          <Breadcrumb />
         </div>
 
-        <header className="schedule-header">
-          <div className="heading-row">
-            <div className="heading-copy">
-              <h1 id={titleId}>내 여행 일정</h1>
-              <p>
-                한눈에 보는 여행 일정을 확인하고,
-                <br className="mobile-break" /> 나만의 여행을 자유롭게
-                수정해보세요.
-              </p>
-            </div>
-
-            <Link className="create-trip" to={createTripHref}>
-              <Plus aria-hidden="true" />
-              <span>새 여행 만들기</span>
-            </Link>
-          </div>
-
-          <div className="calendar-toolbar">
-            <div className="month-navigation">
-              <MonthPicker
-                className="schedule-month-picker"
-                label="여행 일정 연월 선택"
-                value={`${month.getFullYear()}-${String(
-                  month.getMonth() + 1,
-                ).padStart(2, "0")}`}
-                onChange={changeMonth}
-                placement="bottom"
-              />
-            </div>
-
+        {!user ? (
+          <Logout />
+        ) : isLoading ? (
+          <Loader />
+        ) : loadError ? (
+          <div role="alert">
+            <p>{loadError}</p>
             <button
-              className="today-button"
               type="button"
-              onClick={() => selectDate(new Date())}
+              onClick={() => setAttempt((value) => value + 1)}
             >
-              오늘
+              다시 시도
             </button>
           </div>
-        </header>
+        ) : (
+          <>
+            <header className="schedule-header">
+              <div className="heading-row">
+                <div className="heading-copy">
+                  <h1 id={titleId}>내 여행 일정</h1>
+                  <p>
+                    한눈에 보는 여행 일정을 확인하고,
+                    <br className="mobile-break" /> 나만의 여행을 자유롭게
+                    수정해보세요.
+                  </p>
+                </div>
 
-        <div
-          className="calendar"
-          role="group"
-          aria-label={`${month.getFullYear()}년 ${month.getMonth() + 1}월 여행 달력`}
-        >
-          <div className="weekday-row" aria-hidden="true">
-            {weekdays.map((day, index) => (
-              <span key={day} data-weekday={index}>
-                {day}
-              </span>
-            ))}
-          </div>
+                <Link className="create-trip" to={createTripHref}>
+                  <Plus aria-hidden="true" />
+                  <span>새 여행 만들기</span>
+                </Link>
+              </div>
 
-          {weeks.map((week) => {
-            const segments = weekSegments(week, monthTrips);
-            const laneCount = Math.max(
-              1,
-              ...segments.map((segment) => segment.lane + 1),
-            );
+              <div className="calendar-toolbar">
+                <div className="month-navigation">
+                  <MonthPicker
+                    className="schedule-month-picker"
+                    label="여행 일정 연월 선택"
+                    value={`${month.getFullYear()}-${String(
+                      month.getMonth() + 1,
+                    ).padStart(2, "0")}`}
+                    onChange={changeMonth}
+                    placement="bottom"
+                  />
+                </div>
 
-            return (
-              <div
-                className="calendar-week"
-                key={dateKey(week[0])}
-                style={{
-                  gridTemplateRows: `40px repeat(${laneCount}, var(--event-height)) minmax(10px, 1fr)`,
-                }}
-              >
-                {week.map((date, col) => {
-                  const key = dateKey(date);
-                  const count = schedules.filter(
-                    (trip) => trip.startDate <= key && trip.endDate >= key,
-                  ).length;
+                <button
+                  className="today-button"
+                  type="button"
+                  onClick={() => selectDate(new Date())}
+                >
+                  오늘
+                </button>
+              </div>
+            </header>
 
-                  return (
-                    <div
-                      className="day-cell"
-                      key={key}
-                      style={{ gridColumn: col + 1, gridRow: "1 / -1" }}
-                      data-outside={date.getMonth() !== month.getMonth()}
-                      data-selected={key === todayKey}
-                      data-weekday={date.getDay()}
-                    >
-                      <button
-                        type="button"
-                        className="day-button"
-                        ref={(node) => {
-                          if (node) dateRefs.current.set(key, node);
-                          else dateRefs.current.delete(key);
-                        }}
-                        aria-label={`${fullDate(date)}, 여행 ${count}개`}
-                        aria-pressed={key === selectedKey}
-                        aria-current={key === todayKey ? "date" : undefined}
-                        onKeyDown={(event) => onDateKey(event, date)}
-                        onClick={() => selectDate(date)}
-                      >
-                        <span className="day-number">{date.getDate()}</span>
-                      </button>
-                    </div>
-                  );
-                })}
-
-                {segments.map(({ trip, start, end, lane }) => (
-                  <a
-                    key={trip.id}
-                    className="calendar-event"
-                    href={getTripHref(trip)}
-                    aria-label={`${trip.title}, ${shortDate(trip.startDate)}부터 ${shortDate(trip.endDate)}까지, ${trip.items.join(", ")}`}
-                    style={{
-                      ...getScheduleColorStyle(trip.id, scheduleColorMap),
-                      gridColumn: `${start + 1} / ${end + 2}`,
-                      gridRow: lane + 2,
-                    }}
-                  >
-                    <strong>{trip.title}</strong>
-                    <span>{trip.items.join(" · ")}</span>
-                  </a>
+            <div
+              className="calendar"
+              role="group"
+              aria-label={`${month.getFullYear()}년 ${month.getMonth() + 1}월 여행 달력`}
+            >
+              <div className="weekday-row" aria-hidden="true">
+                {weekdays.map((day, index) => (
+                  <span key={day} data-weekday={index}>
+                    {day}
+                  </span>
                 ))}
               </div>
-            );
-          })}
-        </div>
 
-        <div className="mobile-details">
-          <section
-            className="selected-panel"
-            aria-labelledby={`${titleId}-selected`}
-          >
-            <div className="section-heading">
-              <h2 id={`${titleId}-selected`}>
-                {selected.getMonth() + 1}월 {selected.getDate()}일 (
-                {weekdays[selected.getDay()]})
-              </h2>
-              <span>총 {dayTrips.length}개의 여행 일정</span>
+              {weeks.map((week) => {
+                const segments = weekSegments(week, monthTrips);
+                const laneCount = Math.max(
+                  1,
+                  ...segments.map((segment) => segment.lane + 1),
+                );
+
+                return (
+                  <div
+                    className="calendar-week"
+                    key={dateKey(week[0])}
+                    style={{
+                      gridTemplateRows: `40px repeat(${laneCount}, var(--event-height)) minmax(10px, 1fr)`,
+                    }}
+                  >
+                    {week.map((date, col) => {
+                      const key = dateKey(date);
+                      const count = schedules.filter(
+                        (trip) => trip.startDate <= key && trip.endDate >= key,
+                      ).length;
+
+                      return (
+                        <div
+                          className="day-cell"
+                          key={key}
+                          style={{ gridColumn: col + 1, gridRow: "1 / -1" }}
+                          data-outside={date.getMonth() !== month.getMonth()}
+                          data-selected={key === todayKey}
+                          data-weekday={date.getDay()}
+                        >
+                          <button
+                            type="button"
+                            className="day-button"
+                            ref={(node) => {
+                              if (node) dateRefs.current.set(key, node);
+                              else dateRefs.current.delete(key);
+                            }}
+                            aria-label={`${fullDate(date)}, 여행 ${count}개`}
+                            aria-pressed={key === selectedKey}
+                            aria-current={key === todayKey ? "date" : undefined}
+                            onKeyDown={(event) => onDateKey(event, date)}
+                            onClick={() => selectDate(date)}
+                          >
+                            <span className="day-number">{date.getDate()}</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {segments.map(({ trip, start, end, lane }) => (
+                      <Link
+                        key={trip.id}
+                        className="calendar-event"
+                        to={getTripHref(trip)}
+                        state={{ breadcrumbRoot: "schedule" }}
+                        aria-label={`${trip.title}, ${shortDate(trip.startDate)}부터 ${shortDate(trip.endDate)}까지, ${trip.items.join(", ")}`}
+                        style={{
+                          ...getScheduleColorStyle(trip.id, scheduleColorMap),
+                          gridColumn: `${start + 1} / ${end + 2}`,
+                          gridRow: lane + 2,
+                        }}
+                      >
+                        <strong>{trip.title}</strong>
+                        <span>{trip.items.join(" · ")}</span>
+                      </Link>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
 
-            <div aria-live="polite">
-              {dayTrips.length ? (
-                <ul className="trip-list">
-                  {dayTrips.map((trip) => tripCard(trip, false))}
-                </ul>
-              ) : (
-                <p className="empty-message">
-                  선택한 날짜에 여행 일정이 없어요.
-                </p>
-              )}
-            </div>
-          </section>
+            <div className="mobile-details">
+              <section
+                className="selected-panel"
+                aria-labelledby={`${titleId}-selected`}
+              >
+                <div className="section-heading">
+                  <h2 id={`${titleId}-selected`}>
+                    {selected.getMonth() + 1}월 {selected.getDate()}일 (
+                    {weekdays[selected.getDay()]})
+                  </h2>
+                  <span>총 {dayTrips.length}개의 여행 일정</span>
+                </div>
 
-          <section className="all-trips" aria-labelledby={`${titleId}-all`}>
-            <div className="section-heading">
-              <h2 id={`${titleId}-all`}>전체 여행 일정</h2>
-              <span>{monthTrips.length}개의 여행</span>
-            </div>
+                <div aria-live="polite">
+                  {dayTrips.length ? (
+                    <ul className="trip-list">
+                      {dayTrips.map((trip) => tripCard(trip, false))}
+                    </ul>
+                  ) : (
+                    <p className="empty-message">
+                      선택한 날짜에 여행 일정이 없어요.
+                    </p>
+                  )}
+                </div>
+              </section>
 
-            {monthTrips.length ? (
-              <ul className="trip-list">
-                {monthTrips.map((trip) => tripCard(trip, true))}
-              </ul>
-            ) : (
-              <p className="empty-message">이번 달에 등록된 여행이 없어요.</p>
-            )}
-          </section>
-        </div>
+              <section className="all-trips" aria-labelledby={`${titleId}-all`}>
+                <div className="section-heading">
+                  <h2 id={`${titleId}-all`}>전체 여행 일정</h2>
+                  <span>{monthTrips.length}개의 여행</span>
+                </div>
+
+                {monthTrips.length ? (
+                  <ul className="trip-list">
+                    {monthTrips.map((trip) => tripCard(trip, true))}
+                  </ul>
+                ) : (
+                  <p className="empty-message">
+                    이번 달에 등록된 여행이 없어요.
+                  </p>
+                )}
+              </section>
+            </div>
+          </>
+        )}
 
         <div className="page-mobile">
           <MobileNav />
