@@ -208,14 +208,33 @@ export default function TimetableShareModal({
   onClose,
   days,
 }: TimetableShareModalProps) {
-  if (!isOpen) return null;
+  const [isMounted, setIsMounted] = useState(isOpen);
 
-  return <TimetableShareModalContent onClose={onClose} days={days} />;
+  useEffect(() => {
+    if (isOpen) {
+      setIsMounted(true);
+      return;
+    }
+    // 닫힘 애니메이션(270ms)이 끝난 뒤 콘텐츠를 제거합니다.
+    const timer = window.setTimeout(() => setIsMounted(false), 270);
+    return () => window.clearTimeout(timer);
+  }, [isOpen]);
+
+  if (!isOpen && !isMounted) return null;
+
+  return (
+    <TimetableShareModalContent
+      isOpen={isOpen}
+      onClose={onClose}
+      days={days}
+    />
+  );
 }
 
-type TimetableShareModalContentProps = Omit<TimetableShareModalProps, "isOpen">;
+type TimetableShareModalContentProps = TimetableShareModalProps;
 
 function TimetableShareModalContent({
+  isOpen,
   onClose,
   days,
 }: TimetableShareModalContentProps) {
@@ -223,6 +242,8 @@ function TimetableShareModalContent({
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
@@ -232,7 +253,7 @@ function TimetableShareModalContent({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose]);
+  }, [isOpen, onClose]);
 
   const scheduleText = createScheduleText(days);
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -272,8 +293,12 @@ function TimetableShareModalContent({
   };
 
   return (
-    <S.ShareOverlay onClick={onClose}>
+    <S.ShareOverlay
+      onClick={isOpen ? onClose : undefined}
+      style={{ pointerEvents: isOpen ? "auto" : "none" }}
+    >
       <S.ShareModal
+        data-open={isOpen}
         role="dialog"
         aria-modal="true"
         aria-label="여행 시간표 공유하기"

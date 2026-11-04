@@ -1,9 +1,13 @@
 import styled from "@emotion/styled";
-import { ShareBanner, ShareBannerText } from "../share/ShareModalStyle";
+import {
+  ShareBanner,
+  ShareBannerText,
+  ShareModal as BaseShareModal,
+} from "../share/ShareModalStyle";
+import { modalAnimation } from "../../../styles/animation";
 
 export {
   ShareOverlay,
-  ShareModal,
   ShareMascot,
   ShareCloseButton,
   ShareSection,
@@ -13,6 +17,9 @@ export {
   SharePlatformIcon,
   KakaoBubble,
 } from "../share/ShareModalStyle";
+
+// 공용 공유 모달은 유지하고 시간표 모달에만 애니메이션을 적용합니다.
+export const ShareModal = styled(BaseShareModal)(modalAnimation);
 
 export const PreviewBanner = styled(ShareBanner)({
   height: "155px",
@@ -70,7 +77,6 @@ export const PreviewSection = styled.section({
 });
 
 export const PreviewTitle = styled.h3({
-  margin: 0,
   color: "#0C293D",
   fontSize: "13px",
   fontWeight: 700,
@@ -260,7 +266,6 @@ export const ShareActionButton = styled.button({
   color: "#005259",
   fontSize: "13px",
   fontWeight: 700,
-  cursor: "pointer",
 
   "&:hover": {
     backgroundColor: "#CBF4E9",
@@ -298,7 +303,6 @@ export const BottomCloseButton = styled.button({
   color: "#0C293D",
   fontSize: "13px",
   fontWeight: 700,
-  cursor: "pointer",
 
   "&:hover": {
     backgroundColor: "#EDF4F5",

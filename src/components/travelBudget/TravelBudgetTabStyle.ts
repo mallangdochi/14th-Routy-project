@@ -1,40 +1,30 @@
 import styled from "@emotion/styled";
-import { dropdownAnimation } from "../../styles/animation";
+import { keyframes } from "@emotion/react";
+const deleteToastEnter = keyframes({
+  from: { opacity: 0, transform: "translateY(10px)" },
+  to: { opacity: 1, transform: "translateY(0)" },
+});
+import { dropdownAnimation, modalAnimation } from "../../styles/animation";
 
-/** 여행 상세페이지의 '예산' 탭 안에서만 사용하는 스타일입니다. */
 export const TravelBudgetTabStyle = styled.section({
   "--budget-navy": "#0b1c4d",
   "--budget-teal": "#005359",
   "--budget-muted": "#8295b7",
   width: "100%",
   minWidth: 0,
-  marginTop: 20,
-  paddingBottom: 36,
-  fontFamily:
-    'Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif',
+  // marginTop: 20,
+  // paddingBottom: 36,
   fontSize: 14,
   lineHeight: 1.5,
   color: "var(--budget-navy)",
-
-  "& *, & *::before, & *::after": { boxSizing: "border-box" },
-  "& button": { cursor: "pointer", fontFamily: "inherit" },
   "& button:focus-visible, & select:focus-visible, & input:focus-visible": {
     outline: "2px solid var(--budget-teal)",
     outlineOffset: 2,
   },
-  "& .sr-only": {
-    position: "absolute",
-    width: 1,
-    height: 1,
-    overflow: "hidden",
-    clip: "rect(0,0,0,0)",
-    whiteSpace: "nowrap",
-  },
-
-  // 공통 카드 및 가계부/예산 패널
+  "& .budget-form-error": { color: "#bc4352", fontSize: 12, margin: "8px 0" },
   "& .budget-grid": {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 1.94fr) minmax(270px, .90fr)",
+    gridTemplateColumns: "minmax(0, 7fr) minmax(0, 3fr)",
     gap: 14,
     alignItems: "start",
     minWidth: 0,
@@ -46,8 +36,13 @@ export const TravelBudgetTabStyle = styled.section({
     border: "1px solid #f0f1f4",
     boxShadow: "0 4px 22px rgba(32,54,73,.035)",
   },
-  "& .ledger-panel": { padding: "19px 19px 20px" },
-  "& .summary-panel": { padding: "17px" },
+  "& .ledger-panel": {
+    padding: "19px 19px 20px",
+  },
+  "& .summary-panel": {
+    padding: "17px",
+    overflowWrap: "anywhere",
+  },
   "& .ledger-toolbar": {
     display: "flex",
     alignItems: "center",
@@ -55,6 +50,7 @@ export const TravelBudgetTabStyle = styled.section({
     gap: 10,
     marginBottom: 16,
     minWidth: 0,
+    flexWrap: "wrap",
   },
   "& .ledger-tools-left, & .ledger-tools-right": {
     display: "flex",
@@ -69,58 +65,6 @@ export const TravelBudgetTabStyle = styled.section({
     letterSpacing: "-.035em",
     fontSize: 24,
     whiteSpace: "nowrap",
-  },
-  "& .period-select": {
-    position: "relative",
-    display: "inline-flex",
-    alignItems: "center",
-    minWidth: 0,
-  },
-  "& .period-trigger": {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    minWidth: 116,
-    height: 41,
-    padding: "0 11px",
-    background: "#fff",
-    border: "1px solid #e3e9f3",
-    borderRadius: 9,
-    color: "#6980a6",
-    fontSize: 13,
-  },
-  "& .period-chevron": { transition: "transform .2s ease" },
-  "& .period-chevron.open": { transform: "rotate(180deg)" },
-  "& .period-menu": {
-    position: "absolute",
-    top: "calc(100% + 5px)",
-    left: 0,
-    minWidth: 140,
-    padding: 5,
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,
-    zIndex: 25,
-    background: "#fff",
-    borderRadius: 10,
-    border: "1px solid #e5ebf2",
-    boxShadow: "0 12px 25px #152f4725",
-    ...dropdownAnimation,
-  },
-  "& .period-menu button": {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    textAlign: "left",
-    padding: "9px 10px",
-    borderRadius: 7,
-    fontSize: 12,
-    color: "#2b4263",
-  },
-  "& .period-menu button[aria-selected='true'], & .period-menu button:hover": {
-    background: "#eaf8f5",
-    color: "#005359",
   },
   "& .button-primary, & .button-outline": {
     display: "inline-flex",
@@ -141,15 +85,17 @@ export const TravelBudgetTabStyle = styled.section({
     border: "1px solid #005359",
     boxShadow: "0 2px 6px #00535922",
   },
-  "& .button-primary:hover": { backgroundColor: "#006c72" },
+  "& .button-primary:hover": {
+    backgroundColor: "#006c72",
+  },
   "& .button-outline": {
     color: "#172653",
     backgroundColor: "#fff",
     border: "1px solid #dfe6f1",
   },
-  "& .button-outline:hover": { backgroundColor: "#f5faf9" },
-
-  // 지출 항목 그룹
+  "& .button-outline:hover": {
+    backgroundColor: "#f5faf9",
+  },
   "& .expense-groups": {
     display: "flex",
     flexDirection: "column",
@@ -181,6 +127,8 @@ export const TravelBudgetTabStyle = styled.section({
     minHeight: 45,
     textAlign: "left",
     color: "var(--budget-navy)",
+    flexWrap: "wrap",
+    padding: "9px 0",
   },
   "& .group-toggle strong": {
     whiteSpace: "nowrap",
@@ -193,27 +141,31 @@ export const TravelBudgetTabStyle = styled.section({
     color: "var(--budget-muted)",
     whiteSpace: "nowrap",
   },
-  "& .group-symbol": { color: "#007276", flexShrink: 0 },
+  "& .group-symbol": {
+    color: "#007276",
+    flexShrink: 0,
+  },
   "& .group-toggle .chevron": {
     flexShrink: 0,
     transition: "transform .18s ease",
   },
-  "& .group-toggle .chevron.opened": { transform: "rotate(90deg)" },
-  "& .group-add": {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 2,
-    flexShrink: 0,
-    fontSize: 12,
-    fontWeight: 750,
-    color: "#00656c",
-    whiteSpace: "nowrap",
+  "& .group-toggle .chevron.opened": {
+    transform: "rotate(90deg)",
   },
-  "& .group-add:hover": { textDecoration: "underline" },
-  "& .group-entries": { width: "100%" },
+
+  "& .group-entries": {
+    width: "100%",
+    ...dropdownAnimation,
+  },
+  "& .expense-swipe-shell": {
+    position: "relative",
+    overflow: "hidden",
+    background: "#fff",
+  },
+  "& .swipe-delete": { display: "none" },
   "& .expense-entry": {
     display: "grid",
-    gridTemplateColumns: "85px 70px minmax(96px, 1fr) 94px 108px",
+    gridTemplateColumns: "65px 58px minmax(0,1fr) 80px 95px",
     alignItems: "center",
     gap: 6,
     minWidth: 0,
@@ -228,7 +180,9 @@ export const TravelBudgetTabStyle = styled.section({
     whiteSpace: "nowrap",
     fontWeight: 500,
   },
-  "& .expense-date small": { fontSize: 11 },
+  "& .expense-date small": {
+    fontSize: 11,
+  },
   "& .expense-name": {
     textAlign: "left",
     color: "var(--budget-navy)",
@@ -239,7 +193,9 @@ export const TravelBudgetTabStyle = styled.section({
     fontSize: 13,
     fontWeight: 750,
   },
-  "& .expense-name:hover": { textDecoration: "underline" },
+  "& .expense-name:hover": {
+    textDecoration: "underline",
+  },
   "& .category-pill": {
     justifySelf: "center",
     whiteSpace: "nowrap",
@@ -248,12 +204,30 @@ export const TravelBudgetTabStyle = styled.section({
     padding: "4px 10px",
     borderRadius: 999,
   },
-  "& .category-교통": { backgroundColor: "#e1f6f2", color: "#008479" },
-  "& .category-숙소": { backgroundColor: "#eee7ff", color: "#9069e1" },
-  "& .category-식비": { backgroundColor: "#ffe8e9", color: "#ed6e6a" },
-  "& .category-카페": { backgroundColor: "#fff0dc", color: "#df8a29" },
-  "& .category-관광": { backgroundColor: "#e8efff", color: "#5e82db" },
-  "& .category-기타": { backgroundColor: "#eff3f7", color: "#71839b" },
+  "& .category-교통": {
+    backgroundColor: "#e1f6f2",
+    color: "#008479",
+  },
+  "& .category-숙소": {
+    backgroundColor: "#eee7ff",
+    color: "#9069e1",
+  },
+  "& .category-식비": {
+    backgroundColor: "#ffe8e9",
+    color: "#ed6e6a",
+  },
+  "& .category-카페": {
+    backgroundColor: "#fff0dc",
+    color: "#df8a29",
+  },
+  "& .category-관광": {
+    backgroundColor: "#e8efff",
+    color: "#5e82db",
+  },
+  "& .category-기타": {
+    backgroundColor: "#eff3f7",
+    color: "#71839b",
+  },
   "& .expense-payer": {
     display: "inline-flex",
     alignItems: "center",
@@ -292,31 +266,38 @@ export const TravelBudgetTabStyle = styled.section({
     transition: "opacity .15s ease",
   },
   "& .expense-entry:hover .entry-actions, & .expense-entry:focus-within .entry-actions":
-    { opacity: 1, pointerEvents: "auto" },
+    {
+      opacity: 1,
+      pointerEvents: "auto",
+    },
   "& .entry-actions button": {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 26,
-    height: 26,
+    width: 29,
+    height: 29,
     color: "#536981",
   },
-  "& .entry-actions button:hover": { color: "#005359" },
+  "& .entry-actions button svg": { width: 16, height: 16 },
+  "& .entry-actions button:hover": {
+    color: "#005359",
+  },
   "& .no-group-expense": {
     padding: "18px 14px",
     textAlign: "center",
     fontSize: 12,
     color: "#8ca0b8",
   },
-
-  // 데스크톱 지출/예산 현황 카드
   "& .total-display": {
     padding: "16px 17px 21px",
     borderRadius: 12,
     background: "linear-gradient(120deg, #e5f7f3, #f0fbf8)",
     color: "#006267",
   },
-  "& .summary-label": { fontSize: 13, fontWeight: 800 },
+  "& .summary-label": {
+    fontSize: 13,
+    fontWeight: 800,
+  },
   "& .total-display strong": {
     display: "block",
     marginTop: 8,
@@ -348,9 +329,11 @@ export const TravelBudgetTabStyle = styled.section({
     borderRadius: 9,
     fontSize: 13,
   },
-  "& .stats-button:hover": { background: "#f3faf9" },
+  "& .stats-button:hover": {
+    background: "#f3faf9",
+  },
   "& .summary-tip": {
-    minHeight: 119,
+    // minHeight: 119,
     marginTop: 14,
     padding: "16px 15px",
     border: "1px solid #e5edf5",
@@ -367,52 +350,12 @@ export const TravelBudgetTabStyle = styled.section({
     fontWeight: 800,
     color: "var(--budget-navy)",
   },
-  "& .summary-tip p": { margin: 0 },
-  "& .stats-details": {
-    marginTop: 14,
-    padding: "8px 3px 0",
-    borderTop: "1px solid #edf1f5",
+  "& .summary-tip p": {
+    margin: 0,
   },
-  "& .stats-details h3": {
-    margin: "12px 0",
-    fontSize: 14,
-    color: "var(--budget-navy)",
+  "& .is-empty .ledger-panel": {
+    minHeight: 560,
   },
-  "& .stat-row": { marginBottom: 12, fontSize: 12 },
-  "& .stat-row > div:first-of-type": {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  "& .stat-track": {
-    width: "100%",
-    height: 7,
-    borderRadius: 20,
-    background: "#eef3f5",
-    overflow: "hidden",
-  },
-  "& .stat-track > div": {
-    height: "100%",
-    borderRadius: 20,
-    background: "#007477",
-  },
-  "& .member-stat": {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "6px 0",
-    fontSize: 12,
-  },
-  "& .member-stat > span": { display: "flex", alignItems: "center", gap: 6 },
-  "& .member-stat img": {
-    width: 21,
-    height: 21,
-    borderRadius: "50%",
-    objectFit: "cover",
-  },
-
-  // 처음 들어온 가계부의 빈 상태
-  "& .is-empty .ledger-panel": { minHeight: 560 },
   "& .empty-ledger": {
     display: "flex",
     flexDirection: "column",
@@ -458,7 +401,11 @@ export const TravelBudgetTabStyle = styled.section({
     fontWeight: 650,
     fontSize: 15,
   },
-  "& .empty-total strong": { color: "#00565c", fontWeight: 850, fontSize: 30 },
+  "& .empty-total strong": {
+    color: "#00565c",
+    fontWeight: 850,
+    fontSize: 30,
+  },
   "& .empty-progress": {
     height: 14,
     margin: "0 0 26px",
@@ -479,10 +426,62 @@ export const TravelBudgetTabStyle = styled.section({
     textAlign: "center",
     fontSize: 15,
   },
-  "& .is-empty .summary-tip svg": { color: "#005359" },
-  "& .is-empty .summary-tip p": { marginTop: 13, lineHeight: 1.6 },
-
-  "& .mobile-spend-summary": { display: "none" },
+  "& .is-empty .summary-tip svg": {
+    color: "#005359",
+  },
+  "& .is-empty .summary-tip p": {
+    marginTop: 13,
+    lineHeight: 1.6,
+  },
+  "& .mobile-spend-summary": {
+    display: "none",
+  },
+  "& .budget-delete-toast": {
+    position: "fixed",
+    zIndex: 2000,
+    left: "max(16px, env(safe-area-inset-left, 0px))",
+    right: "max(16px, env(safe-area-inset-right, 0px))",
+    bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+    width: "auto",
+    maxWidth: 420,
+    margin: "0 auto",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "14px 16px",
+    borderRadius: 12,
+    color: "#fff",
+    background: "#0d5357",
+    boxShadow: "0 8px 28px #0d3e4133",
+    fontSize: 14,
+    animation: `${deleteToastEnter} 180ms ease-out both`,
+  },
+  "& .budget-delete-toast > svg": { flexShrink: 0 },
+  "& .toast-mobile-message": { display: "none" },
+  "& .budget-delete-toast > span": {
+    minWidth: 0,
+    flex: 1,
+    overflowWrap: "anywhere",
+  },
+  "& .budget-delete-toast .toast-undo": {
+    width: "auto",
+    height: 34,
+    padding: "0 11px",
+    border: "1px solid #ffffffa6",
+    borderRadius: 7,
+    whiteSpace: "nowrap",
+    fontSize: 13,
+    fontWeight: 750,
+  },
+  "& .budget-delete-toast > button": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 32,
+    height: 32,
+    flexShrink: 0,
+    color: "inherit",
+  },
   "& .budget-notice": {
     display: "flex",
     justifyContent: "space-between",
@@ -495,9 +494,10 @@ export const TravelBudgetTabStyle = styled.section({
     color: "#006065",
     background: "#e8f7f3",
   },
-  "& .budget-notice button": { display: "flex", alignItems: "center" },
-
-  // 입력 모달 (기존 팀원 모달과 독립적인 지출 입력창)
+  "& .budget-notice button": {
+    display: "flex",
+    alignItems: "center",
+  },
   "& .budget-dialog-overlay": {
     position: "fixed",
     inset: 0,
@@ -507,28 +507,106 @@ export const TravelBudgetTabStyle = styled.section({
     justifyContent: "center",
     padding: 15,
     background: "#0b23318a",
+    transition: "background-color 270ms ease",
+    '&[data-open="false"]': { background: "#0b233100", pointerEvents: "none" },
   },
   "& .budget-dialog": {
     width: "min(100%, 470px)",
     maxHeight: "90dvh",
-    overflowY: "auto",
+    overflow: "visible",
     padding: 23,
     borderRadius: 15,
     background: "#fff",
     boxShadow: "0 20px 70px #092a3c35",
+    ...modalAnimation,
+  },
+  "& .budget-settings-dialog .budget-settings-input-wrap": {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    width: "100%",
+    border: "1px solid #d7e0ed",
+    borderRadius: 8,
+    paddingRight: 12,
+    "&:focus-within": {
+      borderColor: "#72bdb5",
+      boxShadow: "0 0 0 4px rgba(114,189,181,.26)",
+    },
+  },
+  "& .budget-settings-dialog .budget-settings-input-wrap input": {
+    flex: 1,
+    width: "100%",
+    minWidth: 0,
+    border: 0,
+    boxShadow: "none",
+    textAlign: "right",
+    "&:focus": { outline: "none", boxShadow: "none", border: 0 },
+  },
+  "& .budget-settings-dialog .budget-settings-input-wrap > span": {
+    color: "#35486b",
+    fontWeight: 650,
+  },
+  "& .budget-settings-help": {
+    margin: "-14px 0 0",
+    fontSize: 12,
+    color: "#8295b7",
+  },
+  "& .budget-settings-quick": {
+    display: "flex",
+    flexDirection: "column",
+    gap: 9,
+  },
+  "& .budget-settings-quick > strong": { fontSize: 13, color: "#35486b" },
+  "& .budget-settings-quick > div": {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0,1fr))",
+    gap: 8,
+  },
+  "& .budget-settings-quick-button": {
+    minHeight: 40,
+    border: "1px solid #dfe6f1",
+    borderRadius: 8,
+    color: "#35486b",
+    fontSize: 13,
+    fontWeight: 700,
+    background: "#fff",
+    "&:hover": { background: "#f5faf9" },
+  },
+  "& .budget-settings-info": {
+    background: "#f1f8f7",
+    borderRadius: 9,
+    padding: 13,
+  },
+  "& .budget-settings-info strong": { fontSize: 13, color: "#00666a" },
+  "& .budget-settings-info p": {
+    margin: "6px 0 0",
+    fontSize: 12,
+    lineHeight: 1.6,
+    color: "#596d75",
+  },
+  "& .budget-settings-dialog .button-primary:disabled": {
+    opacity: 0.5,
+    cursor: "not-allowed",
   },
   "& .budget-dialog > header": {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 17,
+    marginBottom: 28,
   },
-  "& .budget-dialog h2": { margin: 0, fontSize: 21, fontWeight: 800 },
-  "& .budget-dialog > header button": { display: "flex" },
+  "& .budget-dialog h2": {
+    margin: 0,
+    fontSize: 21,
+    fontWeight: 800,
+  },
+  "& .budget-dialog > header button": {
+    display: "flex",
+  },
   "& .budget-dialog form": {
+    position: "relative",
     display: "flex",
     flexDirection: "column",
-    gap: 13,
+    gap: 20,
   },
   "& .budget-dialog label": {
     display: "flex",
@@ -538,6 +616,12 @@ export const TravelBudgetTabStyle = styled.section({
     color: "#35486b",
     fontWeight: 750,
   },
+  "& .budget-dialog input:focus, & .budget-dialog .picker-trigger:focus-visible, & .budget-dialog .sort-trigger:focus-visible":
+    {
+      outline: "none",
+      borderColor: "#72BDB5",
+      boxShadow: "0 0 0 4px rgba(114,189,181,.26)",
+    },
   "& .budget-dialog input, & .budget-dialog select": {
     display: "block",
     width: "100%",
@@ -550,6 +634,74 @@ export const TravelBudgetTabStyle = styled.section({
     fontSize: 14,
     color: "#1c2b4c",
   },
+  "& .budget-form-field": {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    minWidth: 0,
+    color: "#35486b",
+    fontSize: 13,
+    fontWeight: 750,
+  },
+  "& .budget-field-label, & .budget-date-field .picker-label": {
+    display: "block",
+    fontSize: 13,
+    fontWeight: 750,
+    color: "#35486b",
+  },
+  "& .budget-form-dropdown": { width: "100%", minWidth: 0 },
+  "& .budget-form-dropdown .sort-trigger": {
+    width: "100%",
+    height: 43,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    padding: "0 11px",
+    border: "1px solid #d7e0ed",
+    borderRadius: 8,
+    background: "#fff",
+    fontSize: 14,
+    color: "#1c2b4c",
+    fontWeight: 650,
+  },
+  "& .budget-date-field .picker-trigger": {
+    width: "100%",
+    minHeight: 43,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    padding: "0 11px",
+    border: "1px solid #d7e0ed",
+    borderRadius: 8,
+    background: "#fff",
+    fontSize: 14,
+    color: "#1c2b4c",
+    fontWeight: 650,
+  },
+  "& .budget-date-field .picker-trigger svg": { width: 18, height: 18 },
+  "& .budget-date-field": { position: "relative", zIndex: "auto" },
+  '& .budget-date-field[data-open="true"]': { zIndex: 30 },
+  '& .budget-date-field .picker-popup[data-open="false"]': {
+    pointerEvents: "none",
+  },
+  "& .budget-date-field .picker-popup": {
+    zIndex: 20,
+    top: "calc(100% + 6px)",
+    bottom: "auto",
+    maxHeight: "min(340px, 45dvh)",
+    overflowY: "auto",
+  },
+  "& .budget-amount-field": { cursor: "text" },
+  "& .budget-amount-field input": {
+    cursor: "text",
+    width: "100%",
+  },
+  "& .budget-amount-input": {
+    textAlign: "right",
+    fontVariantNumeric: "tabular-nums",
+  },
   "& .form-two-cols": {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
@@ -561,44 +713,139 @@ export const TravelBudgetTabStyle = styled.section({
     gap: 9,
     marginTop: 7,
   },
+  "& .ledger-tools-right": {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    marginLeft: "auto",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
+  "& .period-select .sort-trigger": {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    height: 42,
+    minWidth: 110,
+    padding: "0 11px",
+    border: "1px solid #e3e9f3",
+    borderRadius: 9,
+    color: "#6980a6",
+    background: "#fff",
+    fontSize: 13,
+  },
+  "& .budget-status": {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTop: "1px solid #e5edf5",
+  },
+  "& .budget-status header": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+    fontSize: 14,
+  },
+  "& .budget-status header button": {
+    border: "1px solid #addbd7",
+    borderRadius: 6,
+    padding: "5px 8px",
+    color: "#005359",
+    background: "#fff",
+    fontSize: 12,
+  },
+  "& .budget-status header button:disabled": {
+    opacity: 0.6,
+  },
+  "& .budget-status-line": {
+    display: "flex",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+    margin: "9px 0",
+    fontSize: 13,
+  },
+  "& .budget-status-line span, & .budget-status > p": {
+    color: "#8295b7",
+  },
+  "& .budget-status-line b": {
+    color: "#005359",
+    whiteSpace: "nowrap",
+  },
+  "& .budget-status-track": {
+    height: 9,
+    background: "#edf0f1",
+    borderRadius: 99,
+    overflow: "hidden",
+    marginTop: 13,
+  },
+  "& .budget-status-track > div": {
+    height: "100%",
+    background: "#17b69b",
+  },
 
-  // 태블릿: 좌측 가계부 + 우측 현황은 유지하되 글자와 간격만 축소
-  "@media (max-width: 1200px) and (min-width: 768px)": {
+  "@media (max-width: 1023px)": {
     "& .budget-grid": {
-      gridTemplateColumns: "minmax(0, 1.7fr) minmax(220px, .85fr)",
-      gap: 10,
+      gridTemplateColumns: "minmax(0,1fr)",
+      gap: 12,
     },
-    "& .ledger-panel": { padding: "14px 12px 20px" },
-    "& .summary-panel": { padding: 12 },
-    "& .ledger-tools-left h2": { fontSize: 21 },
+    "& .ledger-panel": {
+      padding: "14px 12px 20px",
+    },
+    "& .summary-panel": {
+      padding: 12,
+    },
+    "& .ledger-tools-left h2": {
+      fontSize: 21,
+    },
     "& .expense-entry": {
-      gridTemplateColumns: "55px 50px minmax(60px, 1fr) 70px 75px",
+      gridTemplateColumns: "55px 55px minmax(0,1fr) 75px 85px",
       gap: 2,
       padding: "6px 6px",
       fontSize: 11,
     },
-    "& .expense-name, & .expense-money": { fontSize: 11 },
-    "& .expense-date small": { display: "none" },
-
-    "& .category-pill": { fontSize: 10, padding: "3px 5px" },
-    "& .expense-payer": { fontSize: 10, gap: 3 },
-    "& .expense-payer img": { width: 15, height: 15 },
-    "& .group-toggle": { gap: 5 },
-    "& .group-toggle strong": { fontSize: 12 },
-    "& .group-toggle small, & .group-date, & .group-add": { fontSize: 10 },
-    "& .total-display strong": { fontSize: 27 },
-    "& .summary-tip": { fontSize: 11 },
-  },
-  "@media (max-width: 900px) and (min-width: 768px)": {
-    "& .budget-grid": { gridTemplateColumns: "minmax(0, 1fr)" },
-    "& .summary-panel": { maxWidth: "100%" },
-  },
-
-  // 모바일: 지출이 있을 때만 총지출 카드를 가계부 위로 이동
-  "@media (max-width: 767px)": {
-    marginTop: 12,
-    paddingBottom: "calc(115px + env(safe-area-inset-bottom, 0px))",
-    fontSize: 12,
+    "& .expense-name, & .expense-money": {
+      fontSize: 11,
+    },
+    "& .expense-date small": {
+      display: "none",
+    },
+    "& .category-pill": {
+      fontSize: 10,
+      padding: "3px 5px",
+    },
+    "& .expense-payer": {
+      fontSize: 10,
+      gap: 3,
+    },
+    "& .expense-payer img": {
+      width: 15,
+      height: 15,
+    },
+    "& .group-toggle": {
+      gap: 5,
+    },
+    "& .group-toggle strong": {
+      fontSize: 12,
+    },
+    "& .group-toggle small, & .group-date": {
+      fontSize: 10,
+    },
+    "& .total-display strong": {
+      fontSize: 27,
+    },
+    "& .summary-tip": {
+      fontSize: 11,
+    },
+    "& .is-empty .summary-panel": {
+      gridRow: 1,
+    },
+    "& .is-empty .ledger-panel": {
+      gridRow: 2,
+    },
     "& .mobile-spend-summary": {
       display: "flex",
       alignItems: "end",
@@ -610,6 +857,7 @@ export const TravelBudgetTabStyle = styled.section({
       borderRadius: 14,
       border: "1px solid #f4f6f7",
       boxShadow: "0 4px 20px #0c28400a",
+      flexWrap: "wrap",
     },
     "& .mobile-spend-copy": {
       display: "flex",
@@ -653,18 +901,68 @@ export const TravelBudgetTabStyle = styled.section({
       fontWeight: 750,
       color: "#00666a",
     },
-    "& .budget-grid": { gridTemplateColumns: "minmax(0, 1fr)", gap: 12 },
-    "& .ledger-panel": { padding: "12px 10px 14px", borderRadius: 12 },
-    "& .summary-panel": { padding: "14px 14px 13px", borderRadius: 12 },
+    "& .mobile-spend-summary .budget-status": {
+      width: "100%",
+      flexBasis: "100%",
+      marginTop: 6,
+    },
     "& .budget-grid:not(.is-empty) .summary-panel": { display: "none" },
+  },
+  "@media (max-width: 767px)": {
+    "& .budget-settings-dialog": {
+      height: "auto",
+      maxHeight: "94dvh",
+      overflowY: "auto",
+    },
+
+    "& .budget-delete-toast": {
+      bottom: "calc(96px + env(safe-area-inset-bottom, 0px))",
+      padding: "12px 14px",
+      gap: 7,
+      flexWrap: "nowrap",
+      fontSize: 12,
+    },
+    "& .budget-delete-toast > button": { width: 40, height: 40 },
+    "& .toast-desktop-message": { display: "none" },
+    "& .toast-mobile-message": { display: "inline", whiteSpace: "nowrap" },
+
+    // marginTop: 12,
+    // marginTop: 5,
+    paddingBottom: "calc(115px + env(safe-area-inset-bottom, 0px))",
+    fontSize: 12,
+    "& .budget-grid": {
+      gridTemplateColumns: "minmax(0, 1fr)",
+      gap: 12,
+    },
+    "& .ledger-panel": {
+      padding: "12px 10px 14px",
+      borderRadius: 12,
+    },
+    "& .summary-panel": {
+      padding: "14px 14px 13px",
+      borderRadius: 12,
+    },
+    "& .budget-grid:not(.is-empty) .summary-panel": {
+      display: "none",
+    },
     "& .budget-grid:not(.is-empty) .summary-panel.stats-visible": {
       display: "block",
     },
     "& .budget-grid:not(.is-empty) .summary-panel .total-display, & .budget-grid:not(.is-empty) .summary-panel .stats-button, & .budget-grid:not(.is-empty) .summary-panel .summary-tip":
-      { display: "none" },
-    "& .ledger-toolbar": { gap: 6, marginBottom: 12, minHeight: 32 },
-    "& .ledger-tools-left, & .ledger-tools-right": { gap: 6 },
-    "& .ledger-tools-left h2": { fontSize: 20 },
+      {
+        display: "none",
+      },
+    "& .ledger-toolbar": {
+      gap: 6,
+      marginBottom: 12,
+      minHeight: 32,
+    },
+    "& .ledger-tools-left, & .ledger-tools-right": {
+      gap: 6,
+    },
+    "& .ledger-tools-left h2": {
+      fontSize: 20,
+    },
     "& .button-primary, & .button-outline": {
       minHeight: 34,
       padding: "0 10px",
@@ -673,23 +971,32 @@ export const TravelBudgetTabStyle = styled.section({
       gap: 4,
     },
     "& .ledger-tools-right .button-primary svg, & .ledger-tools-right .button-outline svg":
-      { width: 13, height: 13 },
-    "& .period-trigger": {
-      height: 32,
-      minWidth: 90,
-      padding: "0 8px",
-      gap: 4,
-      fontSize: 11,
+      {
+        width: 13,
+        height: 13,
+      },
+    "& .expense-groups": {
+      gap: 11,
     },
-    "& .period-trigger svg": { width: 13 },
-    "& .expense-groups": { gap: 11 },
-    "& .group-heading": { minHeight: 41, padding: "0 8px" },
-    "& .group-toggle": { minHeight: 41, gap: 5 },
-    "& .group-toggle strong": { fontSize: 12 },
-    "& .group-toggle small, & .group-date": { fontSize: 10 },
-    "& .group-symbol": { width: 17, height: 17 },
-    "& .group-add": { fontSize: 10 },
-    "& .group-add svg": { width: 11 },
+    "& .group-heading": {
+      minHeight: 41,
+      padding: "0 8px",
+    },
+    "& .group-toggle": {
+      minHeight: 41,
+      gap: 5,
+    },
+    "& .group-toggle strong": {
+      fontSize: 12,
+    },
+    "& .group-toggle small, & .group-date": {
+      fontSize: 10,
+    },
+    "& .group-symbol": {
+      width: 17,
+      height: 17,
+    },
+
     "& .expense-entry": {
       gridTemplateColumns: "40px minmax(0, 1fr) auto",
       gridTemplateRows: "auto auto",
@@ -707,9 +1014,15 @@ export const TravelBudgetTabStyle = styled.section({
       lineHeight: 1.25,
       color: "#7e92b6",
     },
-    "& .expense-date small": { display: "block", fontSize: 9 },
-
-    "& .expense-name": { gridColumn: 2, gridRow: 1, fontSize: 12 },
+    "& .expense-date small": {
+      display: "block",
+      fontSize: 9,
+    },
+    "& .expense-name": {
+      gridColumn: 2,
+      gridRow: 1,
+      fontSize: 12,
+    },
     "& .category-pill": {
       gridColumn: 2,
       gridRow: 2,
@@ -729,21 +1042,55 @@ export const TravelBudgetTabStyle = styled.section({
       justifySelf: "end",
       fontSize: 10,
     },
-    "& .expense-payer img": { width: 14, height: 14 },
-    "& .entry-actions": { right: 4, bottom: -5 },
-    "& .is-empty .ledger-panel": { minHeight: 0 },
-    "& .empty-ledger": { minHeight: 264, padding: "0 6px 10px" },
+    "& .expense-payer img": {
+      width: 14,
+      height: 14,
+    },
+    "& .entry-actions": {
+      position: "static",
+      gridColumn: "3",
+      gridRow: "3",
+      justifySelf: "end",
+      opacity: 1,
+      pointerEvents: "auto",
+      boxShadow: "none",
+      padding: 0,
+    },
+    "& .is-empty .ledger-panel": {
+      gridRow: 2,
+    },
+    "& .empty-ledger": {
+      minHeight: 264,
+      padding: "0 6px 10px",
+    },
     "& .empty-ledger img": {
       width: "min(70%, 205px)",
       maxHeight: 176,
       marginBottom: 5,
     },
-    "& .empty-ledger h3": { fontSize: 17, marginBottom: 4 },
-    "& .empty-ledger p": { fontSize: 12, lineHeight: 1.55 },
-    "& .empty-total h2": { margin: "0 0 5px", fontSize: 16 },
-    "& .empty-total p": { marginBottom: 10, fontSize: 12 },
-    "& .empty-total strong": { fontSize: 24 },
-    "& .empty-progress": { height: 12, margin: "0 0 12px" },
+    "& .empty-ledger h3": {
+      fontSize: 17,
+      marginBottom: 4,
+    },
+    "& .empty-ledger p": {
+      fontSize: 12,
+      lineHeight: 1.55,
+    },
+    "& .empty-total h2": {
+      margin: "0 0 5px",
+      fontSize: 16,
+    },
+    "& .empty-total p": {
+      marginBottom: 10,
+      fontSize: 12,
+    },
+    "& .empty-total strong": {
+      fontSize: 24,
+    },
+    "& .empty-progress": {
+      height: 12,
+      margin: "0 0 12px",
+    },
     "& .is-empty .summary-tip": {
       flexDirection: "row",
       justifyContent: "center",
@@ -752,19 +1099,90 @@ export const TravelBudgetTabStyle = styled.section({
       padding: "10px 8px",
       fontSize: 11,
     },
-    "& .is-empty .summary-tip svg": { width: 31, height: 31, flexShrink: 0 },
-    "& .is-empty .summary-tip p": { margin: 0, textAlign: "left" },
-    "& .budget-dialog": { padding: 17 },
-    "& .form-two-cols": { gridTemplateColumns: "1fr 1fr" },
-  },
-  "@media (max-width: 360px)": {
-    "& .expense-entry": {
-      gridTemplateColumns: "34px minmax(0, 1fr) auto",
-      gap: "3px 4px",
-      padding: "6px 5px",
+    "& .is-empty .summary-tip svg": {
+      width: 31,
+      height: 31,
+      flexShrink: 0,
     },
-    "& .expense-money": { fontSize: 11 },
-    "& .group-date": { display: "none" },
-    "& .group-add": { fontSize: 9 },
+    "& .is-empty .summary-tip p": {
+      margin: 0,
+      textAlign: "left",
+    },
+    "& .budget-dialog-overlay": {
+      alignItems: "flex-end",
+      padding: 0,
+    },
+    "& .budget-dialog": {
+      width: "100%",
+      maxWidth: "100%",
+      height: "83dvh",
+      margin: 0,
+      padding: "22px 20px calc(22px + env(safe-area-inset-bottom, 0px))",
+      borderRadius: "22px 22px 0 0",
+      overscrollBehavior: "contain",
+      overflow: "visible",
+    },
+    "& .form-two-cols": {
+      gridTemplateColumns: "1fr 1fr",
+    },
+    "& .mobile-spend-summary .budget-status": {
+      width: "100%",
+      flexBasis: "100%",
+      marginTop: 6,
+    },
+    "& .period-select .sort-trigger": {
+      height: 34,
+      minWidth: 90,
+      fontSize: 11,
+      padding: "0 8px",
+      gap: 5,
+    },
+    "& .period-select .dropdown-trigger-icon svg": {
+      width: 13,
+      height: 13,
+    },
+    "& .is-empty .summary-panel": {
+      gridRow: 1,
+    },
+  },
+  "@media (hover: none) and (pointer: coarse)": {
+    "& .expense-swipe-shell": {
+      position: "relative",
+      overflow: "hidden",
+      background: "#d94e4e",
+    },
+    "& .swipe-delete": {
+      display: "flex",
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      right: 0,
+      width: 84,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "column",
+      gap: 3,
+      color: "#fff",
+      background: "#d94e4e",
+      fontSize: 12,
+      fontWeight: 750,
+      zIndex: 0,
+    },
+    "& .expense-entry": {
+      position: "relative",
+      zIndex: 1,
+      background: "#fff",
+      transform: "translate3d(var(--swipe-offset, 0px), 0, 0)",
+      transition: "transform 180ms ease",
+      touchAction: "pan-y",
+      userSelect: "none",
+    },
+    "& .expense-entry.is-dragging": { transition: "none" },
+    "& .entry-actions": { display: "none" },
+    "& .expense-entry:hover .entry-actions, & .expense-entry:focus-within .entry-actions":
+      {
+        opacity: 0,
+        pointerEvents: "none",
+      },
   },
 });
