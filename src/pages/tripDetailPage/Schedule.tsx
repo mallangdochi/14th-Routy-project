@@ -94,9 +94,7 @@ import ShareModal from "../../components/modal/share/ShareModal";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
 import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
-import Checklist from "../../components/checklist/Checklist";
-import type { ChecklistGroup } from "../../data/checklist";
-import EmptyChecklist from "../../components/emptyUI/checklist/Checklist";
+import TripChecklist from "../../components/checklist/TripChecklist";
 import TravelBudgetTab from "../../components/travelBudget/TravelBudgetTab";
 import { getTripDays, saveTripDays } from "../../api/tripDays";
 import {
@@ -881,24 +879,6 @@ function SchedulePage({
   );
 }
 
-// function ScheduleContent({
-//   selectedTrip,
-//   placeModalSource,
-//   loadParticipants,
-// }: {
-//   selectedTrip: ScheduleTrip;
-//   placeModalSource: PlaceModalSource;
-//   loadParticipants?: TripParticipantsSource;
-// }) {
-//   const { user } = useAuth();
-//   const [searchParams] = useSearchParams();
-//   const navigate = useNavigate();
-//   const canEditTrip =
-//     selectedTrip.permission === "owner" || selectedTrip.permission === "editor";
-//   const handleTimetable = () =>
-//     navigate(`/trips/${selectedTrip.id}`, {
-//       state: location.state,
-//     });
 function ScheduleContent({
   selectedTrip,
   placeModalSource,
@@ -1315,12 +1295,6 @@ function ScheduleContent({
   // 통계 화면에서 돌아오면 예산 탭을 다시 엽니다.
   const [activeTab, setActiveTab] = useState<Tab>(() =>
     searchParams.get("tab") === "budget" ? "budget" : "schedule",
-  );
-
-  const [checklistGroups, setChecklistGroups] = useState<ChecklistGroup[]>([]);
-
-  const hasChecklistItems = checklistGroups.some(
-    (group) => group.items.length > 0,
   );
 
   const [stopsByDay, setStopsByDay] = useState<Record<number, Stop[]>>(() =>
@@ -2058,7 +2032,7 @@ function ScheduleContent({
       </S.MobileHeaderArea>
 
       <S.MainContent>
-        <S.Container>
+        <S.Container data-checklist={activeTab === "checklist"}>
           <S.Header>
             <S.BreadcrumbWrapper>
               <Breadcrumb />
@@ -2682,14 +2656,13 @@ function ScheduleContent({
               )}
             </S.ContentGrid>
           ) : activeTab === "checklist" ? (
-            hasChecklistItems ? (
-              <Checklist
-                groups={checklistGroups}
-                onChange={setChecklistGroups}
+            <S.ChecklistArea>
+              <TripChecklist
+                key={String(selectedTrip.id)}
+                tripId={String(selectedTrip.id)}
+                canEdit={canEditTrip}
               />
-            ) : (
-              <EmptyChecklist />
-            )
+            </S.ChecklistArea>
           ) : activeTab === "budget" ? (
             <TravelBudgetTab />
           ) : null}

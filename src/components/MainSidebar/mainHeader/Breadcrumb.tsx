@@ -93,19 +93,6 @@ function getAutomaticItems(
       : [myTripsRoot, { label: "여행 상세" }];
   }
 
-  // const timetableMatch = matchPath("/trips/:tripId", pathname);
-
-  // if (timetableMatch) {
-  //   return [
-  //     myTripsRoot,
-  //     {
-  //       label: "여행 상세",
-  //       to: `/trip-schedule/${timetableMatch.params.tripId}`,
-  //     },
-  //     { label: "시간표" },
-  //   ];
-  // }
-
   const timetableMatch = matchPath("/trips/:tripId", pathname);
 
   if (timetableMatch) {
