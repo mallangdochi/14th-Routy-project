@@ -3,10 +3,9 @@ import { useNavigate, useParams } from "react-router";
 import type { FormEvent } from "react";
 import {
   BarChart3,
-  // CheckCheck,
   CheckCircle,
   ChevronRight,
-  Pencil,
+  // Pencil,
   Plus,
   Trash2,
   Wallet,
@@ -31,6 +30,7 @@ import {
   type Expense,
   calendarTripDays,
 } from "./budgetData";
+import Loader from "../loader/Loader";
 type DayKey = string;
 type ExpenseForm = Omit<Expense, "id">;
 type Group = {
@@ -493,7 +493,8 @@ function BudgetContents({ tripId }: { tripId: string }) {
   if (loading)
     return (
       <TravelBudgetTabStyle>
-        <p role="status">가계부 정보를 불러오고 있습니다.</p>
+        {/* <p role="status">가계부 정보를 불러오고 있습니다.</p> */}
+        <Loader />
       </TravelBudgetTabStyle>
     );
   if (error || !snapshot)
@@ -583,7 +584,7 @@ function BudgetContents({ tripId }: { tripId: string }) {
                   onChange={setFilter}
                 />
               )}
-              {expenses.length === 0 && (
+              {/* {expenses.length === 0 && (
                 <button
                   type="button"
                   className="button-outline edit-button"
@@ -592,7 +593,7 @@ function BudgetContents({ tripId }: { tripId: string }) {
                 >
                   <Pencil size={17} /> 편집
                 </button>
-              )}
+              )} */}
               <button
                 type="button"
                 className="button-primary add-button"
