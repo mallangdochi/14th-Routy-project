@@ -22,6 +22,7 @@ import {
 import { TravelBudgetStatsPageStyle as S } from "./TravelBudgetStatsPageStyle";
 import { useTripBudget } from "./useTripBudget";
 import type { Expense } from "./budgetData";
+import Loader from "../loader/Loader";
 
 const EMPTY_EXPENSES: Expense[] = [];
 const CATEGORY_ICON: Record<string, string> = {
@@ -47,7 +48,8 @@ export default function TravelBudgetStatsPage() {
 
 function BudgetStatsContents({ tripId }: { tripId: string }) {
   const navigate = useNavigate();
-  const { snapshot, members, dates, loading, error, membersError } = useTripBudget(tripId);
+  const { snapshot, members, dates, loading, error, membersError } =
+    useTripBudget(tripId);
   const trip = snapshot?.trip;
   const start = trip?.startDate ?? "1970-01-01";
   const end = trip?.endDate ?? start;
@@ -57,16 +59,29 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
   useEffect(() => {
     if (!trip?.region) return;
     const controller = new AbortController();
-    void fetch(`/api/tour/region-photo?name=${encodeURIComponent(trip.region)}`, {
-      credentials: "include", signal: controller.signal,
-    }).then((response) => response.ok ? response.json() : null)
+    void fetch(
+      `/api/tour/region-photo?name=${encodeURIComponent(trip.region)}`,
+      {
+        credentials: "include",
+        signal: controller.signal,
+      },
+    )
+      .then((response) => (response.ok ? response.json() : null))
       .then((data: unknown) => {
         if (controller.signal.aborted) return;
-        if (data && typeof data === "object" && "image" in data &&
-            typeof data.image === "string" && /^https:\/\//.test(data.image)) {
+        if (
+          data &&
+          typeof data === "object" &&
+          "image" in data &&
+          typeof data.image === "string" &&
+          /^https:\/\//.test(data.image)
+        ) {
           setTripImage(data.image);
         }
-      }).catch(() => { /* 사진이 없으면 기본 이미지 영역을 사용합니다. */ });
+      })
+      .catch(() => {
+        /* 사진이 없으면 기본 이미지 영역을 사용합니다. */
+      });
     return () => controller.abort();
   }, [trip?.region]);
   const [viewMode, setViewMode] = useState<"amount" | "ratio">("amount");
@@ -101,7 +116,8 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
       id: member.userId,
       name: member.nickname,
       image: member.image ?? fallbackAvatar,
-      amount: expenses.filter((item) => item.payer === member.userId)
+      amount: expenses
+        .filter((item) => item.payer === member.userId)
         .reduce((sum, item) => sum + item.amount, 0),
     }));
     const tripDates = dates.length ? dates : calendarTripDays(start, end);
@@ -119,7 +135,12 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
       const index = tripDates.indexOf(date);
       return {
         date,
-        label: index !== -1 ? `Day ${index + 1}` : date < start ? "여행 준비" : "기타 날짜",
+        label:
+          index !== -1
+            ? `Day ${index + 1}`
+            : date < start
+              ? "여행 준비"
+              : "기타 날짜",
         amount: amountsByDate.get(date) ?? 0,
       };
     });
@@ -144,35 +165,52 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
   const remaining = budget === null ? 0 : budget - stats.total;
   const used = percent(stats.total, budget ?? 0);
   const maskId = `budget-donut-${useId().replace(/:/g, "")}`;
-  const [reveal, setReveal] = useState(() =>
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 0,
-  );
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let frame = 0;
-    let started: number | undefined;
-    const tick = (time: number) => {
-      started ??= time;
-      const elapsed = Math.min(1, (time - started) / 1000);
-      setReveal(1 - Math.pow(1 - elapsed, 3));
-      if (elapsed < 1) frame = window.requestAnimationFrame(tick);
-    };
-    const finish = () => {
-      if (media.matches) {
-        window.cancelAnimationFrame(frame);
-        frame = window.requestAnimationFrame(() => setReveal(1));
-      }
-    };
-    if (!media.matches) frame = window.requestAnimationFrame(tick);
-    media.addEventListener("change", finish);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      media.removeEventListener("change", finish);
-    };
-  }, []);
+  // const [reveal, setReveal] = useState(() =>
+  //   window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 0,
+  // );
+  // useEffect(() => {
+  //   const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  //   let frame = 0;
+  //   let started: number | undefined;
+  //   const tick = (time: number) => {
+  //     started ??= time;
+  //     const elapsed = Math.min(1, (time - started) / 1000);
+  //     setReveal(1 - Math.pow(1 - elapsed, 3));
+  //     if (elapsed < 1) frame = window.requestAnimationFrame(tick);
+  //   };
+  //   const finish = () => {
+  //     if (media.matches) {
+  //       window.cancelAnimationFrame(frame);
+  //       frame = window.requestAnimationFrame(() => setReveal(1));
+  //     }
+  //   };
+  //   if (!media.matches) frame = window.requestAnimationFrame(tick);
+  //   media.addEventListener("change", finish);
+  //   return () => {
+  //     window.cancelAnimationFrame(frame);
+  //     media.removeEventListener("change", finish);
+  //   };
+  // }, []);
 
-  if (loading) return <S><main className="stats-main"><p role="status">지출 통계를 불러오고 있습니다.</p></main></S>;
-  if (error || !snapshot) return <S><main className="stats-main"><p role="alert">{error || "여행 데이터를 찾지 못했습니다."}</p></main></S>;
+  if (loading)
+    return (
+      <S>
+        <aside>
+          <MainSidebar />
+        </aside>
+        <main className="stats-main">
+          <Loader />
+        </main>
+      </S>
+    );
+  if (error || !snapshot)
+    return (
+      <S>
+        <main className="stats-main">
+          <p role="alert">{error || "여행 데이터를 찾지 못했습니다."}</p>
+        </main>
+      </S>
+    );
 
   return (
     <S>
@@ -196,9 +234,17 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
         </header>
         <div className="trip-banner">
           {tripImage ? (
-            <img className="trip-cover" src={tripImage} alt={`${trip?.region ?? "여행"} 지역 사진`} />
+            <img
+              className="trip-cover"
+              src={tripImage}
+              alt={`${trip?.region ?? "여행"} 지역 사진`}
+            />
           ) : (
-            <div className="trip-cover trip-cover-placeholder" role="img" aria-label="여행 이미지 없음">
+            <div
+              className="trip-cover trip-cover-placeholder"
+              role="img"
+              aria-label="여행 이미지 없음"
+            >
               <CalendarDays size={28} aria-hidden="true" />
             </div>
           )}
@@ -281,7 +327,9 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
               <div className="settlement-note">
                 <strong>{stats.members.length}인 균등 정산 참고</strong>
                 {stats.members.map((member) => {
-                  const perPerson = stats.members.length ? stats.total / stats.members.length : 0;
+                  const perPerson = stats.members.length
+                    ? stats.total / stats.members.length
+                    : 0;
                   const balance = member.amount - perPerson;
                   return (
                     <div key={member.id}>
@@ -347,7 +395,7 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
                         width="100"
                         height="100"
                       >
-                        <circle
+                        {/* <circle
                           cx="50"
                           cy="50"
                           r="38.5"
@@ -356,6 +404,18 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
                           strokeWidth="23"
                           pathLength="100"
                           strokeDasharray={`${reveal * 100} 100`}
+                          transform="rotate(-90 50 50)"
+                        /> */}
+                        <circle
+                          className="donut-reveal"
+                          cx="50"
+                          cy="50"
+                          r="38.5"
+                          fill="none"
+                          stroke="white"
+                          strokeWidth="23"
+                          pathLength="100"
+                          strokeDasharray="100 100"
                           transform="rotate(-90 50 50)"
                         />
                       </mask>
@@ -525,8 +585,8 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
           </div>
         </section>
         <p className="stats-data-note">
-          현재 통계는 Supabase에 저장된 여행별 지출 내역을 기준으로
-          계산됩니다. 멤버별 금액은 실제 결제액이며 정산 송금액과는 다릅니다.
+          현재 통계는 Supabase에 저장된 여행별 지출 내역을 기준으로 계산됩니다.
+          멤버별 금액은 실제 결제액이며 정산 송금액과는 다릅니다.
         </p>
       </main>
       <div className="stats-mobile-nav">

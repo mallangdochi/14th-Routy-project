@@ -224,26 +224,34 @@ export default function SchedulePage({
         className="page-content"
         aria-labelledby={titleId}
       >
-        <div className="trips-breadcrumb" aria-label="현재 위치">
+        {/* <div className="trips-breadcrumb" aria-label="현재 위치">
           <Breadcrumb />
-        </div>
+          </div> */}
 
         {!user ? (
           <Logout />
         ) : isLoading ? (
           <Loader />
         ) : loadError ? (
-          <div role="alert">
-            <p>{loadError}</p>
-            <button
-              type="button"
-              onClick={() => setAttempt((value) => value + 1)}
-            >
-              다시 시도
-            </button>
-          </div>
+          <>
+            <div className="trips-breadcrumb" aria-label="현재 위치">
+              <Breadcrumb />
+            </div>
+            <div role="alert">
+              <p>{loadError}</p>
+              <button
+                type="button"
+                onClick={() => setAttempt((value) => value + 1)}
+              >
+                다시 시도
+              </button>
+            </div>
+          </>
         ) : (
           <>
+            <div className="trips-breadcrumb" aria-label="현재 위치">
+              <Breadcrumb />
+            </div>
             <header className="schedule-header">
               <div className="heading-row">
                 <div className="heading-copy">
