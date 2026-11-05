@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
 import { dropdownAnimation, modalAnimation } from "../../styles/animation";
+import WeatherPopover from "../../components/modal/weather/WeatherPopover";
 
 const CENTERED_FLEX = {
   display: "flex",
@@ -58,6 +59,11 @@ export const Container = styled.div({
   display: "flex",
   flexDirection: "column",
   minHeight: "100dvh",
+
+  "&[data-checklist=true]": {
+    maxWidth: "none",
+    boxSizing: "border-box",
+  },
 
   "& > header": {
     flexShrink: 0,
@@ -848,7 +854,7 @@ export const ScheduleHeadingLeft = styled.div({
   },
 });
 
-export const Weather = styled.div({
+export const Weather = styled(WeatherPopover)({
   display: "flex",
   alignItems: "center",
   gap: "5px",
@@ -3519,5 +3525,46 @@ export const MobileStopCategory = styled(StopCategoryBadge)({
       color: "#075653",
       textShadow: "none",
     },
+  },
+});
+
+// 체크리스트 탭만 상단 여행 정보를 제외한 남은 공간을 채웁니다.
+export const ChecklistArea = styled.div({
+  minWidth: 0,
+  "@media (min-width: 768px)": {
+    display: "flex",
+    flexDirection: "column",
+    flex: "1 0 auto",
+    "& > section": {
+      display: "flex",
+      flexDirection: "column",
+      flex: "1 0 auto",
+      minWidth: 0,
+    },
+    // 빈화면 루트는 section이 아닌 div이므로 별도로 높이를 전달합니다.
+    "& > div:has(> .checklist-body)": {
+      display: "flex",
+      flexDirection: "column",
+      flex: "1 0 auto",
+      minWidth: 0,
+    },
+    "& .checklist-body": {
+      flex: "1 0 auto",
+    },
+    "& .checklist-header": { flexShrink: 0 },
+    "& .checklist-layout": { flex: "1 0 auto", alignItems: "stretch" },
+    "& .checklist-main": { display: "flex", flexDirection: "column" },
+    "& .category-tabs": { flexShrink: 0 },
+    "& .group-card[data-active=true]": {
+      display: "flex",
+      flexDirection: "column",
+      flex: "1 0 auto",
+    },
+    "& .group-body": { flex: "1 0 auto" },
+    "& .add-item": { marginTop: "auto", flexShrink: 0 },
+    "& .summary-card": { alignSelf: "start" },
+  },
+  "@media (min-width: 768px) and (max-width: 1023px)": {
+    "& .checklist-layout": { gridTemplateRows: "auto 1fr" },
   },
 });

@@ -1,8 +1,10 @@
 import styled from "@emotion/styled";
+import { menuAnimation } from "../../styles/animation";
 
 export const ChecklistStyle = styled.section({
   "--body-size": "16px",
   "--title-size": "24px",
+  position: "relative",
   width: "100%",
   minWidth: 0,
   padding: "20px",
@@ -43,6 +45,32 @@ export const ChecklistStyle = styled.section({
     wordBreak: "keep-all",
   },
 
+  "& .checklist-actions": { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
+  "& .mode-button": {
+    ...menuAnimation.button,
+    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+    padding: "8px 18px", border: "1px solid #0D5355", borderRadius: 8,
+    color: "#0D5355", backgroundColor: "#FFFFFF", fontWeight: 600, whiteSpace: "nowrap",
+    "@media (hover: hover) and (pointer: fine)": { "&:hover": { backgroundColor: "#ECF9F5" } },
+  },
+  "& .edit-hint": { color: "#7380A0", fontSize: "var(--body-size)", fontWeight: 400, textAlign: "left" },
+  "& .delete-item": {
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    width: 36, minHeight: 36, padding: 8, flexShrink: 0, borderRadius: 8,
+    color: "#EB654B", backgroundColor: "transparent",
+    "@media (hover: hover) and (pointer: fine)": { "&:hover": { color: "#D9523A", backgroundColor: "#FFF1ED" } },
+  },
+  "& .toast-mobile-copy": { display: "none" },
+  "& .delete-toast": {
+    position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+    zIndex: 1400, display: "flex", alignItems: "center", gap: 16,
+    maxWidth: "calc(100vw - 32px)", padding: "12px 16px", borderRadius: 12,
+    backgroundColor: "#0D5355", color: "#FFFFFF", boxShadow: "0 8px 24px #0D3E4126",
+    "& > span": { minWidth: 0, overflowWrap: "anywhere" },
+    "& button": { flexShrink: 0, color: "#FFFFFF", fontWeight: 600, whiteSpace: "nowrap" },
+    "& .toast-close": { display: "inline-flex", padding: 4 },
+  },
+
   "& .primary-button": {
     display: "inline-flex",
     alignItems: "center",
@@ -57,18 +85,57 @@ export const ChecklistStyle = styled.section({
     whiteSpace: "nowrap",
     flexShrink: 0,
 
-    "&:hover": {
-      backgroundColor: "#0D3E41",
+    "@media (hover: hover) and (pointer: fine)": {
+      "&:hover": { backgroundColor: "#0D3E41" },
     },
   },
 
   "& .checklist-layout": {
     display: "grid",
-    gridTemplateColumns:
-      "minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(220px, .9fr)",
+    gridTemplateColumns: "minmax(0, 1fr) minmax(240px, 0.42fr)",
     gap: 16,
-    alignItems: "stretch",
+    alignItems: "start",
   },
+
+  "& .checklist-main": { minWidth: 0 },
+  "& .category-tabs": {
+    position: "relative",
+    isolation: "isolate",
+    display: "flex",
+    gap: 8,
+    marginBottom: 16,
+    "& button": {
+      ...menuAnimation.button,
+      position: "relative",
+      zIndex: 1,
+      backgroundColor: "transparent",
+      flex: "1 1 0",
+      minWidth: 0,
+      minHeight: 44,
+      padding: "10px 12px",
+      border: "1px solid #E2E6E9",
+      borderRadius: 999,
+      whiteSpace: "nowrap",
+      color: "#596D75",
+      "&[aria-selected=true]": {
+        color: "#FFFFFF",
+        borderColor: "transparent",
+        fontWeight: 600,
+      },
+    },
+  },
+  "& .category-indicator": {
+    ...menuAnimation.indicator,
+    position: "absolute",
+    zIndex: 0,
+    top: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 999,
+    backgroundColor: "#0D5355",
+    pointerEvents: "none",
+  },
+  "& .group-card[data-active=false]": { display: "none" },
 
   "& .group-card, & .summary-card": {
     minWidth: 0,
@@ -157,8 +224,8 @@ export const ChecklistStyle = styled.section({
   },
 
   "& .item-list": {
-    display: "flex",
-    flexDirection: "column",
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 7,
     minWidth: 0,
     padding: 0,
@@ -247,73 +314,6 @@ export const ChecklistStyle = styled.section({
     textOverflow: "ellipsis",
   },
 
-  "&& .item-actions": {
-    position: "relative",
-    flex: "0 0 28px",
-    width: 28,
-    minWidth: 0,
-    maxWidth: 28,
-
-    "& > .sort-trigger": {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      width: "100%",
-      minWidth: 0,
-      minHeight: 44,
-      padding: 0,
-      gap: 0,
-      border: 0,
-      borderRadius: 6,
-      backgroundColor: "transparent",
-      color: "#6C7A99",
-      fontSize: 22,
-
-      "&:hover": {
-        backgroundColor: "#EEF7F5",
-      },
-    },
-
-    "& > .sort-dropdown": {
-      position: "absolute",
-      top: "100%",
-      right: 0,
-      bottom: "auto",
-      left: "auto",
-      zIndex: 10,
-      width: 110,
-      minWidth: 0,
-      maxWidth: "calc(100vw - 48px)",
-      margin: 0,
-      padding: 4,
-      border: "1px solid #E2E8E8",
-      borderRadius: 8,
-      backgroundColor: "#FFFFFF",
-      boxShadow: "0 8px 24px #1636381A",
-      textAlign: "left",
-
-      "& > button": {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        gap: 8,
-        width: "100%",
-        minWidth: 0,
-        padding: 10,
-        borderRadius: 5,
-        color: "#142047",
-        fontSize: "var(--body-size)",
-        textAlign: "left",
-        whiteSpace: "normal",
-        overflowWrap: "anywhere",
-
-        "&:hover": {
-          backgroundColor: "#EEF7F5",
-        },
-      },
-    },
-  },
-
   "& .add-item": {
     width: "100%",
     display: "flex",
@@ -327,8 +327,8 @@ export const ChecklistStyle = styled.section({
     color: "#0D6464",
     fontWeight: 600,
 
-    "&:hover": {
-      backgroundColor: "#DAF1EA",
+    "@media (hover: hover) and (pointer: fine)": {
+      "&:hover": { backgroundColor: "#DAF1EA" },
     },
   },
 
@@ -411,9 +411,11 @@ export const ChecklistStyle = styled.section({
     padding: 16,
 
     "& .checklist-layout": {
-      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-      gap: 12,
+      gridTemplateColumns: "minmax(0, 1fr)",
+      gridTemplateRows: "auto 1fr",
+      gap: 16,
     },
+    "& .checklist-main": { gridColumn: 1, gridRow: 2 },
 
     "& .summary-card": {
       gridColumn: "1 / -1",
@@ -456,6 +458,30 @@ export const ChecklistStyle = styled.section({
     },
   },
 
+  "@media (min-width: 768px)": {
+    display: "flex",
+    flexDirection: "column",
+    paddingBottom: 16,
+    "& .checklist-header, & .category-tabs": { flexShrink: 0 },
+    "& .checklist-layout": { flex: "1 0 auto", alignItems: "stretch" },
+    "& .checklist-main": { display: "flex", flexDirection: "column" },
+    "& .group-card[data-active=true]": { flex: "1 0 auto" },
+    "& .summary-card": { alignSelf: "start" },
+    "& .group-card": {
+      display: "flex",
+      flexDirection: "column",
+      minHeight: 290,
+      boxSizing: "border-box",
+    },
+    "& .group-body": {
+      flex: "1 1 auto",
+    },
+    "& .add-item": {
+      marginTop: "auto",
+      flexShrink: 0,
+    },
+  },
+
   "@media (max-width: 767px)": {
     "--body-size": "14px",
     "--title-size": "20px",
@@ -471,6 +497,42 @@ export const ChecklistStyle = styled.section({
       fontSize: "clamp(17px, 4.5vw, 20px)",
     },
 
+    "& .edit-hint": { display: "none" },
+    "& .mode-button": { padding: "8px 10px", gap: 4 },
+    "& .delete-toast": {
+      left: 16,
+      right: 16,
+      width: "auto",
+      maxWidth: "none",
+      boxSizing: "border-box",
+      transform: "none",
+      bottom: "calc(90px + env(safe-area-inset-bottom))",
+      minHeight: 56,
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) 88px",
+      gap: 12,
+      padding: "6px 12px",
+      fontSize: 14,
+      "& .toast-message": { minWidth: 0, overflow: "hidden" },
+      "& .toast-desktop-copy, & .toast-close": { display: "none" },
+      "& .toast-mobile-copy": {
+        display: "flex", alignItems: "center", gap: 6, minWidth: 0,
+        whiteSpace: "nowrap",
+      },
+      "& .toast-check": {
+        flexShrink: 0, width: 20, height: 20, padding: 3,
+        boxSizing: "border-box", borderRadius: "50%",
+        backgroundColor: "#FFFFFF", color: "#0D5355",
+      },
+      "& .toast-item-name": {
+        minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      },
+      "& .toast-result": { flexShrink: 0 },
+      "& .toast-undo": {
+        width: 88, minHeight: 44, borderLeft: "1px solid #FFFFFF66",
+        paddingLeft: 10, color: "#D9F3E9", whiteSpace: "nowrap",
+      },
+    },
     "& .primary-button": {
       padding: "8px 12px",
       gap: 4,
@@ -479,6 +541,7 @@ export const ChecklistStyle = styled.section({
     "& .checklist-layout": {
       display: "flex",
       flexDirection: "column",
+      alignItems: "stretch",
       gap: 12,
     },
 
@@ -528,9 +591,17 @@ export const ChecklistStyle = styled.section({
       display: "none",
     },
 
+    "& .category-tabs": { display: "none" },
+    "& .checklist-main": {
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
+    },
     "& .group-card": {
+      display: "block",
       padding: 12,
     },
+    "& .group-card[data-active=false]": { display: "block" },
 
     "& .group-name": {
       fontSize: 16,
@@ -558,6 +629,7 @@ export const ChecklistStyle = styled.section({
     },
 
     "& .item-list": {
+      gridTemplateColumns: "minmax(0, 1fr)",
       gap: 4,
     },
 
