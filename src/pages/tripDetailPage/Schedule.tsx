@@ -1,19 +1,3 @@
-import { Global } from "@emotion/react";
-import Dropdown from "../../components/dropdown/Dropdown";
-import TimePicker from "../../components/pickers/TimePicker";
-import { loadKakaoMaps, getKakaoMapKey } from "../../api/kakao/kakaoSdk";
-import {
-  DEFAULT_MAP_CENTER,
-  resolveKakaoPlace,
-} from "../../api/kakao/kakaoPlaces";
-import type {
-  KakaoMapsSDK,
-  MapInstance,
-  OverlayInstance,
-} from "../../api/kakao/kakaoTypes";
-import type { KakaoStop, LocatedStop } from "../../api/kakao/kakaoPlaces";
-
-import { renderToStaticMarkup } from "react-dom/server";
 import {
   loadTripParticipants,
   getSharedTripDetail,
@@ -28,7 +12,11 @@ import TripParticipants, {
 import { createPortal } from "react-dom";
 import RegionSelectModal from "../../components/modal/travel-region-selector/RegionSelectModal";
 import { searchTravelRegions } from "../../api/kakao/searchTravelRegions";
-import React, { useEffect, useId, useRef, useState } from "react";
+import {
+  searchPlaceModal,
+  getKnownModalPlace,
+} from "../../api/kakao/searchPlaceModal";
+import React, { useEffect, useRef, useState } from "react";
 import {
   House,
   TriangleAlert,
@@ -36,6 +24,7 @@ import {
   ChevronRight,
   Check,
   Pencil,
+  MoreHorizontal,
   Plus,
   CalendarDays,
   MapPin,
@@ -43,13 +32,6 @@ import {
   ClipboardCheck,
   Cloud,
   CarFront,
-  TrainFront,
-  TramFront,
-  BusFront,
-  CarTaxiFront,
-  Footprints,
-  Plane,
-  type LucideIcon,
   Camera,
   Utensils,
   Coffee,
@@ -62,8 +44,6 @@ import {
   LocateFixed,
   Save,
   GripVertical,
-  ChevronDown,
-  LayoutGrid,
   Users,
 } from "lucide-react";
 import avatarP1 from "../../assets/profileAvatars/P1.webp";
@@ -76,7 +56,7 @@ import avatarP10 from "../../assets/profileAvatars/p10.webp";
 import avatarP11 from "../../assets/profileAvatars/P11.webp";
 import avatarP12 from "../../assets/profileAvatars/P12.webp";
 import avatarP13 from "../../assets/profileAvatars/P13.webp";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import type { SavedTrip } from "../../api/trips";
 import { useAuth } from "../../contexts/AuthContext";
 import defaultTripImage from "../../assets/where.webp";
@@ -96,7 +76,6 @@ import type { ChecklistGroup } from "../../data/checklist";
 import EmptyChecklist from "../../components/emptyUI/checklist/Checklist";
 import TravelBudgetTab from "../../components/travelBudget/TravelBudgetTab";
 import { getTripDays, saveTripDays } from "../../api/tripDays";
-import { getTripPlaces, appendTripPlaces, replaceTripPlaces, type TripPlacesResult } from "../../api/tripPlaces";
 import TripDateModal from "../../components/modal/updateTrpDate/TripDateModal";
 
 import {
@@ -131,24 +110,25 @@ type ScheduleProps = {
   placeModalSource?: PlaceModalSource;
   loadParticipants?: TripParticipantsSource;
 };
-const missingPlacesSource: PlaceModalSource = {
+// 기본 모달 데이터는 목데이터가 아닌 카카오 Places SDK에서 조회합니다.
+// PlaceAddModal의 원본 레이아웃과 props 계약을 그대로 유지합니다.
+const livePlacesSource: PlaceModalSource = {
   savedPlaces: [],
-  defaultTransport: "",
-  loadPlaces: async () => {
-    throw new Error(
-      "장소 검색 API를 placeModalSource.loadPlaces에 연결해 주세요.",
-    );
-  },
+  // 기본 교통수단을 비워두면 PlaceAddModal이 일정 추가를 차단합니다.
+  defaultTransport: "자동차",
+  defaultTransportLabel: "자동차",
+  // 각 팀의 PlaceAddModal에서 transportOptions를 필수 속성으로 정의한 경우를 지원합니다.
+  transportOptions: [],
+  loadPlaces: (async (...args: unknown[]) =>
+    searchPlaceModal(...args)) as PlaceModalSource["loadPlaces"],
   onToggleSave: () => {
-    throw new Error(
-      "저장 장소 API를 placeModalSource.onToggleSave에 연결해 주세요.",
-    );
+    // 저장 장소 API는 팀의 별도 기능입니다. 성공한 척하지 않습니다.
+    window.alert("저장 장소 기능은 별도 API 연결이 필요합니다.");
   },
 };
 
 type ScheduleTrip = SavedTrip & {
   dates: string[];
-  schedule: TripPlacesResult;
   permission?: "owner" | "editor" | "viewer";
 };
 
@@ -167,27 +147,11 @@ type Stop = {
   placeId?: string;
   stayDurationMinutes?: number;
   transport?: string;
-  // 다음 장소까지의 경로 API 결과(분). 교통수단별로 보관해 선택 변경 시 잘못된 시간을 표시하지 않습니다.
-  travelMinutesByTransport?: Record<string, number>;
   lat?: number;
   lng?: number;
   externalId?: string;
   sourcePlaceId?: string;
 };
-
-// DB 응답을 날짜별 카드로 변환합니다. 빈 날짜는 빈 배열을 유지합니다.
-function createStoredStopsByDay(schedule: TripPlacesResult, dates: string[]): Record<number, Stop[]> {
-  return Object.fromEntries(dates.map((date, index) => [index + 1,
-    schedule.places.filter(place => place.date === date).map(place => ({
-      ...place,
-      placeId: place.placeId ?? undefined,
-      transport: place.transport ?? undefined,
-      image: place.image?.trim() || defaultTripImage,
-      lat: typeof place.lat === "number" ? place.lat : undefined,
-      lng: typeof place.lng === "number" ? place.lng : undefined,
-    })),
-  ]));
-}
 
 type Day = {
   id: number;
@@ -198,7 +162,6 @@ type Day = {
 };
 
 type Tab = "schedule" | "map" | "budget" | "checklist";
-type Filter = "전체" | Category;
 
 const CATEGORY_ICONS = {
   맛집: Utensils,
@@ -221,19 +184,6 @@ const DEFAULT_PROFILE_IMAGES: Record<string, string> = {
   P12: avatarP12,
   P13: avatarP13,
 };
-
-const FILTERS: {
-  key: Filter;
-  label: string;
-  icon: React.ElementType;
-}[] = [
-  { key: "전체", label: "전체", icon: MapPin },
-  { key: "맛집", label: "맛집", icon: Utensils },
-  { key: "카페", label: "카페", icon: Coffee },
-  { key: "관광지", label: "관광지", icon: Camera },
-  { key: "숙소", label: "숙소", icon: BedDouble },
-  { key: "쇼핑", label: "쇼핑", icon: ShoppingBag },
-];
 
 const MAIN_TABS: {
   key: Tab;
@@ -291,237 +241,42 @@ const moveStop = (
   }));
 };
 
-const TRANSPORT_ICONS: Record<string, LucideIcon> = {
-  자동차: CarFront,
-  기차: TrainFront,
-  지하철: TramFront,
-  버스: BusFront,
-  택시: CarTaxiFront,
-  도보: Footprints,
-  비행기: Plane,
-};
-
-// 아이콘을 포함하는 일정 교통 선택기. 공용 Dropdown 파일은 수정하지 않습니다.
-function StopTransportDropdown({
-  value,
-  defaultTransport,
-  onChange,
-}: {
-  value: string;
-  defaultTransport: string;
-  onChange: (value: string) => void;
-}) {
-  const id = useId();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-  const [present, setPresent] = useState(false);
-  const options = [
-    "",
-    ...Object.keys(TRANSPORT_ICONS),
-    ...(value && !(value in TRANSPORT_ICONS) ? [value] : []),
-  ];
-  const TriggerIcon = TRANSPORT_ICONS[value || defaultTransport] ?? MapPin;
-  const close = () => setOpen(false);
-  useEffect(() => {
-    if (!present || open) return;
-    const timer = window.setTimeout(() => setPresent(false), 240);
-    return () => window.clearTimeout(timer);
-  }, [open, present]);
-  useEffect(() => {
-    if (!open) return;
-    const handlePointerDown = (event: PointerEvent) => {
-      if (
-        event.target instanceof Node &&
-        !rootRef.current?.contains(event.target)
-      )
-        setOpen(false);
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open]);
-  return (
-    <S.StopTransportDropdownRoot
-      ref={rootRef}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) close();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && open) {
-          event.preventDefault();
-          event.stopPropagation();
-          close();
-          triggerRef.current?.focus();
-        }
-        if (
-          !open ||
-          !["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)
-        )
-          return;
-        event.preventDefault();
-        event.stopPropagation();
-        const buttons = Array.from(
-          event.currentTarget.querySelectorAll<HTMLButtonElement>(
-            "[data-transport-option]",
-          ),
-        );
-        const current = buttons.indexOf(
-          document.activeElement as HTMLButtonElement,
-        );
-        const next =
-          event.key === "Home"
-            ? 0
-            : event.key === "End"
-              ? buttons.length - 1
-              : (current +
-                  (event.key === "ArrowDown" ? 1 : -1) +
-                  buttons.length) %
-                buttons.length;
-        buttons[next]?.focus();
-      }}
-    >
-      <button
-        type="button"
-        className="transport-trigger"
-        ref={triggerRef}
-        aria-label={`이용 예정 교통: ${value || "여행 기본 교통 사용"}`}
-        aria-expanded={open}
-        aria-controls={present ? id : undefined}
-        onClick={() => {
-          if (open) close();
-          else {
-            setPresent(true);
-            setOpen(true);
-          }
-        }}
-      >
-        {value && <TriggerIcon size={20} aria-hidden="true" />}
-        <span>{value || "여행 기본 교통 사용"}</span>
-        <ChevronDown
-          size={18}
-          className="transport-chevron"
-          aria-hidden="true"
-        />
-      </button>
-      {present && (
-        <S.StopTransportOptions
-          id={id}
-          data-open={open}
-          inert={!open}
-          aria-hidden={!open}
-          onAnimationEnd={(event) => {
-            if (event.target === event.currentTarget && !open)
-              setPresent(false);
-          }}
-        >
-          {options.map((option) => {
-            const Icon = TRANSPORT_ICONS[option || defaultTransport] ?? MapPin;
-            return (
-              <button
-                type="button"
-                key={option}
-                data-transport-option
-                aria-pressed={value === option}
-                onClick={() => {
-                  onChange(option);
-                  close();
-                  triggerRef.current?.focus();
-                }}
-              >
-                {option && <Icon size={20} aria-hidden="true" />}
-                <span>{option || "여행 기본 교통 사용"}</span>
-                {value === option && <Check size={17} aria-hidden="true" />}
-              </button>
-            );
-          })}
-        </S.StopTransportOptions>
-      )}
-    </S.StopTransportDropdownRoot>
-  );
-}
-
 type StopCardProps = {
   stop: Stop;
   index: number;
   isEditMode: boolean;
-  selected: boolean;
-  previewOffset: number;
-  defaultTransport: string;
-  expanded: boolean;
-  onToggleExpanded: () => void;
-  onUpdate: (patch: Partial<Stop>) => void;
-  onSelect: (id: number) => void;
+  menuId: number | null;
   draggingId: number | null;
   dragOverId: number | null;
-  dragOverEdge: "before" | "after";
+  onMenuToggle: (id: number) => void;
+  onEdit: (stop: Stop) => void;
+  onDelete: (id: number) => void;
   onDragStart: (event: React.DragEvent<HTMLButtonElement>, id: number) => void;
   onDragOver: (event: React.DragEvent<HTMLDivElement>, id: number) => void;
   onDrop: (event: React.DragEvent<HTMLDivElement>, id: number) => void;
   onDragEnd: () => void;
-  onHandlePointerDown: (
-    event: React.PointerEvent<HTMLButtonElement>,
-    id: number,
-  ) => void;
-  onHandlePointerMove: (event: React.PointerEvent<HTMLButtonElement>) => void;
-  onHandlePointerUp: (event: React.PointerEvent<HTMLButtonElement>) => void;
 };
 
 function ScheduleStopCard({
   stop,
   index,
   isEditMode,
-  selected,
-  previewOffset,
-  defaultTransport,
-  expanded,
-  onToggleExpanded,
-  onUpdate,
-  onSelect,
+  menuId,
   draggingId,
-  dragOverId,
-  dragOverEdge,
+  onMenuToggle,
+  onEdit,
+  onDelete,
   onDragStart,
   onDragOver,
   onDrop,
   onDragEnd,
-  onHandlePointerDown,
-  onHandlePointerMove,
-  onHandlePointerUp,
 }: StopCardProps) {
-  const [editorPresent, setEditorPresent] = useState(expanded);
-  const [previousExpanded, setPreviousExpanded] = useState(expanded);
-  if (previousExpanded !== expanded) {
-    setPreviousExpanded(expanded);
-    if (expanded) setEditorPresent(true);
-  }
-  useEffect(() => {
-    if (expanded || !editorPresent) return;
-    const timer = window.setTimeout(() => setEditorPresent(false), 240);
-    return () => window.clearTimeout(timer);
-  }, [expanded, editorPresent]);
-  const transport = stop.transport || defaultTransport;
-  const TransportIcon = TRANSPORT_ICONS[transport] ?? MapPin;
-  const travelMinutes = stop.travelMinutesByTransport?.[transport];
-  const roundedMinutes =
-    typeof travelMinutes === "number" &&
-    Number.isFinite(travelMinutes) &&
-    travelMinutes >= 0
-      ? Math.ceil(travelMinutes)
-      : null;
-  const travelTimeLabel =
-    roundedMinutes === null
-      ? "예상 시간 정보 없음"
-      : `약 ${roundedMinutes >= 60 ? `${Math.floor(roundedMinutes / 60)}시간${roundedMinutes % 60 ? ` ${roundedMinutes % 60}분` : ""}` : `${roundedMinutes}분`}`;
+  const Icon = CATEGORY_ICONS[stop.category];
+
   return (
     <S.StopRow
       data-stop-row
-      data-preview-offset={previewOffset}
-      style={{ transform: `translateY(${previewOffset}px)` }}
-      data-editor-present={isEditMode && editorPresent}
-      data-stop-id={stop.id}
-      data-edit-mode={isEditMode}
       $isDragging={draggingId === stop.id}
-      $dropEdge={dragOverId === stop.id ? dragOverEdge : null}
       onDragOver={(event) => onDragOver(event, stop.id)}
       onDrop={(event) => onDrop(event, stop.id)}
     >
@@ -529,204 +284,91 @@ function ScheduleStopCard({
         {isEditMode && (
           <S.DragHandle
             type="button"
-            draggable={false}
+            draggable
             aria-label={`${stop.title} 순서 변경`}
             title="드래그하여 순서 변경"
             onDragStart={(event) => onDragStart(event, stop.id)}
             onDragEnd={onDragEnd}
-            onPointerDown={(event) => onHandlePointerDown(event, stop.id)}
-            onPointerMove={onHandlePointerMove}
-            onPointerUp={onHandlePointerUp}
-            onPointerCancel={onDragEnd}
-            onLostPointerCapture={onDragEnd}
-            onContextMenu={(event) => event.preventDefault()}
           >
-            <GripVertical size={30} />
+            <GripVertical size={18} />
           </S.DragHandle>
         )}
       </S.DragSlot>
 
-      <S.Timeline data-edit-mode={isEditMode}>
-        {isEditMode ? (
-          <S.StopCheckbox
-            type="checkbox"
-            checked={selected}
-            onChange={() => onSelect(stop.id)}
-            aria-label={`${stop.title} 선택`}
-          />
-        ) : (
-          <S.TimelineDot>{index + 1}</S.TimelineDot>
-        )}
+      <S.Timeline>
+        <S.TimelineDot>{index + 1}</S.TimelineDot>
       </S.Timeline>
 
-      <S.StopCard
-        data-stop-card
-        data-edit-mode={isEditMode}
-        data-expanded={isEditMode && editorPresent}
-      >
-        {isEditMode && (
-          <S.StopExpandTrigger
-            type="button"
-            aria-label={`${stop.title} 일정 편집 ${expanded ? "접기" : "펼치기"}`}
-            aria-expanded={expanded}
-            aria-controls={`stop-editor-${stop.id}`}
-            onClick={onToggleExpanded}
-          />
-        )}
-        <S.StopTime data-stop-time>
-          <span>{stop.time}</span>
-          <S.MobileStopCategory $category={stop.category}>
-            {stop.category === "관광지"
-              ? "관광"
-              : stop.category === "맛집"
-                ? "음식점"
-                : stop.category}
-          </S.MobileStopCategory>
-        </S.StopTime>
+      <S.StopCard data-stop-card>
+        <S.StopTime>{stop.time}</S.StopTime>
 
-        <S.StopImage
-          data-stop-image
-          src={stop.image || defaultTripImage}
-          alt={stop.title}
-          draggable={false}
-          onError={(event) => {
-            const image = event.currentTarget;
-            if (image.getAttribute("src") !== defaultTripImage) {
-              image.src = defaultTripImage;
-            }
-          }}
-        />
+        <S.StopImage src={stop.image} alt={stop.title} draggable={false} />
 
-        <S.StopDetails data-stop-details>
-          <S.StopTitleLine>
-            <strong>{stop.title}</strong>
-            <S.StopCategoryBadge $category={stop.category}>
-              {stop.category === "관광지"
-                ? "관광"
-                : stop.category === "맛집"
-                  ? "음식점"
-                  : stop.category}
-            </S.StopCategoryBadge>
-          </S.StopTitleLine>
+        <S.StopDetails>
+          <strong>{stop.title}</strong>
+          <span>{stop.description}</span>
           <small>
             <MapPin size={11} />
-            <span className="stop-address-text" title={stop.address}>
-              {stop.address}
-            </span>
+            {stop.address}
           </small>
         </S.StopDetails>
-        {isEditMode && editorPresent && (
-          <S.StopEditor
-            data-open={expanded}
-            inert={!expanded}
-            aria-hidden={!expanded}
-            onAnimationEnd={(event) => {
-              if (event.target === event.currentTarget && !expanded)
-                setEditorPresent(false);
-            }}
-            id={`stop-editor-${stop.id}`}
-            role="region"
-            aria-label={`${stop.title} 일정 편집`}
-          >
-            <S.StopEditorRow>
-              <span>일정 시작 시간</span>
-              <S.StopTimePickerField>
-                <TimePicker
-                  label=""
-                  value={stop.time}
-                  placement="bottom"
-                  onChange={(value) => onUpdate({ time: value })}
-                />
-              </S.StopTimePickerField>
-            </S.StopEditorRow>
-            <S.StopEditorRow>
-              <span>예정 체류 시간</span>
-              <div>
-                <S.StopDurationFields>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    aria-label="예정 체류 시간 (시간)"
-                    value={Math.floor((stop.stayDurationMinutes ?? 60) / 60)}
-                    onChange={(event) => {
-                      const hours = Math.max(
-                        0,
-                        Math.floor(Number(event.currentTarget.value) || 0),
-                      );
-                      onUpdate({
-                        stayDurationMinutes:
-                          hours * 60 + ((stop.stayDurationMinutes ?? 60) % 60),
-                      });
-                    }}
-                  />
-                  <span>시간</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={59}
-                    step={1}
-                    aria-label="예정 체류 시간 (분)"
-                    value={(stop.stayDurationMinutes ?? 60) % 60}
-                    onChange={(event) => {
-                      const minutes = Math.min(
-                        59,
-                        Math.max(
-                          0,
-                          Math.floor(Number(event.currentTarget.value) || 0),
-                        ),
-                      );
-                      onUpdate({
-                        stayDurationMinutes:
-                          Math.floor((stop.stayDurationMinutes ?? 60) / 60) *
-                            60 +
-                          minutes,
-                      });
-                    }}
-                  />
-                  <span>분</span>
-                </S.StopDurationFields>
-                {/* <small>입력하지 않으면 1시간으로 설정돼요.</small> */}
-              </div>
-            </S.StopEditorRow>
-            <S.StopEditorRow>
-              <span>이용 예정 교통</span>
-              <S.StopTransportField>
-                <StopTransportDropdown
-                  value={stop.transport ?? ""}
-                  defaultTransport={defaultTransport}
-                  onChange={(value) =>
-                    onUpdate({ transport: value || undefined })
-                  }
-                />
-                <S.StopTransportNotice role="status" aria-live="polite">
-                  <TransportIcon size={18} aria-hidden="true" />
-                  <span>
-                    {transport || "여행 기본 교통"} · {travelTimeLabel}
-                  </span>
-                </S.StopTransportNotice>
-              </S.StopTransportField>
-            </S.StopEditorRow>
-          </S.StopEditor>
-        )}
+
+        <S.StopActions>
+          {isEditMode && (
+            <>
+              <S.MoreButton
+                type="button"
+                onClick={() => onMenuToggle(stop.id)}
+                aria-label="일정 메뉴"
+                aria-expanded={menuId === stop.id}
+              >
+                <MoreHorizontal size={19} />
+              </S.MoreButton>
+
+              {menuId === stop.id && (
+                <S.ActionMenu>
+                  <S.ActionMenuButton
+                    type="button"
+                    onClick={() => onEdit(stop)}
+                  >
+                    <Pencil size={14} />
+                    수정
+                  </S.ActionMenuButton>
+
+                  <S.ActionMenuButton
+                    type="button"
+                    $danger
+                    onClick={() => onDelete(stop.id)}
+                  >
+                    <Trash2 size={14} />
+                    삭제
+                  </S.ActionMenuButton>
+                </S.ActionMenu>
+              )}
+            </>
+          )}
+
+          <S.CategoryCircle>
+            <Icon size={18} />
+          </S.CategoryCircle>
+        </S.StopActions>
       </S.StopCard>
     </S.StopRow>
   );
 }
 
 export default function Schedule(props: ScheduleProps) {
-  const location = useLocation();
   const params = useParams();
   const tripId = params.tripId ?? params.id;
   return (
     <TripInviteGate key={tripId} tripId={tripId}>
-      <SchedulePage key={location.key} {...props} />
+      <SchedulePage {...props} />
     </TripInviteGate>
   );
 }
 
 function SchedulePage({
-  placeModalSource = missingPlacesSource,
+  placeModalSource = livePlacesSource,
   loadParticipants = loadTripParticipants,
 }: ScheduleProps) {
   const params = useParams();
@@ -751,9 +393,8 @@ function SchedulePage({
     void Promise.all([
       getSharedTripDetail(tripId, controller.signal),
       getTripDays(tripId, controller.signal),
-      getTripPlaces(tripId, controller.signal),
     ])
-      .then(([detail, tripDays, schedule]) => {
+      .then(([detail, tripDays]) => {
         if (controller.signal.aborted) return;
 
         const savedTrip = detail.trip;
@@ -763,7 +404,6 @@ function SchedulePage({
               ...savedTrip,
               permission: detail.permission,
               dates: tripDays.dates,
-              schedule,
               startDate: tripDays.startDate,
               endDate: tripDays.endDate,
               updatedAt: tripDays.updatedAt,
@@ -799,9 +439,7 @@ function SchedulePage({
   const current =
     result?.userId === userId &&
     result?.tripId === tripId &&
-    result?.retry === retry &&
-    (result.trip === null ||
-      (result.trip.schedule != null && Array.isArray(result.trip.schedule.places)))
+    result?.retry === retry
       ? result
       : null;
 
@@ -879,6 +517,28 @@ function ScheduleContent({
   const canEditTrip =
     selectedTrip.permission === "owner" || selectedTrip.permission === "editor";
   const handleTimetable = () => navigate(`/trips/${selectedTrip.id}`);
+
+  // 여행 생성 시 선택한 이동수단을 우선 사용합니다.
+  // DB 응답에 필드가 없으면 모달이 일정 추가를 차단하지 않도록 자동차를 기본값으로 사용합니다.
+  const tripTransportFields = selectedTrip as ScheduleTrip & {
+    transport?: string | null;
+    defaultTransport?: string | null;
+    transportation?: string | null;
+  };
+  const storedTransport =
+    tripTransportFields.transport ||
+    tripTransportFields.defaultTransport ||
+    tripTransportFields.transportation;
+  const modalDefaultTransport =
+    (typeof storedTransport === "string" && storedTransport.trim()) ||
+    (typeof placeModalSource.defaultTransport === "string" &&
+      placeModalSource.defaultTransport.trim()) ||
+    "자동차";
+  const modalDefaultTransportLabel =
+    (typeof storedTransport === "string" && storedTransport.trim()) ||
+    (typeof placeModalSource.defaultTransportLabel === "string" &&
+      placeModalSource.defaultTransportLabel.trim()) ||
+    modalDefaultTransport;
 
   const [tripName, setTripName] = useState(selectedTrip.name);
   const [draftTripName, setDraftTripName] = useState(selectedTrip.name);
@@ -1123,11 +783,7 @@ function ScheduleContent({
     selectedTrip.dates.map((date, index) => createDay(date, index + 1)),
   );
 
-  const [activeDayId, setActiveDayId] = useState(() => {
-    const date = searchParams.get("date");
-    const index = date ? selectedTrip.dates.indexOf(date) : -1;
-    return index >= 0 ? index + 1 : 1;
-  });
+  const [activeDayId, setActiveDayId] = useState(1);
   const [showDateModal, setShowDateModal] = useState(false);
   const [showRegionModal, setShowRegionModal] = useState(false);
   const [showPeopleModal, setShowPeopleModal] = useState(false);
@@ -1292,6 +948,22 @@ function ScheduleContent({
     );
   })();
   // 통계 화면에서 돌아오면 예산 탭을 다시 엽니다.
+  // PC 일정 탭에서도 오른쪽 카카오 지도가 보이도록 2열 레이아웃을 유지합니다.
+  // 좁은 화면에서는 기존 일정/지도 탭별 표시 방식을 사용합니다.
+  const [isDesktopMapLayout, setIsDesktopMapLayout] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1024px)").matches,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsDesktopMapLayout(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
   const [activeTab, setActiveTab] = useState<Tab>(() =>
     searchParams.get("tab") === "budget" ? "budget" : "schedule",
   );
@@ -1302,29 +974,10 @@ function ScheduleContent({
     (group) => group.items.length > 0,
   );
 
-  const [stopsByDay, setStopsByDay] = useState<Record<number, Stop[]>>(() =>
-    createStoredStopsByDay(selectedTrip.schedule, selectedTrip.dates),
-  );
+  const [stopsByDay, setStopsByDay] = useState<Record<number, Stop[]>>({});
 
-  const scheduleVersionRef = useRef(selectedTrip.schedule.version);
-  const scheduleSaveLock = useRef(false);
-  const [scheduleSaving, setScheduleSaving] = useState(false);
-  const [scheduleError, setScheduleError] = useState("");
   const [isEditMode, setIsEditMode] = useState(false);
-  const [expandedStopId, setExpandedStopId] = useState<number | null>(null);
-  const [selectedStopIds, setSelectedStopIds] = useState<number[]>([]);
-  const [stopDeleteIds, setStopDeleteIds] = useState<number[] | null>(null);
-  const [isStopDeleteOpen, setIsStopDeleteOpen] = useState(false);
-  const [editMapFitVersion, setEditMapFitVersion] = useState(0);
-  const editAllSnapshotRef = useRef<Record<number, Stop[]> | null>(null);
-  const toggleStopSelection = (id: number) => {
-    setSelectedStopIds((previous) =>
-      previous.includes(id)
-        ? previous.filter((value) => value !== id)
-        : [...previous, id],
-    );
-  };
-  const [, setMenuId] = useState<number | null>(null);
+  const [menuId, setMenuId] = useState<number | null>(null);
   const editSnapshotRef = useRef<Stop[] | null>(null);
 
   const [showSaveStatus, setShowSaveStatus] = useState(false);
@@ -1342,42 +995,7 @@ function ScheduleContent({
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
 
-  const [dragOverEdge, setDragOverEdge] = useState<"before" | "after">(
-    "before",
-  );
   const draggingIdRef = useRef<number | null>(null);
-  const [dragRowStep, setDragRowStep] = useState(0);
-  const touchPreviewRef = useRef<HTMLElement | null>(null);
-  const previewOriginRef = useRef({ x: 0, y: 0 });
-  useEffect(
-    () => () => {
-      touchPreviewRef.current?.remove();
-    },
-    [],
-  );
-  const prepareDragVisual = (handle: HTMLElement) => {
-    const row = handle.closest<HTMLElement>("[data-stop-row]");
-    if (!row) return;
-    const gap = parseFloat(getComputedStyle(row.parentElement!).rowGap) || 0;
-    setDragRowStep(row.getBoundingClientRect().height + gap);
-    setExpandedStopId(null);
-  };
-  const moveTouchPreview = (x: number, y: number) => {
-    const preview = touchPreviewRef.current;
-    const drag = touchDragRef.current;
-    if (preview && drag)
-      preview.style.transform = `translate3d(${previewOriginRef.current.x + x - drag.startX}px, ${previewOriginRef.current.y + y - drag.startY - 5}px, 0) scale(1.025)`;
-  };
-  const touchDragRef = useRef<{
-    pointerId: number;
-    sourceId: number;
-    startX: number;
-    startY: number;
-    list: HTMLElement;
-    targetId: number | null;
-    edge: "before" | "after";
-    active: boolean;
-  } | null>(null);
 
   const [isPlaceModalOpen, setIsPlaceModalOpen] = useState(false);
   const [placeModalDay, setPlaceModalDay] = useState<Day | null>(null);
@@ -1387,9 +1005,6 @@ function ScheduleContent({
     setIsPlaceModalOpen(true);
   };
   const [editingStop, setEditingStop] = useState<Stop | null>(null);
-
-  const [activeFilter, setActiveFilter] = useState<Filter>("전체");
-  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const [showRoute, setShowRoute] = useState(true);
   const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
@@ -1404,24 +1019,6 @@ function ScheduleContent({
   const stops = React.useMemo(
     () => stopsByDay[activeDayId] ?? [],
     [stopsByDay, activeDayId],
-  );
-
-  const selectedStopCount = stops.filter((stop) =>
-    selectedStopIds.includes(stop.id),
-  ).length;
-  const allStopsSelected =
-    stops.length > 0 && selectedStopCount === stops.length;
-  const someStopsSelected = selectedStopCount > 0 && !allStopsSelected;
-  const handleSelectAllStops = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEditTrip || !isEditMode) return;
-    setSelectedStopIds(
-      event.currentTarget.checked ? stops.map((stop) => stop.id) : [],
-    );
-  };
-  const showMapPanel = activeTab === "map" || stops.length > 0;
-
-  const visibleMapStops = stops.filter(
-    (stop) => activeFilter === "전체" || stop.category === activeFilter,
   );
 
   const kakaoMapStops = React.useMemo(
@@ -1444,22 +1041,7 @@ function ScheduleContent({
     setShowSaveStatus(false);
   };
 
-  const getDragPreviewOffset = (index: number) => {
-    if (draggingId === null || dragOverId === null) return 0;
-    const sourceIndex = stops.findIndex((stop) => stop.id === draggingId);
-    const targetIndex = stops.findIndex((stop) => stop.id === dragOverId);
-    if (sourceIndex < 0 || targetIndex < 0) return 0;
-    const insertion = targetIndex + (dragOverEdge === "after" ? 1 : 0);
-    const destination = insertion - (sourceIndex < insertion ? 1 : 0);
-    if (index > sourceIndex && index <= destination) return -dragRowStep;
-    if (index < sourceIndex && index >= destination) return dragRowStep;
-    return 0;
-  };
-
   const resetDrag = () => {
-    touchPreviewRef.current?.remove();
-    touchPreviewRef.current = null;
-    touchDragRef.current = null;
     draggingIdRef.current = null;
     setDraggingId(null);
     setDragOverId(null);
@@ -1467,11 +1049,7 @@ function ScheduleContent({
 
   const toggleEditMode = () => {
     if (!canEditTrip) return;
-    setExpandedStopId(null);
-    setSelectedStopIds([]);
-
     if (!isEditMode) {
-      editAllSnapshotRef.current = stopsByDay;
       editSnapshotRef.current = stops.map((stop) => ({
         ...stop,
       }));
@@ -1487,13 +1065,7 @@ function ScheduleContent({
   };
 
   const handleCancelEdit = () => {
-    setExpandedStopId(null);
-    setSelectedStopIds([]);
-
-    if (editAllSnapshotRef.current) {
-      setStopsByDay(editAllSnapshotRef.current);
-      editAllSnapshotRef.current = null;
-    } else if (editSnapshotRef.current) {
+    if (editSnapshotRef.current) {
       const snapshot = editSnapshotRef.current;
 
       updateStops(() => snapshot);
@@ -1506,162 +1078,12 @@ function ScheduleContent({
     resetDrag();
   };
 
-  const handleSave = async () => {
-    if (!canEditTrip || scheduleSaveLock.current) return;
-    scheduleSaveLock.current = true;
-    setScheduleSaving(true);
-    setScheduleError("");
-    try {
-      const payload = days.flatMap(day => (stopsByDay[day.id] ?? []).map(stop => ({
-        ...stop, date: day.isoDate,
-      })));
-      const saved = await replaceTripPlaces(String(selectedTrip.id), scheduleVersionRef.current, payload);
-      scheduleVersionRef.current = saved.version;
-      setStopsByDay(createStoredStopsByDay(saved, days.map(day => day.isoDate)));
-
-    setExpandedStopId(null);
-    setSelectedStopIds([]);
-
-    editAllSnapshotRef.current = null;
+  const handleSave = () => {
     setIsEditMode(false);
     setMenuId(null);
     resetDrag();
     editSnapshotRef.current = null;
     setShowSaveStatus(true);
-    } catch (error) {
-      setScheduleError(error instanceof Error ? error.message : "일정을 저장하지 못했습니다.");
-    } finally {
-      scheduleSaveLock.current = false;
-      setScheduleSaving(false);
-    }
-  };
-
-  // 마우스·터치·펜 모두 포인터 캡처와 불투명한 카드 오버레이를 사용합니다.
-  const handleTouchPointerDown = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    id: number,
-  ) => {
-    if (!event.isPrimary || event.button !== 0 || !isEditMode) return;
-    const list = event.currentTarget.closest("[data-stop-row]")?.parentElement;
-    if (!list) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    touchDragRef.current = {
-      pointerId: event.pointerId,
-      sourceId: id,
-      startX: event.clientX,
-      startY: event.clientY,
-      list,
-      targetId: null,
-      edge: "before",
-      active: false,
-    };
-  };
-
-  const handleTouchPointerMove = (
-    event: React.PointerEvent<HTMLButtonElement>,
-  ) => {
-    const drag = touchDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    if (!drag.active) {
-      if (
-        Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6
-      )
-        return;
-      drag.active = true;
-      prepareDragVisual(event.currentTarget);
-      const card = event.currentTarget
-        .closest("[data-stop-row]")
-        ?.querySelector<HTMLElement>("[data-stop-card]");
-      if (card) {
-        const preview = card.cloneNode(true) as HTMLElement;
-        preview
-          .querySelectorAll("[id]")
-          .forEach((node) => node.removeAttribute("id"));
-        preview.removeAttribute("id");
-        preview
-          .querySelectorAll("button, input, [role='region']")
-          .forEach((node) => node.remove());
-        const rect = card.getBoundingClientRect();
-        previewOriginRef.current = { x: rect.left, y: rect.top };
-        Object.assign(preview.style, {
-          position: "fixed",
-          top: "0",
-          left: "0",
-          width: `${Math.min(rect.width, window.innerWidth - 40)}px`,
-          boxSizing: "border-box",
-          margin: "0",
-          pointerEvents: "none",
-          zIndex: "10000",
-          opacity: "1",
-          backgroundColor: "#FFFFFF",
-          filter: "none",
-          transformOrigin: "center",
-          willChange: "transform",
-          transition: "none",
-          boxShadow:
-            "0 18px 42px rgba(13,62,65,.28), 0 4px 12px rgba(13,62,65,.14)",
-          borderColor: "#00858A",
-          borderRadius: "10px",
-        });
-        preview.setAttribute("aria-hidden", "true");
-        document.body.appendChild(preview);
-        touchPreviewRef.current = preview;
-      }
-      draggingIdRef.current = drag.sourceId;
-      setDraggingId(drag.sourceId);
-      setMenuId(null);
-    }
-    event.preventDefault();
-    moveTouchPreview(event.clientX, event.clientY);
-    const rows = Array.from(
-      drag.list.querySelectorAll<HTMLElement>("[data-stop-id]"),
-    );
-    const listRect = drag.list.getBoundingClientRect();
-    const withinX =
-      event.clientX >= listRect.left - 32 &&
-      event.clientX <= listRect.right + 32;
-    const row = withinX
-      ? rows.find((item) => {
-          const top = listRect.top + item.offsetTop - drag.list.scrollTop;
-          return (
-            event.clientY >= top - 6 &&
-            event.clientY <= top + item.offsetHeight + 6
-          );
-        })
-      : undefined;
-    drag.targetId = row ? Number(row.dataset.stopId) : null;
-    if (row) {
-      const top = listRect.top + row.offsetTop - drag.list.scrollTop;
-      drag.edge =
-        event.clientY < top + row.offsetHeight / 2 ? "before" : "after";
-    }
-    setDragOverId(drag.targetId === drag.sourceId ? null : drag.targetId);
-    setDragOverEdge(drag.edge);
-  };
-
-  const handleTouchPointerUp = (
-    event: React.PointerEvent<HTMLButtonElement>,
-  ) => {
-    const drag = touchDragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const { sourceId, targetId, edge, active } = drag;
-    if (active && targetId !== null && sourceId !== targetId && isEditMode) {
-      updateStops((previous) => {
-        const fromIndex = previous.findIndex((item) => item.id === sourceId);
-        const toIndex = previous.findIndex((item) => item.id === targetId);
-        if (fromIndex < 0 || toIndex < 0) return previous;
-        const insertionIndex = toIndex + (edge === "after" ? 1 : 0);
-        const destinationIndex =
-          insertionIndex - (fromIndex < insertionIndex ? 1 : 0);
-        return destinationIndex === fromIndex
-          ? previous
-          : moveStop(previous, fromIndex, destinationIndex);
-      });
-    }
-    resetDrag();
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
   };
 
   const handleDragStart = (
@@ -1674,7 +1096,6 @@ function ScheduleContent({
     }
 
     const handle = event.currentTarget;
-    prepareDragVisual(handle);
     const row = handle.closest("[data-stop-row]");
     const card = row?.querySelector("[data-stop-card]") as HTMLElement | null;
 
@@ -1706,15 +1127,6 @@ function ScheduleContent({
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
 
-    const rect = event.currentTarget.getBoundingClientRect();
-    setDragOverEdge(
-      event.clientY <
-        rect.top -
-          Number(event.currentTarget.dataset.previewOffset || 0) +
-          rect.height / 2
-        ? "before"
-        : "after",
-    );
     setDragOverId(draggingIdRef.current === id ? null : id);
   };
 
@@ -1731,15 +1143,6 @@ function ScheduleContent({
       return;
     }
 
-    const rect = event.currentTarget.getBoundingClientRect();
-    const edge =
-      event.clientY <
-      rect.top -
-        Number(event.currentTarget.dataset.previewOffset || 0) +
-        rect.height / 2
-        ? "before"
-        : "after";
-
     updateStops((previous) => {
       const fromIndex = previous.findIndex((item) => item.id === sourceId);
       const toIndex = previous.findIndex((item) => item.id === targetId);
@@ -1748,14 +1151,14 @@ function ScheduleContent({
         return previous;
       }
 
-      const insertionIndex = toIndex + (edge === "after" ? 1 : 0);
-      const destinationIndex =
-        insertionIndex - (fromIndex < insertionIndex ? 1 : 0);
-      if (destinationIndex === fromIndex) return previous;
-      return moveStop(previous, fromIndex, destinationIndex);
+      return moveStop(previous, fromIndex, toIndex);
     });
 
     resetDrag();
+  };
+
+  const toggleMenu = (id: number) => {
+    setMenuId((previous) => (previous === id ? null : id));
   };
 
   const hasStopTitle = (stop: Stop | null): stop is Stop => {
@@ -1778,120 +1181,66 @@ function ScheduleContent({
     setMenuId(null);
   };
 
-  const deleteSelectedStops = () => {
-    if (!canEditTrip || selectedStopIds.length === 0) return;
-    setStopDeleteIds([...selectedStopIds]);
-    setIsStopDeleteOpen(true);
-  };
-  const confirmSelectedStopDelete = () => {
-    if (!canEditTrip || !stopDeleteIds) return;
-    updateStops((previous) =>
-      previous.filter((stop) => !stopDeleteIds.includes(stop.id)),
-    );
-    setSelectedStopIds((previous) =>
-      previous.filter((id) => !stopDeleteIds.includes(id)),
-    );
-    setIsStopDeleteOpen(false);
-  };
-
-  const moveSelectedStops = (targetDayId: number) => {
-    if (
-      !canEditTrip ||
-      targetDayId === activeDayId ||
-      selectedStopIds.length === 0
-    )
+  const deleteStop = (id: number) => {
+    if (!window.confirm("이 일정을 삭제하시겠습니까?")) {
       return;
-    const selectedIds = new Set(selectedStopIds);
-    setStopsByDay((previous) => {
-      const source = previous[activeDayId] ?? [];
-      const moved = source.filter((stop) => selectedIds.has(stop.id));
-      const target = previous[targetDayId] ?? [];
-      const usedIds = new Set(target.map((stop) => stop.id));
-      let nextId =
-        Math.max(
-          0,
-          ...Object.values(previous)
-            .flat()
-            .map((stop) => stop.id),
-        ) + 1;
-      const appended = moved.map((stop) => {
-        const id = usedIds.has(stop.id) ? nextId++ : stop.id;
-        usedIds.add(id);
-        return { ...stop, id };
-      });
-      return {
-        ...previous,
-        [activeDayId]: source.filter((stop) => !selectedIds.has(stop.id)),
-        [targetDayId]: [...target, ...appended],
-      };
-    });
-    setExpandedStopId(null);
-    setSelectedStopIds([]);
+    }
 
-    setShowSaveStatus(false);
-    resetDrag();
+    updateStops((previous) => previous.filter((item) => item.id !== id));
+
+    setMenuId(null);
   };
 
-  const handleAddPlaces = async (places: ScheduledPlace[]) => {
-    if (!canEditTrip) throw new Error("일정을 추가할 권한이 없습니다.");
-    if (scheduleSaveLock.current) throw new Error("저장 중입니다. 잠시 후 다시 시도해주세요.");
+  const handleAddPlaces = (places: ScheduledPlace[]) => {
     const targetDay = days.find(
       (day) => day.isoDate === placeModalDay?.isoDate,
     );
     if (!targetDay)
       throw new Error("추가할 날짜가 변경되었습니다. 다시 열어 주세요.");
-    const added: Stop[] = places.map((place, index) => ({
-      id: Date.now() + index,
-      placeId: place.id,
-      title: place.name,
-      time: place.startTime,
-      description: "",
-      address: place.address,
-      category: Object.prototype.hasOwnProperty.call(
-        CATEGORY_ICONS,
-        place.category,
-      )
-        ? (place.category as Category)
-        : "관광지",
-      image: place.image || defaultTripImage,
-      x: 50,
-      y: 50,
-      stayDurationMinutes: place.stayDurationMinutes || 60,
-      transport: place.transport || selectedTrip.transport || undefined,
-      ...("lat" in place && typeof place.lat === "number"
-        ? { lat: place.lat }
-        : {}),
-      ...("lng" in place && typeof place.lng === "number"
-        ? { lng: place.lng }
-        : {}),
-    }));
-    scheduleSaveLock.current = true;
-    try {
-      // append는 이 날짜의 새 장소만 저장합니다. 다른 날짜/편집 중인 변경은 건드리지 않습니다.
-      const saved = await appendTripPlaces(String(selectedTrip.id), targetDay.isoDate, added);
-      // 편집 중 다른 사용자의 변경이 있으면 이후 전체 저장 시 충돌을 감지하도록
-      // 기존 버전을 유지합니다. 우리 append만 있었다면 한 버전 증가합니다.
-      const previousVersion = scheduleVersionRef.current;
-      if (!isEditMode || saved.version === previousVersion + 1) scheduleVersionRef.current = saved.version;
-      const persisted = createStoredStopsByDay(saved, days.map(day => day.isoDate));
-      const mergeAdded = (previous: Record<number, Stop[]>) => {
-        const existing = previous[targetDay.id] ?? [];
-        const addedIds = new Set(added.map(stop => stop.placeId));
-        const newStops = (persisted[targetDay.id] ?? []).filter(stop =>
-          addedIds.has(stop.placeId) && !existing.some(item => item.placeId === stop.placeId),
-        );
-        return { ...previous, [targetDay.id]: [...existing, ...newStops] };
+    const added: Stop[] = places.map((place, index) => {
+      // 지도에서 받은 좌표가 모달 단계를 거치면서 누락되는 경우 보완합니다.
+      const kakao = getKnownModalPlace(String(place.id));
+      const placeWithCoords = place as ScheduledPlace & {
+        lat?: number;
+        lng?: number;
       };
-      if (isEditMode) {
-        setStopsByDay(mergeAdded);
-        // 추가는 이미 DB에 저장되었습니다. 편집 취소로 사라지지 않도록 기준도 갱신합니다.
-        if (editAllSnapshotRef.current) editAllSnapshotRef.current = mergeAdded(editAllSnapshotRef.current);
-      } else setStopsByDay(persisted);
-      setShowSaveStatus(false);
-      setIsPlaceModalOpen(false);
-    } finally {
-      scheduleSaveLock.current = false;
-    }
+      return {
+        id: Date.now() + index,
+        placeId: place.id,
+        title: place.name,
+        time: place.startTime,
+        description: "",
+        address: place.address || kakao?.address || "",
+        category: Object.prototype.hasOwnProperty.call(
+          CATEGORY_ICONS,
+          place.category,
+        )
+          ? (place.category as Category)
+          : "관광지",
+        image: place.image || kakao?.image || defaultTripImage,
+        x: 50,
+        y: 50,
+        stayDurationMinutes: place.stayDurationMinutes,
+        transport: place.transport,
+        lat:
+          typeof placeWithCoords.lat === "number"
+            ? placeWithCoords.lat
+            : kakao?.lat,
+        lng:
+          typeof placeWithCoords.lng === "number"
+            ? placeWithCoords.lng
+            : kakao?.lng,
+      };
+    });
+    setStopsByDay((previous) => {
+      const existing = previous[targetDay.id] ?? [];
+      const unique = added.filter(
+        (item) => !existing.some((stop) => stop.placeId === item.placeId),
+      );
+      return { ...previous, [targetDay.id]: [...existing, ...unique] };
+    });
+    setShowSaveStatus(false);
+    setIsPlaceModalOpen(false);
   };
 
   // 카카오 지도에서 선택한 장소 추가
@@ -1990,14 +1339,7 @@ function ScheduleContent({
     return true;
   };
   return (
-    <S.Page inert={scheduleSaving} aria-busy={scheduleSaving}>
-      {scheduleError && <div role="alert" style={{ color: "#B42318", padding: "12px" }}>{scheduleError}</div>}
-      <Global
-        styles={{
-          '[role="menu"][aria-label="이동"], [role="menu"][aria-label="이동"] > button':
-            { fontSize: "16px" },
-        }}
-      />
+    <S.Page>
       <S.SidebarArea>
         <MainSidebar />
       </S.SidebarArea>
@@ -2207,10 +1549,6 @@ function ScheduleContent({
                   type="button"
                   $active={activeDayId === day.id}
                   onClick={() => {
-                    setExpandedStopId(null);
-                    setSelectedStopIds([]);
-
-                    editAllSnapshotRef.current = null;
                     setActiveDayId(day.id);
                     setIsEditMode(false);
                     setMenuId(null);
@@ -2233,20 +1571,23 @@ function ScheduleContent({
 
           {activeTab === "schedule" || activeTab === "map" ? (
             <S.ContentGrid
-              data-edit-mode={activeTab === "schedule" && showMapPanel}
+              style={
+                isDesktopMapLayout && activeTab === "schedule"
+                  ? { gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }
+                  : undefined
+              }
             >
               <S.SchedulePanel data-tablet-hidden={activeTab === "map"}>
                 <S.ScheduleHeading>
                   <S.ScheduleHeadingLeft>
-                    <div className="date-wrapper">
-                      <h2>Day {activeDay.id}</h2>
+                    <h2>Day {activeDay.id}</h2>
 
-                      <span>
-                        {Number(activeDay.date.split(".")[0])}월{" "}
-                        {Number(activeDay.date.split(".")[1])}일 (
-                        {activeDay.weekday})
-                      </span>
-                    </div>
+                    <span>
+                      {Number(activeDay.date.split(".")[0])}월{" "}
+                      {Number(activeDay.date.split(".")[1])}일 (
+                      {activeDay.weekday})
+                    </span>
+
                     <S.Weather>
                       <Cloud size={20} />
                       <span>{tripRegion} · 날씨 정보 없음</span>
@@ -2257,54 +1598,12 @@ function ScheduleContent({
                   {(stops.length > 0 || isEditMode) && (
                     <S.DesktopEditAction>
                       {isEditMode ? (
-                        <S.BatchActions>
-                          <S.BatchMoveDropdown>
-                            <Dropdown<string>
-                              label="이동"
-                              value=""
-                              trigger={null}
-                              disabled={
-                                selectedStopIds.length === 0 || days.length < 2
-                              }
-                              options={days
-                                .filter((day) => day.id !== activeDayId)
-                                .map((day) => ({
-                                  value: String(day.id),
-                                  label: `Day ${day.id} · ${day.date}`,
-                                }))}
-                              onChange={(value) =>
-                                moveSelectedStops(Number(value))
-                              }
-                            />
-                          </S.BatchMoveDropdown>
-                          <S.BatchButton
-                            type="button"
-                            $danger
-                            disabled={selectedStopIds.length === 0}
-                            onClick={deleteSelectedStops}
-                          >
-                            삭제
-                          </S.BatchButton>
-                          <S.CancelEditButton
-                            type="button"
-                            onClick={handleCancelEdit}
-                          >
-                            취소
-                          </S.CancelEditButton>
-                          <S.BatchButton
-                            className="add-place-action"
-                            type="button"
-                            onClick={openPlaceModal}
-                          >
-                            <Plus size={16} />
-                            <S.AddPlaceButtonLabel>
-                              <span className="desktop-label">
-                                장소 추가하기
-                              </span>
-                              <span className="compact-label">새 장소</span>
-                            </S.AddPlaceButtonLabel>
-                          </S.BatchButton>
-                        </S.BatchActions>
+                        <S.CancelEditButton
+                          type="button"
+                          onClick={handleCancelEdit}
+                        >
+                          취소
+                        </S.CancelEditButton>
                       ) : (
                         <S.EditModeButton
                           type="button"
@@ -2322,54 +1621,19 @@ function ScheduleContent({
                   {(stops.length > 0 || isEditMode) && (
                     <S.MobileEditAction>
                       {isEditMode ? (
-                        <S.BatchActions>
-                          <S.BatchMoveDropdown>
-                            <Dropdown<string>
-                              label="이동"
-                              value=""
-                              trigger={null}
-                              disabled={
-                                selectedStopIds.length === 0 || days.length < 2
-                              }
-                              options={days
-                                .filter((day) => day.id !== activeDayId)
-                                .map((day) => ({
-                                  value: String(day.id),
-                                  label: `Day ${day.id} · ${day.date}`,
-                                }))}
-                              onChange={(value) =>
-                                moveSelectedStops(Number(value))
-                              }
-                            />
-                          </S.BatchMoveDropdown>
-                          <S.BatchButton
-                            type="button"
-                            $danger
-                            disabled={selectedStopIds.length === 0}
-                            onClick={deleteSelectedStops}
-                          >
-                            삭제
-                          </S.BatchButton>
+                        <S.EditActionGroup>
                           <S.CancelEditButton
                             type="button"
                             onClick={handleCancelEdit}
                           >
                             취소
                           </S.CancelEditButton>
-                          <S.BatchButton
-                            className="add-place-action"
-                            type="button"
-                            onClick={openPlaceModal}
-                          >
-                            <Plus size={16} />
-                            <S.AddPlaceButtonLabel>
-                              <span className="desktop-label">
-                                장소 추가하기
-                              </span>
-                              <span className="compact-label">새 장소</span>
-                            </S.AddPlaceButtonLabel>
-                          </S.BatchButton>
-                        </S.BatchActions>
+
+                          <S.SaveEditButton type="button" onClick={handleSave}>
+                            <Check size={14} />
+                            저장하기
+                          </S.SaveEditButton>
+                        </S.EditActionGroup>
                       ) : (
                         <S.EditModeButton
                           type="button"
@@ -2385,24 +1649,12 @@ function ScheduleContent({
                   )}
                 </S.ScheduleHeading>
 
-                {/* <S.ScheduleListArea> */}
-                {isEditMode && stops.length > 0 && (
-                  <S.SelectAllRow>
-                    <S.StopCheckbox
-                      type="checkbox"
-                      checked={allStopsSelected}
-                      ref={(element) => {
-                        if (element) element.indeterminate = someStopsSelected;
-                      }}
-                      disabled={!canEditTrip}
-                      onChange={handleSelectAllStops}
-                    />
-                    <span>전체선택</span>
-                    <small>
-                      {selectedStopCount}/{stops.length}
-                    </small>
-                  </S.SelectAllRow>
+                {isEditMode && stops.length > 1 && (
+                  <S.EditHint>
+                    왼쪽의 점 6개를 잡고 드래그하여 일정 순서를 변경하세요.
+                  </S.EditHint>
                 )}
+
                 <S.StopList>
                   {stops.length === 0 && (
                     <S.EmptyState>
@@ -2419,45 +1671,36 @@ function ScheduleContent({
                   )}
                   {stops.map((stop, index) => (
                     <ScheduleStopCard
-                      key={`${activeDayId}-${isEditMode}-${stop.id}`}
+                      key={stop.id}
                       stop={stop}
                       index={index}
                       isEditMode={isEditMode}
-                      previewOffset={getDragPreviewOffset(index)}
-                      defaultTransport={selectedTrip.transport ?? ""}
-                      expanded={expandedStopId === stop.id}
-                      onToggleExpanded={() =>
-                        setExpandedStopId((previous) =>
-                          previous === stop.id ? null : stop.id,
-                        )
-                      }
-                      onUpdate={(patch) =>
-                        updateStops((previous) =>
-                          previous.map((item) =>
-                            item.id === stop.id ? { ...item, ...patch } : item,
-                          ),
-                        )
-                      }
-                      selected={selectedStopIds.includes(stop.id)}
-                      onSelect={toggleStopSelection}
+                      menuId={menuId}
                       draggingId={draggingId}
                       dragOverId={dragOverId}
-                      dragOverEdge={dragOverEdge}
+                      onMenuToggle={toggleMenu}
+                      onEdit={(item) => {
+                        setEditingStop({
+                          ...item,
+                        });
+                        setMenuId(null);
+                      }}
+                      onDelete={deleteStop}
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}
                       onDrop={handleDrop}
                       onDragEnd={resetDrag}
-                      onHandlePointerDown={handleTouchPointerDown}
-                      onHandlePointerMove={handleTouchPointerMove}
-                      onHandlePointerUp={handleTouchPointerUp}
                     />
                   ))}
                 </S.StopList>
 
-                <TravelRouteSummary
-                  stops={stops}
-                  onRoutesReady={setRoutePaths}
-                />
+                {/* 경로 계산은 유지하되, 왼쪽 거리·시간 UI는 표시하지 않습니다. */}
+                <div style={{ display: "none" }} aria-hidden="true">
+                  <TravelRouteSummary
+                    stops={stops}
+                    onRoutesReady={setRoutePaths}
+                  />
+                </div>
 
                 {isEditMode && stops.length > 0 && (
                   <S.AddPlaceButton type="button" onClick={openPlaceModal}>
@@ -2471,179 +1714,82 @@ function ScheduleContent({
                 )}
               </S.SchedulePanel>
 
-              {showMapPanel && (
-                <S.MapPanel
-                  data-edit-route={activeTab === "schedule"}
-                  data-tablet-hidden={activeTab === "schedule"}
-                >
-                  <S.MapCanvas>
-                    {activeTab === "schedule" ? (
-                      <ScheduleEditRouteMap
-                        key={`${activeDayId}-${editMapFitVersion}`}
-                        stops={kakaoMapStops}
-                        category="전체"
-                        showRoute
-                        zoom={mapZoom}
-                      />
-                    ) : activeTab === "map" ? (
-                      <KakaoTravelMap
-                        region={tripRegion}
-                        stops={visibleMapStops}
-                        routeStops={stops}
-                        routePaths={routePaths}
-                        showRoute={showRoute}
-                        zoom={mapZoom}
-                        onAddPlace={addPlaceFromKakao}
-                      />
-                    ) : (
-                      <KakaoMap
-                        stops={kakaoMapStops}
-                        category={activeFilter}
-                        routePaths={routePaths}
-                        showRoute={showRoute}
-                        zoom={mapZoom}
-                      />
-                    )}
-                  </S.MapCanvas>
-
-                  {!(activeTab === "schedule") && (
-                    <S.MapToolbar>
-                      <S.MapFilters>
-                        {FILTERS.map((filter) => {
-                          const Icon = filter.icon;
-
-                          return (
-                            <S.FilterButton
-                              key={filter.key}
-                              type="button"
-                              $active={activeFilter === filter.key}
-                              onClick={() => setActiveFilter(filter.key)}
-                            >
-                              <Icon size={15} />
-                              {filter.label}
-                            </S.FilterButton>
-                          );
-                        })}
-                      </S.MapFilters>
-
-                      <S.MobileFilterWrapper>
-                        <S.MobileFilterTrigger
-                          type="button"
-                          aria-expanded={isMobileFilterOpen}
-                          aria-label="지도 카테고리 선택"
-                          onClick={() =>
-                            setIsMobileFilterOpen((previous) => !previous)
-                          }
-                        >
-                          <LayoutGrid size={16} />
-
-                          <span>
-                            {activeFilter === "전체"
-                              ? "전체 카테고리"
-                              : activeFilter}
-                          </span>
-
-                          <ChevronDown
-                            size={16}
-                            style={{
-                              transform: isMobileFilterOpen
-                                ? "rotate(180deg)"
-                                : "rotate(0deg)",
-                              transition: "transform 0.2s ease",
-                            }}
-                          />
-                        </S.MobileFilterTrigger>
-
-                        {isMobileFilterOpen && (
-                          <S.MobileFilterMenu>
-                            {FILTERS.map((filter) => {
-                              const Icon = filter.icon;
-
-                              return (
-                                <S.MobileFilterOption
-                                  key={filter.key}
-                                  type="button"
-                                  $active={activeFilter === filter.key}
-                                  onClick={() => {
-                                    setActiveFilter(filter.key);
-                                    setIsMobileFilterOpen(false);
-                                  }}
-                                >
-                                  {activeFilter === filter.key ? (
-                                    <Check size={16} />
-                                  ) : (
-                                    <Icon size={16} />
-                                  )}
-
-                                  <span>
-                                    {filter.key === "전체"
-                                      ? "전체 카테고리"
-                                      : filter.label}
-                                  </span>
-                                </S.MobileFilterOption>
-                              );
-                            })}
-                          </S.MobileFilterMenu>
-                        )}
-                      </S.MobileFilterWrapper>
-
-                      <S.RouteToggle
-                        type="button"
-                        $active={showRoute}
-                        onClick={() => setShowRoute((prev) => !prev)}
-                      >
-                        <Route size={17} />
-
-                        <span>
-                          {showRoute ? "경로 숨기기" : "전체 경로 보기"}
-                        </span>
-                      </S.RouteToggle>
-                    </S.MapToolbar>
+              <S.MapPanel
+                data-tablet-hidden={
+                  activeTab === "schedule" && !isDesktopMapLayout
+                }
+              >
+                <S.MapCanvas>
+                  {activeTab === "map" ? (
+                    <KakaoTravelMap
+                      region={tripRegion}
+                      stops={stops}
+                      routeStops={stops}
+                      routePaths={routePaths}
+                      showRoute={showRoute}
+                      zoom={mapZoom}
+                      onAddPlace={addPlaceFromKakao}
+                      hideSearch
+                    />
+                  ) : (
+                    <KakaoMap
+                      stops={kakaoMapStops}
+                      category="전체"
+                      routePaths={routePaths}
+                      showRoute={showRoute}
+                      zoom={mapZoom}
+                    />
                   )}
+                </S.MapCanvas>
 
-                  {activeTab === "schedule" && (
-                    <S.EditRouteFitButton
-                      type="button"
-                      onClick={() => {
-                        setMapZoom(1);
-                        setEditMapFitVersion((version) => version + 1);
-                      }}
-                    >
-                      <Route size={17} />
-                      전체 경로
-                    </S.EditRouteFitButton>
-                  )}
-                  <S.MapZoomControls>
-                    <button
-                      type="button"
-                      aria-label="확대"
-                      onClick={() =>
-                        setMapZoom((previous) => Math.min(previous + 0.1, 1.5))
-                      }
-                    >
-                      <Plus size={18} />
-                    </button>
+                {/* 지도 상단 검색창과 카테고리는 제거하고 경로 토글만 유지합니다. */}
+                <S.MapToolbar>
+                  <S.RouteToggle
+                    type="button"
+                    $active={showRoute}
+                    onClick={() => setShowRoute((prev) => !prev)}
+                  >
+                    <Route size={17} />
+                    <span>
+                      {routePaths.length === 0
+                        ? "조회된 도로 경로 없음"
+                        : showRoute
+                          ? "경로 숨기기"
+                          : "전체 경로 보기"}
+                    </span>
+                  </S.RouteToggle>
+                </S.MapToolbar>
 
-                    <button
-                      type="button"
-                      aria-label="축소"
-                      onClick={() =>
-                        setMapZoom((previous) => Math.max(previous - 0.1, 0.7))
-                      }
-                    >
-                      <Minus size={18} />
-                    </button>
+                <S.MapZoomControls>
+                  <button
+                    type="button"
+                    aria-label="확대"
+                    onClick={() =>
+                      setMapZoom((previous) => Math.min(previous + 0.1, 1.5))
+                    }
+                  >
+                    <Plus size={18} />
+                  </button>
 
-                    <button
-                      type="button"
-                      aria-label="초기화"
-                      onClick={() => setMapZoom(1)}
-                    >
-                      <LocateFixed size={18} />
-                    </button>
-                  </S.MapZoomControls>
-                </S.MapPanel>
-              )}
+                  <button
+                    type="button"
+                    aria-label="축소"
+                    onClick={() =>
+                      setMapZoom((previous) => Math.max(previous - 0.1, 0.7))
+                    }
+                  >
+                    <Minus size={18} />
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label="초기화"
+                    onClick={() => setMapZoom(1)}
+                  >
+                    <LocateFixed size={18} />
+                  </button>
+                </S.MapZoomControls>
+              </S.MapPanel>
             </S.ContentGrid>
           ) : activeTab === "checklist" ? (
             hasChecklistItems ? (
@@ -2775,16 +1921,6 @@ function ScheduleContent({
             </S.EditModalActions>
           </S.EditModal>
         </S.EditOverlay>
-      )}
-
-      {stopDeleteIds && (
-        <SelectedStopsDeleteDialog
-          open={isStopDeleteOpen}
-          count={stopDeleteIds.length}
-          onClose={() => setIsStopDeleteOpen(false)}
-          onConfirm={confirmSelectedStopDelete}
-          onExited={() => setStopDeleteIds(null)}
-        />
       )}
 
       {isDeleteDialogMounted &&
@@ -2941,7 +2077,8 @@ function ScheduleContent({
       />
       <PlaceAddModal
         {...placeModalSource}
-        defaultTransport={selectedTrip.transport ?? ""}
+        defaultTransport={modalDefaultTransport}
+        defaultTransportLabel={modalDefaultTransportLabel}
         open={isPlaceModalOpen}
         onClose={() => setIsPlaceModalOpen(false)}
         dayLabel={`Day ${placeModalDay?.id ?? activeDay.id}`}
@@ -3104,378 +2241,6 @@ function MobileTripNameSheet({
         </footer>
       </form>
     </S.MobileNameDialog>,
-    document.body,
-  );
-}
-
-const KAKAO_KEY = getKakaoMapKey();
-
-type EditRouteMapProps = {
-  stops: KakaoStop[];
-  category: string;
-  showRoute: boolean;
-  zoom: number;
-};
-
-function createMarkerContent(
-  stop: KakaoStop & { time?: string },
-  order: number,
-  onActiveChange: (active: boolean) => void,
-): HTMLElement {
-  const marker = document.createElement("div");
-  marker.className = "route-map-marker";
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "route-map-pin";
-  button.setAttribute("aria-label", `${order}번 ${stop.title} 일정 정보`);
-  button.setAttribute("aria-expanded", "false");
-  button.innerHTML = renderToStaticMarkup(
-    <svg width="44" height="54" viewBox="0 0 44 54" aria-hidden="true">
-      <path
-        d="M22 2C11 2 3 10 3 21c0 13 19 30 19 30s19-17 19-30C41 10 33 2 22 2Z"
-        fill="#007C80"
-        stroke="white"
-        strokeWidth="3"
-      />
-    </svg>,
-  );
-  const number = document.createElement("span");
-  number.className = "route-map-pin-number";
-  number.textContent = String(order);
-  button.append(number);
-  const tooltip = document.createElement("span");
-  tooltip.className = "route-map-tooltip";
-  tooltip.id = `route-stop-${String(stop.id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-  tooltip.setAttribute("role", "tooltip");
-  tooltip.hidden = true;
-  button.setAttribute("aria-describedby", tooltip.id);
-  const title = document.createElement("strong");
-  title.textContent = stop.title;
-  const time = document.createElement("span");
-  time.textContent = stop.time ? `일정 시간 ${stop.time}` : "일정 시간 미정";
-  tooltip.append(title, time);
-  marker.append(button, tooltip);
-  const show = (active: boolean) => {
-    tooltip.hidden = !active;
-    button.setAttribute("aria-expanded", String(active));
-    marker.dataset.active = String(active);
-    onActiveChange(active || tapped);
-  };
-  let tapped = false;
-  const deselect = () => {
-    tapped = false;
-    marker.dataset.selected = "false";
-    button.setAttribute("aria-pressed", "false");
-    show(false);
-  };
-  marker.addEventListener("route-marker-deselect", deselect);
-  button.setAttribute("aria-pressed", "false");
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const nextSelected = !tapped;
-    marker
-      .closest("[data-route-map-root]")
-      ?.querySelectorAll('.route-map-marker[data-selected="true"]')
-      .forEach((other) => {
-        if (other !== marker)
-          other.dispatchEvent(new Event("route-marker-deselect"));
-      });
-    tapped = nextSelected;
-    marker.dataset.selected = String(tapped);
-    button.setAttribute("aria-pressed", String(tapped));
-    show(tapped);
-  });
-  button.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") deselect();
-  });
-  return marker;
-}
-
-function ScheduleEditRouteMap({
-  stops,
-  category,
-  showRoute,
-  zoom,
-}: EditRouteMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapInstance | null>(null);
-  const layersRef = useRef<OverlayInstance[]>([]);
-  const locatedRef = useRef<LocatedStop[]>([]);
-  const initialLevelRef = useRef(9);
-  const [sdk, setSdk] = useState<KakaoMapsSDK | null>(null);
-  const [error, setError] = useState("");
-  const [unresolved, setUnresolved] = useState(0);
-  const [loading, setLoading] = useState(Boolean(KAKAO_KEY));
-
-  useEffect(() => {
-    if (!KAKAO_KEY) return;
-    let cancelled = false;
-    void loadKakaoMaps()
-      .then((maps) => {
-        if (cancelled || !containerRef.current) return;
-        const map = new maps.Map(containerRef.current, {
-          center: new maps.LatLng(
-            DEFAULT_MAP_CENTER.latitude,
-            DEFAULT_MAP_CENTER.longitude,
-          ),
-          level: 9,
-        });
-        mapRef.current = map;
-        setSdk(maps);
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : "지도 연결에 실패했습니다.",
-          );
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-      layersRef.current.forEach((layer) => layer.setMap(null));
-      layersRef.current = [];
-      mapRef.current = null;
-    };
-  }, []);
-
-  // 일정/날짜 변경 시 위치를 다시 찾되, API 응답이 늦게 오면 기존 결과를 표시하지 않습니다.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!sdk || !map) return;
-    let cancelled = false;
-    setLoading(true);
-    const places = new sdk.services.Places();
-    void Promise.all(stops.map((stop) => resolveKakaoPlace(sdk, places, stop)))
-      .then((found) => {
-        if (cancelled) return;
-        locatedRef.current = found.filter(
-          (item): item is LocatedStop => item !== null,
-        );
-        setUnresolved(found.length - locatedRef.current.length);
-        const coordinates = locatedRef.current;
-        map.relayout();
-        if (coordinates.length > 0) {
-          if (coordinates.length === 1) {
-            map.setCenter(
-              new sdk.LatLng(coordinates[0].latitude, coordinates[0].longitude),
-            );
-            map.setLevel(4);
-          } else {
-            const bounds = new sdk.LatLngBounds();
-            coordinates.forEach(({ latitude, longitude }) =>
-              bounds.extend(new sdk.LatLng(latitude, longitude)),
-            );
-            map.setBounds(bounds, 70);
-          }
-          initialLevelRef.current = map.getLevel();
-        } else {
-          map.setCenter(
-            new sdk.LatLng(
-              DEFAULT_MAP_CENTER.latitude,
-              DEFAULT_MAP_CENTER.longitude,
-            ),
-          );
-          map.setLevel(9);
-          initialLevelRef.current = 9;
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setError("장소 위치를 조회하는 중 문제가 발생했습니다.");
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [sdk, stops]);
-
-  // 마커·순서 연결선은 동일 좌표 데이터를 사용합니다.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!sdk || !map || loading) return;
-    layersRef.current.forEach((layer) => layer.setMap(null));
-    layersRef.current = [];
-    const coordinatePoints = locatedRef.current;
-    if (showRoute && coordinatePoints.length >= 2) {
-      layersRef.current.push(
-        new sdk.Polyline({
-          map,
-          path: coordinatePoints.map(
-            ({ latitude, longitude }) => new sdk.LatLng(latitude, longitude),
-          ),
-          strokeWeight: 3,
-          strokeColor: "#005259",
-          strokeOpacity: 0.8,
-          strokeStyle: "solid",
-        }),
-      );
-    }
-    coordinatePoints.forEach(({ stop, latitude, longitude }) => {
-      if (category !== "전체" && stop.category !== category) return;
-      const order = stops.findIndex((item) => item.id === stop.id) + 1;
-      let overlay:
-        | (OverlayInstance & { setZIndex?: (index: number) => void })
-        | null = null;
-      const content = createMarkerContent(stop, order, (active) => {
-        overlay?.setZIndex?.(active ? 20 : 3);
-      });
-      overlay = new sdk.CustomOverlay({
-        map,
-        position: new sdk.LatLng(latitude, longitude),
-        content,
-        yAnchor: 1,
-        zIndex: 3,
-      });
-      layersRef.current.push(overlay);
-    });
-    return () => {
-      layersRef.current.forEach((layer) => layer.setMap(null));
-      layersRef.current = [];
-    };
-  }, [sdk, stops, category, showRoute, loading]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || loading) return;
-    map.setLevel(
-      Math.max(
-        1,
-        Math.min(14, initialLevelRef.current - Math.round((zoom - 1) * 10)),
-      ),
-      { animate: true },
-    );
-  }, [zoom, loading]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    const element = containerRef.current;
-    if (!map || !element || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => map.relayout());
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [sdk]);
-
-  return (
-    <S.EditMapRoot data-route-map-root>
-      <div
-        ref={containerRef}
-        style={{ width: "100%", height: "100%" }}
-        aria-label="카카오 지도"
-      />
-      {!KAKAO_KEY ? (
-        <S.EditMapMessage role="status">
-          <strong>카카오맵 API 키가 필요해요.</strong>
-          <span>
-            프로젝트 루트의 .env.local에 VITE_KAKAO_MAP_JS_KEY를 설정해 주세요.
-          </span>
-        </S.EditMapMessage>
-      ) : error ? (
-        <S.EditMapMessage role="alert">
-          <strong>카카오 지도를 표시할 수 없어요.</strong>
-          <span>{error}</span>
-          <span>
-            카카오맵 사용 설정 및 localhost 도메인 등록을 확인해 주세요.
-          </span>
-        </S.EditMapMessage>
-      ) : loading ? (
-        <S.EditMapMessage role="status">
-          카카오 지도와 장소를 불러오는 중이에요.
-        </S.EditMapMessage>
-      ) : (
-        <S.EditMapNote>
-          {unresolved > 0
-            ? `위치를 확인할 수 없는 장소 ${unresolved}개 · `
-            : ""}
-          연결선은 방문 순서이며 실제 도로 경로가 아닙니다.
-        </S.EditMapNote>
-      )}
-    </S.EditMapRoot>
-  );
-}
-
-function SelectedStopsDeleteDialog({
-  open,
-  count,
-  onClose,
-  onConfirm,
-  onExited,
-}: {
-  open: boolean;
-  count: number;
-  onClose: () => void;
-  onConfirm: () => void;
-  onExited: () => void;
-}) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  const titleId = React.useId();
-  const descriptionId = React.useId();
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    if (!dialog.open) dialog.showModal();
-    cancelRef.current?.focus({ preventScroll: true });
-    return () => {
-      dialog.close();
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
-        previousFocus.focus({ preventScroll: true });
-    };
-  }, []);
-  useEffect(() => {
-    if (open) return;
-    const timer = window.setTimeout(onExited, 300);
-    return () => window.clearTimeout(timer);
-  }, [open, onExited]);
-  return createPortal(
-    <S.SelectedStopDeleteDialog
-      ref={dialogRef}
-      data-open={open}
-      inert={!open}
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          const rect = event.currentTarget.getBoundingClientRect();
-          if (
-            event.clientX < rect.left ||
-            event.clientX > rect.right ||
-            event.clientY < rect.top ||
-            event.clientY > rect.bottom
-          )
-            onClose();
-        }
-      }}
-      onAnimationEnd={(event) => {
-        if (event.target === event.currentTarget && !open) onExited();
-      }}
-    >
-      <div className="stop-delete-heading">
-        <TriangleAlert size={25} aria-hidden="true" />
-        <h2 id={titleId}>선택한 일정을 삭제할까요?</h2>
-      </div>
-      <p id={descriptionId}>선택한 일정 {count}개가 목록에서 삭제됩니다.</p>
-      <div className="stop-delete-actions">
-        <button ref={cancelRef} type="button" onClick={onClose}>
-          취소
-        </button>
-        <button type="button" className="danger" onClick={onConfirm}>
-          삭제
-        </button>
-      </div>
-    </S.SelectedStopDeleteDialog>,
     document.body,
   );
 }
