@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { RouteLine } from "../components/Schedule/TravelRouteSummary.ts";
 import { getKakaoMapKey } from "../api/kakao/kakaoSdk";
+import { getAllowedCurrentLocation } from "../utils/locationService";
 import * as S from "./KakaoTravelMapStyle";
+import {
+  RouteMapDetails, RouteModePicker, useTouchMap, routeColor,
+  type RouteLine, type RouteSelection, type TravelMode,
+} from "../components/map/RouteMapInfo";
+import { getKakaoMapPointUrl } from "../api/kakao/kakaoLinks";
 
 export type KakaoPlace = {
   name: string;
@@ -15,6 +20,8 @@ type MapStop = {
   title: string;
   time: string;
   category: string;
+  address?: string;
+  description?: string;
   lat?: number;
   lng?: number;
 };
@@ -24,9 +31,12 @@ type Props = {
   stops: MapStop[];
   routeStops: MapStop[];
   routePaths?: RouteLine[];
+  routeMode?: TravelMode;
+  onRouteModeChange?: (next: TravelMode) => void;
   showRoute: boolean;
   zoom: number;
   onAddPlace: (place: KakaoPlace) => void;
+  hideSearch?: boolean;
 };
 
 type LatLng = {
@@ -56,6 +66,14 @@ type PlaceRecord = {
 };
 
 type KakaoSDK = {
+  event?: { addListener: (target: object, event: string, handler: () => void) => void };
+  CustomOverlay: new (options: {
+    map: MapInstance;
+    position: LatLng;
+    content: HTMLElement;
+    yAnchor: number;
+    zIndex: number;
+  }) => Overlay;
   load(callback: () => void): void;
   LatLng: new (lat: number, lng: number) => LatLng;
   LatLngBounds: new () => { extend(position: LatLng): void };
@@ -159,6 +177,9 @@ export default function KakaoTravelMap({
   showRoute,
   zoom,
   onAddPlace,
+  hideSearch = false,
+  routeMode,
+  onRouteModeChange,
 }: Props) {
   const key = getKakaoMapKey();
 
@@ -176,6 +197,9 @@ export default function KakaoTravelMap({
   const [results, setResults] = useState<KakaoPlace[]>([]);
   const [searched, setSearched] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [selection, setSelection] = useState<RouteSelection | null>(null);
+  const isTouch = useTouchMap();
+  const pinnedRef = useRef(false);
 
   const center = getCenter(region);
 
@@ -230,81 +254,129 @@ export default function KakaoTravelMap({
     };
   }, [key, region, center.lat, center.lng]);
 
-  // 일정 장소 마커 및 방문 순서 표시
+  useEffect(() => {
+    const sdk = sdkRef.current;
+    const map = mapRef.current;
+    if (!ready || !sdk || !map || stops.length > 0) return;
+    let cancelled = false;
+    void getAllowedCurrentLocation().then((point) => {
+      if (cancelled || !point) return;
+      map.setCenter(new sdk.LatLng(point.lat, point.lng));
+      map.setLevel(5);
+    }).catch(() => { /* 거부 시 여행 지역 기준 지도를 유지 */ });
+    return () => { cancelled = true; };
+  }, [ready, stops.length]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const onFocus = (event: Event) => {
+      const pos = (event as CustomEvent<{lat: number; lng: number}>).detail;
+      if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lng)) return;
+      const sdk = sdkRef.current;
+      if (!sdk) return;
+      mapRef.current?.setCenter(new sdk.LatLng(pos.lat, pos.lng));
+      mapRef.current?.setLevel(4);
+    };
+    window.addEventListener("routy:map:focus", onFocus);
+    return () => window.removeEventListener("routy:map:focus", onFocus);
+  }, [ready]);
+
+  // 방문 순서, 출발·도착 마커, 경로선 정보 제공.
   useEffect(() => {
     const map = mapRef.current;
     const sdk = sdkRef.current;
-
     if (!ready || !map || !sdk) return;
 
     overlaysRef.current.forEach((overlay) => overlay.setMap(null));
     overlaysRef.current = [];
 
-    for (const stop of stops) {
-      if (stop.lat === undefined || stop.lng === undefined) {
-        continue;
-      }
+    const show = (value: RouteSelection, pinned: boolean) => {
+      pinnedRef.current = pinned;
+      setSelection(value);
+    };
+    const hover = (value: RouteSelection) => {
+      if (!isTouch && !pinnedRef.current) setSelection(value);
+    };
+    const leave = () => {
+      if (!isTouch && !pinnedRef.current) setSelection(null);
+    };
 
-      overlaysRef.current.push(
-        new sdk.Marker({
+    const ordered = routeStops.length ? routeStops : stops;
+    ordered.forEach((stop, index) => {
+      if (!Number.isFinite(stop.lat) || !Number.isFinite(stop.lng)) return;
+      const order = index + 1;
+      const isEnd = index === ordered.length - 1 && index > 0;
+      const color = isEnd ? "#D8673C" : index === 0 ? "#188575" : "#0A414B";
+      const content = document.createElement("button");
+      content.type = "button";
+      content.title = `${isEnd ? "도착" : index === 0 ? "출발" : "경유"} ${order}. ${stop.title} ${stop.time || ""}`;
+      content.setAttribute("aria-label", content.title);
+      content.style.cssText = `border:2px solid white;background:${color};color:white;border-radius:22px;padding:6px 10px;min-width:36px;min-height:36px;font-size:15px;font-weight:700;box-shadow:0 2px 10px #0004;cursor:pointer;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+      content.textContent = `${order}${stop.time ? ` · ${stop.time}` : ""}`;
+      const info: RouteSelection = {
+        kind: "stop", order, total: ordered.length,
+        stop: {
+          id: stop.id,
+          title: stop.title,
+          time: stop.time,
+          description: stop.description,
+          category: stop.category,
+          address: stop.address,
+          externalUrl: getKakaoMapPointUrl(stop.title, stop.lat!, stop.lng!),
+        },
+      };
+      content.addEventListener("click", () => show(info, true));
+      content.addEventListener("mouseenter", () => hover(info));
+      content.addEventListener("mouseleave", leave);
+      overlaysRef.current.push(new sdk.CustomOverlay({
+        map,
+        position: new sdk.LatLng(stop.lat!, stop.lng!),
+        content,
+        yAnchor: 1.15,
+        zIndex: 3,
+      }));
+    });
+
+    if (showRoute) {
+      routePaths?.forEach((route, index) => {
+        if (route.path.length < 2) return;
+        const polyline = new sdk.Polyline({
           map,
-          position: new sdk.LatLng(stop.lat, stop.lng),
-          title: `${stop.title} (${stop.time})`,
-        }),
-      );
+          path: route.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
+          strokeWeight: 6,
+          strokeColor: routeColor(route.mode),
+          strokeOpacity: 0.92,
+        });
+        overlaysRef.current.push(polyline);
+        const info: RouteSelection = { kind: "route", route, order: index + 1 };
+        sdk.event?.addListener(polyline, "mouseover", () => hover(info));
+        sdk.event?.addListener(polyline, "mouseout", leave);
+        sdk.event?.addListener(polyline, "click", () => show(info, true));
+      });
     }
-
-    if (showRoute && routePaths !== undefined) {
-      for (const route of routePaths) {
-        if (route.path.length < 2) continue;
-        overlaysRef.current.push(
-          new sdk.Polyline({
-            map,
-            path: route.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
-            strokeWeight: 4,
-            strokeColor: "#0A414B",
-            strokeOpacity: 0.85,
-          }),
-        );
-      }
-    } else {
-      const path = routeStops
-        .filter((stop) => stop.lat !== undefined && stop.lng !== undefined)
-        .map((stop) => new sdk.LatLng(stop.lat!, stop.lng!));
-      if (showRoute && path.length > 1) {
-        overlaysRef.current.push(
-          new sdk.Polyline({
-            map,
-            path,
-            strokeWeight: 4,
-            strokeColor: "#0A414B",
-            strokeOpacity: 0.85,
-          }),
-        );
-      }
-    }
-
     return () => {
       overlaysRef.current.forEach((overlay) => overlay.setMap(null));
       overlaysRef.current = [];
     };
-  }, [stops, routeStops, routePaths, showRoute, ready]);
+  }, [stops, routeStops, routePaths, showRoute, ready, isTouch]);
+
+  useEffect(() => {
+    setSelection(null);
+    pinnedRef.current = false;
+  }, [stops, routeStops, routePaths, showRoute]);
 
   // 일정 변경 시 해당 장소들이 보이도록 한 번만 지도 범위를 조정합니다.
   useEffect(() => {
     const sdk = sdkRef.current;
     const map = mapRef.current;
     if (!ready || !sdk || !map) return;
-    const located = stops.filter(
-      (stop) => Number.isFinite(stop.lat) && Number.isFinite(stop.lng),
-    );
+    const located = stops.filter((stop) => Number.isFinite(stop.lat) && Number.isFinite(stop.lng));
     if (located.length === 1) {
       map.setCenter(new sdk.LatLng(located[0].lat!, located[0].lng!));
       map.setLevel(4);
     } else if (located.length > 1) {
       const bounds = new sdk.LatLngBounds();
-      for (const stop of located)
-        bounds.extend(new sdk.LatLng(stop.lat!, stop.lng!));
+      for (const stop of located) bounds.extend(new sdk.LatLng(stop.lat!, stop.lng!));
       map.setBounds(bounds, 70);
     }
   }, [stops, ready]);
@@ -364,6 +436,12 @@ export default function KakaoTravelMap({
   return (
     <>
       <S.MapCanvas ref={mapNode} />
+      <RouteModePicker mode={routeMode} onChange={onRouteModeChange} />
+      <RouteMapDetails
+        selection={selection}
+        isTouch={isTouch}
+        onClose={() => { pinnedRef.current = false; setSelection(null); }}
+      />
 
       {!key && (
         <S.Status>
@@ -378,7 +456,7 @@ export default function KakaoTravelMap({
         <S.Status>카카오 지도를 불러오는 중입니다.</S.Status>
       )}
 
-      <S.SearchArea>
+      {!hideSearch && <S.SearchArea>
         <S.SearchForm onSubmit={onSearch}>
           <S.SearchInput
             value={query}
@@ -418,7 +496,7 @@ export default function KakaoTravelMap({
             ))}
           </S.ResultList>
         )}
-      </S.SearchArea>
+      </S.SearchArea>}
     </>
   );
 }

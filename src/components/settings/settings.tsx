@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router";
 import { createPortal } from "react-dom";
 import {
@@ -11,6 +11,7 @@ import {
   Megaphone,
 } from "lucide-react";
 import * as S from "./settingsStyle";
+import { requestCurrentLocation } from "../../utils/locationService";
 
 export type SettingsData = {
   inviteNotifications: boolean;
@@ -24,7 +25,6 @@ export type SettingsData = {
 type SettingsProps = {
   savedSettings: SettingsData;
   onSave: (settings: SettingsData) => void;
-  onClearCache: () => Promise<void>;
 };
 
 type BrowserNotificationPermission =
@@ -47,31 +47,27 @@ const permissionText: Record<BrowserNotificationPermission, string> = {
   insecure: "보안 연결 필요",
 };
 
-// function removeTemporaryData() {
-//   let removedCount = 0;
+function removeTemporaryData() {
+  let removedCount = 0;
 
-//   for (const storage of [window.localStorage, window.sessionStorage]) {
-//     const keys: string[] = [];
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    const keys: string[] = [];
 
-//     for (let index = 0; index < storage.length; index += 1) {
-//       const key = storage.key(index);
-//       if (key?.startsWith("routy:temp:")) keys.push(key);
-//     }
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key?.startsWith("routy:temp:")) keys.push(key);
+    }
 
-//     for (const key of keys) {
-//       storage.removeItem(key);
-//       removedCount += 1;
-//     }
-//   }
+    for (const key of keys) {
+      storage.removeItem(key);
+      removedCount += 1;
+    }
+  }
 
-//   return removedCount;
-// }
+  return removedCount;
+}
 
-export default function Settings({
-  savedSettings,
-  onSave,
-  onClearCache,
-}: SettingsProps) {
+export default function Settings({ savedSettings, onSave }: SettingsProps) {
   const { hash } = useLocation();
 
   useEffect(() => {
@@ -94,10 +90,11 @@ export default function Settings({
     useState<BrowserNotificationPermission>(getBrowserNotificationPermission);
   const [requestingPermission, setRequestingPermission] = useState(false);
   const [permissionMessage, setPermissionMessage] = useState("");
+  const [locationMessage, setLocationMessage] = useState("");
+  const [locating, setLocating] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [clearMessage, setClearMessage] = useState("");
-  const [isClearingCache, setIsClearingCache] = useState(false);
-  const clearingCacheRef = useRef(false);
+
   const hasChanges = (Object.keys(draft) as (keyof SettingsData)[]).some(
     (key) => draft[key] !== savedSettings[key],
   );
@@ -112,6 +109,25 @@ export default function Settings({
     value: boolean,
   ) => {
     setDraft((previous) => ({ ...previous, [key]: value }));
+  };
+
+  const handleLocationAllow = async () => {
+    setLocating(true);
+    setLocationMessage("");
+    try {
+      const { accuracy } = await requestCurrentLocation();
+      setBooleanSetting("locationServiceAllowed", true);
+      setLocationMessage(
+        `현재 위치가 확인되었습니다 (대략 ±${Math.round(accuracy)}m). 설정을 저장하면 지도에서 내 주변 장소를 추천받을 수 있어요.`,
+      );
+    } catch (reason: unknown) {
+      setBooleanSetting("locationServiceAllowed", false);
+      setLocationMessage(
+        reason instanceof Error ? reason.message : "위치를 확인하지 못했습니다.",
+      );
+    } finally {
+      setLocating(false);
+    }
   };
 
   const requestBrowserNotifications = async () => {
@@ -147,44 +163,23 @@ export default function Settings({
     }
   };
 
-  // const clearTemporaryData = () => {
-  //   try {
-  //     const count = removeTemporaryData();
-  //     setClearMessage(
-  //       count > 0
-  //         ? `라우티 임시데이터 ${count}건을 삭제했어요.`
-  //         : "삭제할 라우티 임시데이터가 없어요.",
-  //     );
-  //   } catch {
-  //     setClearMessage(
-  //       "임시데이터를 삭제하지 못했어요. 브라우저 설정을 확인해 주세요.",
-  //     );
-  //   }
-
-  //   setIsClearDialogOpen(false);
-  // };
-  const clearTemporaryData = async (): Promise<void> => {
-    if (clearingCacheRef.current) {
-      return;
-    }
-
-    clearingCacheRef.current = true;
-    setIsClearingCache(true);
-    setClearMessage("");
-
+  const clearTemporaryData = () => {
     try {
-      await onClearCache();
-      setIsClearDialogOpen(false);
+      const count = removeTemporaryData();
+      setClearMessage(
+        count > 0
+          ? `라우티 임시데이터 ${count}건을 삭제했어요.`
+          : "삭제할 라우티 임시데이터가 없어요.",
+      );
     } catch {
       setClearMessage(
-        "캐시 삭제 요청에 실패했어요. 잠시 후 다시 시도해주세요.",
+        "임시데이터를 삭제하지 못했어요. 브라우저 설정을 확인해 주세요.",
       );
-      setIsClearDialogOpen(false);
-    } finally {
-      clearingCacheRef.current = false;
-      setIsClearingCache(false);
     }
+
+    setIsClearDialogOpen(false);
   };
+
   return (
     <>
       <S.SettingsContent $hasChanges={hasChanges}>
@@ -326,9 +321,8 @@ export default function Settings({
                 type="button"
                 $selected={draft.locationServiceAllowed}
                 aria-pressed={draft.locationServiceAllowed}
-                onClick={() =>
-                  setBooleanSetting("locationServiceAllowed", true)
-                }
+                disabled={locating}
+                onClick={() => void handleLocationAllow()}
               >
                 허용
               </S.ChoiceButton>
@@ -336,14 +330,18 @@ export default function Settings({
                 type="button"
                 $selected={!draft.locationServiceAllowed}
                 aria-pressed={!draft.locationServiceAllowed}
-                onClick={() =>
-                  setBooleanSetting("locationServiceAllowed", false)
-                }
+                disabled={locating}
+                onClick={() => {
+                  setBooleanSetting("locationServiceAllowed", false);
+                  setLocationMessage("위치서비스를 끄려면 설정을 저장해 주세요.");
+                }}
               >
                 허용 안 함
               </S.ChoiceButton>
             </S.ChoiceGroup>
           </S.SettingRow>
+          {locating && <S.Feedback role="status">현재 위치 확인 중...</S.Feedback>}
+          {locationMessage && <S.Feedback role="status">{locationMessage}</S.Feedback>}
 
           <S.SettingDivider />
 
@@ -377,9 +375,9 @@ export default function Settings({
             </S.ChoiceGroup>
           </S.SettingRow>
 
-          {/* <S.SettingDivider /> */}
+          <S.SettingDivider />
 
-          {/* <S.SettingRow>
+          <S.SettingRow>
             <S.RowIcon aria-hidden="true">
               <CalendarDays />
             </S.RowIcon>
@@ -417,7 +415,7 @@ export default function Settings({
                 지도
               </S.ChoiceButton>
             </S.ChoiceGroup>
-          </S.SettingRow> */}
+          </S.SettingRow>
         </S.SettingsCard>
 
         <S.SettingsCard>
@@ -434,19 +432,8 @@ export default function Settings({
                 계정과 여행 기록은 유지됩니다.
               </S.SettingDescription>
             </S.SettingText>
-            {/* <S.ClearDataButton
-              type="button"
-              onClick={() => {
-                setClearMessage("");
-                setIsClearDialogOpen(true);
-              }}
-            >
-              임시데이터 삭제
-            </S.ClearDataButton> */}
-
             <S.ClearDataButton
               type="button"
-              disabled={isClearingCache}
               onClick={() => {
                 setClearMessage("");
                 setIsClearDialogOpen(true);
@@ -491,7 +478,7 @@ export default function Settings({
           document.body,
         )}
 
-        {/* {isClearDialogOpen && (
+        {isClearDialogOpen && (
           <S.DialogBackdrop>
             <S.DialogBox
               role="dialog"
@@ -518,45 +505,6 @@ export default function Settings({
                   onClick={clearTemporaryData}
                 >
                   삭제
-                </S.DialogConfirmButton>
-              </S.DialogActions>
-            </S.DialogBox>
-          </S.DialogBackdrop>
-        )} */}
-
-        {isClearDialogOpen && (
-          <S.DialogBackdrop>
-            <S.DialogBox
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="clear-data-title"
-              aria-describedby="clear-data-description"
-              aria-busy={isClearingCache}
-            >
-              <S.DialogTitle id="clear-data-title">
-                임시데이터를 삭제할까요?
-              </S.DialogTitle>
-
-              <S.DialogDescription id="clear-data-description">
-                브라우저에 라우티 캐시 삭제를 요청해요. 계정과 여행 기록은
-                삭제하지 않아요.
-              </S.DialogDescription>
-
-              <S.DialogActions>
-                <S.DialogCancelButton
-                  type="button"
-                  disabled={isClearingCache}
-                  onClick={() => setIsClearDialogOpen(false)}
-                >
-                  취소
-                </S.DialogCancelButton>
-
-                <S.DialogConfirmButton
-                  type="button"
-                  disabled={isClearingCache}
-                  onClick={() => void clearTemporaryData()}
-                >
-                  {isClearingCache ? "요청 중..." : "삭제"}
                 </S.DialogConfirmButton>
               </S.DialogActions>
             </S.DialogBox>

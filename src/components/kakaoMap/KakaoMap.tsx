@@ -6,14 +6,17 @@ import {
   resolveKakaoPlace,
 } from "../../api/kakao/kakaoPlaces";
 import { getKakaoMapPointUrl } from "../../api/kakao/kakaoLinks";
+import {
+  RouteMapDetails, RouteModePicker, useTouchMap, routeColor,
+  type RouteLine, type RouteSelection, type TravelMode,
+} from "../map/RouteMapInfo";
 import type {
   KakaoMapsSDK,
   MapInstance,
   OverlayInstance,
 } from "../../api/kakao/kakaoTypes";
 import type { KakaoStop, LocatedStop } from "../../api/kakao/kakaoPlaces";
-
-type RouteLine = { path: { lat: number; lng: number }[] };
+import { getAllowedCurrentLocation } from "../../utils/locationService";
 
 const KAKAO_KEY = getKakaoMapKey();
 
@@ -21,34 +24,37 @@ type Props = {
   stops: KakaoStop[];
   category: string;
   routePaths?: RouteLine[];
+  routeMode?: TravelMode;
+  onRouteModeChange?: (next: TravelMode) => void;
   showRoute: boolean;
   zoom: number;
 };
 
-function createMarkerContent(stop: KakaoStop, order: number): HTMLElement {
+function createMarkerContent(stop: KakaoStop, order: number, total: number): HTMLElement {
   const box = document.createElement("button");
   box.type = "button";
-  box.title = `${order}. ${stop.title} · 카카오맵에서 보기`;
-  box.setAttribute("aria-label", `${stop.title} 카카오맵에서 보기`);
+  const kind = total === 1 ? "출발·도착" : order === 1 ? "출발" : order === total ? "도착" : "경유";
+  const color = order === total && order > 1 ? "#D8673C" : order === 1 ? "#188575" : "#0A414B";
+  box.title = `${kind} ${order}. ${stop.title}${stop.time ? ` · ${stop.time}` : ""}`;
+  box.setAttribute("aria-label", box.title);
   box.style.cssText =
-    "display:flex;align-items:center;gap:6px;max-width:180px;padding:5px 9px 5px 5px;background:white;border:1px solid #dcebe9;border-radius:22px;box-shadow:0 2px 9px rgba(0,0,0,.16);cursor:pointer;white-space:nowrap;color:#183f43;font-size:12px;font-weight:700;";
+    "display:flex;align-items:center;gap:6px;max-width:200px;padding:5px 9px 5px 5px;background:white;border:1px solid #dcebe9;border-radius:22px;box-shadow:0 2px 9px rgba(0,0,0,.16);cursor:pointer;white-space:nowrap;color:#183f43;font-size:15px;font-weight:700;";
   const number = document.createElement("span");
   number.textContent = String(order);
-  number.style.cssText =
-    "display:grid;place-items:center;width:25px;height:25px;flex-shrink:0;border-radius:50%;background:#005259;color:white;font-size:12px;";
+  number.style.cssText = `display:grid;place-items:center;width:28px;height:28px;flex-shrink:0;border-radius:50%;background:${color};color:white;font-size:15px;`;
   const text = document.createElement("span");
-  text.textContent = stop.title;
+  text.textContent = `${stop.title}${stop.time ? ` · ${stop.time}` : ""}`;
   text.style.cssText = "overflow:hidden;text-overflow:ellipsis;";
   box.append(number, text);
   return box;
 }
 
+type KakaoEventAPI = {
+  event?: { addListener: (target: object, event: string, handler: () => void) => void };
+};
+
 export default function KakaoMap({
-  stops,
-  category,
-  routePaths,
-  showRoute,
-  zoom,
+  stops, category, routePaths, showRoute, zoom, routeMode, onRouteModeChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
@@ -59,6 +65,9 @@ export default function KakaoMap({
   const [error, setError] = useState("");
   const [unresolved, setUnresolved] = useState(0);
   const [loading, setLoading] = useState(Boolean(KAKAO_KEY));
+  const [selection, setSelection] = useState<RouteSelection | null>(null);
+  const isTouch = useTouchMap();
+  const pinnedRef = useRef(false);
 
   useEffect(() => {
     if (!KAKAO_KEY) return;
@@ -147,65 +156,107 @@ export default function KakaoMap({
     };
   }, [sdk, stops]);
 
-  // 마커·순서 연결선은 동일 좌표 데이터를 사용합니다.
+  // 일정이 비어 있으면, 허용한 사용자의 현재 위치를 초기 중심으로 활용합니다.
+  useEffect(() => {
+    if (!sdk || !mapRef.current || stops.length > 0) return;
+    let cancelled = false;
+    void getAllowedCurrentLocation().then((point) => {
+      if (cancelled || !point || !mapRef.current) return;
+      mapRef.current.setCenter(new sdk.LatLng(point.lat, point.lng));
+      mapRef.current.setLevel(5);
+      initialLevelRef.current = 5;
+    }).catch(() => { /* 위치 거부 시 기존 중심 유지 */ });
+    return () => { cancelled = true; };
+  }, [sdk, stops.length]);
+
+  // 지도 위의 검색 결과를 클릭했을 때 지도 중심 변경
+  useEffect(() => {
+    if (!sdk) return;
+    const onFocus = (event: Event) => {
+      const pos = (event as CustomEvent<{lat: number; lng: number}>).detail;
+      if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lng)) return;
+      mapRef.current?.setCenter(new sdk.LatLng(pos.lat, pos.lng));
+      mapRef.current?.setLevel(4);
+    };
+    window.addEventListener("routy:map:focus", onFocus);
+    return () => window.removeEventListener("routy:map:focus", onFocus);
+  }, [sdk]);
+
+  // 마커는 방문 순서와 예정 시간을 표시하고, 경로선은 실제 API 좌표만 사용합니다.
   useEffect(() => {
     const map = mapRef.current;
     if (!sdk || !map || loading) return;
     layersRef.current.forEach((layer) => layer.setMap(null));
     layersRef.current = [];
-    const coordinatePoints = locatedRef.current;
-    if (showRoute && routePaths !== undefined) {
-      // 실제 API의 경로선만 그립니다. 직선 연결을 도로 경로처럼 보여주지 않습니다.
-      for (const route of routePaths) {
-        if (route.path.length < 2) continue;
-        layersRef.current.push(
-          new sdk.Polyline({
-            map,
-            path: route.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
-            strokeWeight: 4,
-            strokeColor: "#0A414B",
-            strokeOpacity: 0.9,
-            strokeStyle: "solid",
-          }),
-        );
-      }
-    } else if (showRoute && coordinatePoints.length >= 2) {
-      layersRef.current.push(
-        new sdk.Polyline({
+    const eventApi = (sdk as unknown as KakaoEventAPI).event;
+    const openInfo = (next: RouteSelection, pinned: boolean) => {
+      pinnedRef.current = pinned;
+      setSelection(next);
+    };
+    const hoverInfo = (next: RouteSelection) => {
+      if (!isTouch && !pinnedRef.current) setSelection(next);
+    };
+    const endHover = () => {
+      if (!isTouch && !pinnedRef.current) setSelection(null);
+    };
+
+    if (showRoute) {
+      routePaths?.forEach((route, index) => {
+        if (route.path.length < 2) return;
+        const line = new sdk.Polyline({
           map,
-          path: coordinatePoints.map(
-            ({ latitude, longitude }) => new sdk.LatLng(latitude, longitude),
-          ),
-          strokeWeight: 3,
-          strokeColor: "#005259",
-          strokeOpacity: 0.8,
+          path: route.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
+          strokeWeight: 6,
+          strokeColor: routeColor(route.mode),
+          strokeOpacity: 0.92,
           strokeStyle: "solid",
-        }),
-      );
+        });
+        layersRef.current.push(line);
+        const info: RouteSelection = { kind: "route", route, order: index + 1 };
+        eventApi?.addListener(line, "mouseover", () => hoverInfo(info));
+        eventApi?.addListener(line, "mouseout", endHover);
+        eventApi?.addListener(line, "click", () => openInfo(info, true));
+      });
     }
-    coordinatePoints.forEach(({ stop, latitude, longitude }) => {
+    locatedRef.current.forEach(({ stop, latitude, longitude }) => {
       if (category !== "전체" && stop.category !== category) return;
       const order = stops.findIndex((item) => item.id === stop.id) + 1;
-      const content = createMarkerContent(stop, order);
-      content.addEventListener("click", () => {
-        const url = getKakaoMapPointUrl(stop.title, latitude, longitude);
-        window.open(url, "_blank", "noopener,noreferrer");
-      });
-      layersRef.current.push(
-        new sdk.CustomOverlay({
-          map,
-          position: new sdk.LatLng(latitude, longitude),
-          content,
-          yAnchor: 1.15,
-          zIndex: 3,
-        }),
-      );
+      const content = createMarkerContent(stop, order, stops.length);
+      const info: RouteSelection = {
+        kind: "stop",
+        order,
+        total: stops.length,
+        stop: {
+          id: stop.id,
+          title: stop.title,
+          time: stop.time,
+          address: stop.address,
+          category: stop.category,
+          description: "description" in stop && typeof stop.description === "string" ? stop.description : undefined,
+          externalUrl: getKakaoMapPointUrl(stop.title, latitude, longitude),
+        },
+      };
+      content.addEventListener("click", () => openInfo(info, true));
+      content.addEventListener("mouseenter", () => hoverInfo(info));
+      content.addEventListener("mouseleave", endHover);
+      layersRef.current.push(new sdk.CustomOverlay({
+        map,
+        position: new sdk.LatLng(latitude, longitude),
+        content,
+        yAnchor: 1.15,
+        zIndex: 3,
+      }));
     });
     return () => {
       layersRef.current.forEach((layer) => layer.setMap(null));
       layersRef.current = [];
     };
-  }, [sdk, stops, category, routePaths, showRoute, loading]);
+  }, [sdk, stops, category, routePaths, showRoute, loading, isTouch]);
+
+  useEffect(() => {
+    setSelection(null);
+    pinnedRef.current = false;
+  }, [stops, routePaths, showRoute]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -235,6 +286,12 @@ export default function KakaoMap({
         style={{ width: "100%", height: "100%" }}
         aria-label="카카오 지도"
       />
+      <RouteModePicker mode={routeMode} onChange={onRouteModeChange} />
+      <RouteMapDetails
+        selection={selection}
+        isTouch={isTouch}
+        onClose={() => { pinnedRef.current = false; setSelection(null); }}
+      />
       {!KAKAO_KEY ? (
         <Message role="status">
           <strong>카카오맵 API 키가 필요해요.</strong>
@@ -257,7 +314,7 @@ export default function KakaoMap({
           {unresolved > 0
             ? `위치를 확인할 수 없는 장소 ${unresolved}개 · `
             : ""}
-          연결선은 방문 순서이며 실제 도로 경로가 아닙니다.
+          {routePaths?.length ? "경로선을 눌러 이동 정보를 확인하세요." : "조회된 경로가 없습니다. 좌표·API 설정을 확인하세요."}
         </Note>
       )}
     </MapRoot>
