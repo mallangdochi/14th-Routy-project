@@ -165,44 +165,28 @@ function BudgetStatsContents({ tripId }: { tripId: string }) {
   const remaining = budget === null ? 0 : budget - stats.total;
   const used = percent(stats.total, budget ?? 0);
   const maskId = `budget-donut-${useId().replace(/:/g, "")}`;
-  // const [reveal, setReveal] = useState(() =>
-  //   window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 0,
-  // );
-  // useEffect(() => {
-  //   const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-  //   let frame = 0;
-  //   let started: number | undefined;
-  //   const tick = (time: number) => {
-  //     started ??= time;
-  //     const elapsed = Math.min(1, (time - started) / 1000);
-  //     setReveal(1 - Math.pow(1 - elapsed, 3));
-  //     if (elapsed < 1) frame = window.requestAnimationFrame(tick);
-  //   };
-  //   const finish = () => {
-  //     if (media.matches) {
-  //       window.cancelAnimationFrame(frame);
-  //       frame = window.requestAnimationFrame(() => setReveal(1));
-  //     }
-  //   };
-  //   if (!media.matches) frame = window.requestAnimationFrame(tick);
-  //   media.addEventListener("change", finish);
-  //   return () => {
-  //     window.cancelAnimationFrame(frame);
-  //     media.removeEventListener("change", finish);
-  //   };
-  // }, []);
 
   if (loading)
     return (
       <S>
-        <aside>
+        <div className="stats-sidebar">
           <MainSidebar />
-        </aside>
+        </div>
+
+        <div className="stats-mobile-header">
+          <MobileHeader />
+        </div>
+
         <main className="stats-main">
           <Loader />
         </main>
+
+        <div className="stats-mobile-nav">
+          <MobileNav />
+        </div>
       </S>
     );
+
   if (error || !snapshot)
     return (
       <S>
