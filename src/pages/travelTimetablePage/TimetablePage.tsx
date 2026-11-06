@@ -733,7 +733,7 @@ export default function TripDaysPage() {
 
       <main className="page-content">
         <div className="trip-days-inner">
-          <Breadcrumb className="trip-days-breadcrumb" />
+          {/* <Breadcrumb className="trip-days-breadcrumb" /> */}
 
           {!user ? (
             <Logout />
@@ -747,17 +747,22 @@ export default function TripDaysPage() {
           ) : isLoading ? (
             <Loader />
           ) : loadError ? (
-            <div className="empty-state" role="alert">
-              <p>{loadError}</p>
-              <button
-                type="button"
-                onClick={() => setAttempt((value) => value + 1)}
-              >
-                다시 시도
-              </button>
-            </div>
+            <>
+              <Breadcrumb className="trip-days-breadcrumb" />
+              <div className="empty-state" role="alert">
+                <p>{loadError}</p>
+                <button
+                  type="button"
+                  onClick={() => setAttempt((value) => value + 1)}
+                >
+                  다시 시도
+                </button>
+              </div>
+            </>
           ) : (
             <>
+              <Breadcrumb className="trip-days-breadcrumb" />
+
               <header className="page-heading">
                 <div>
                   <h1>{currentResult?.name || "내 여행 일정"}</h1>

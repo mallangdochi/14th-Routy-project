@@ -24,12 +24,13 @@ export const ShareOverlay = styled.div({
 });
 
 export const ShareModal = styled.div(modalAnimation, {
+  position: "relative",
   display: "flex",
   flexDirection: "column",
   width: "100%",
   maxWidth: "420px",
   maxHeight: "90vh",
-  minHeight: "500px",
+  minHeight: 0,
   overflow: "hidden",
   borderRadius: "12px",
   backgroundColor: "#FFFFFF",
@@ -111,7 +112,7 @@ export const ShareBannerText = styled.div({
 
 export const ShareMascot = styled.div({
   position: "absolute",
-  right: "12px",
+  right: "48px",
   bottom: "0",
 
   display: "flex",
@@ -133,16 +134,16 @@ export const ShareMascot = styled.div({
   },
 
   "@media (max-width: 1023px)": {
-    right: "10px",
-    width: "170px",
+    right: "44px",
+    width: "150px",
     height: "145px",
   },
 
   "@media (max-width: 767px)": {
-    right: "6px",
+    right: "42px",
     bottom: 0,
-    width: "132px",
-    height: "124px",
+    width: "112px",
+    height: "110px",
     objectFit: "contain",
     objectPosition: "right bottom",
   },
@@ -150,20 +151,26 @@ export const ShareMascot = styled.div({
 
 export const ShareCloseButton = styled.button({
   position: "absolute",
-  top: "10px",
-  right: "10px",
+  top: "16px",
+  right: "16px",
   zIndex: 5,
   ...CENTERED_FLEX,
-  width: "28px",
-  height: "28px",
+  width: "32px",
+  height: "32px",
   padding: 0,
   border: "none",
   borderRadius: "50%",
-  backgroundColor: "transparent",
-  color: "#607789",
-
-  "&:hover": {
-    backgroundColor: "rgba(0,0,0,0.06)",
+  backgroundColor: "rgba(255, 255, 255, 0.85)",
+  color: "#082B3D",
+  cursor: "pointer",
+  transition: "background-color 160ms ease",
+  "& svg": { width: "22px", height: "22px", flexShrink: 0 },
+  "&:focus-visible": {
+    outline: "2px solid #527F79",
+    outlineOffset: "3px",
+  },
+  "@media (hover: hover) and (pointer: fine)": {
+    "&:hover": { backgroundColor: "#E2E6E9" },
   },
 });
 
@@ -171,13 +178,15 @@ export const ShareModalBody = styled.div({
   display: "flex",
   flexDirection: "column",
   gap: "20px",
-  padding: "14px 24px 32px",
+  padding: "14px 24px 24px",
+  minHeight: 0,
+  overscrollBehavior: "contain",
   overflowY: "auto",
 
   "@media (max-width: 767px)": {
     minHeight: 0,
     gap: "14px",
-    padding: "14px 14px 20px",
+    padding: "14px 14px 24px",
     overflowY: "auto",
     overscrollBehavior: "contain",
   },
@@ -430,49 +439,45 @@ export const SharePlatformButton = styled.button({
   border: "none",
   backgroundColor: "transparent",
   color: "#33465D",
-  fontSize: "11px",
+  fontSize: "12px",
   fontWeight: 600,
 
-  "&:hover": {
-    opacity: 0.75,
+  "& > span": {
+    fontSize: "14px",
+    lineHeight: 1.3,
+    whiteSpace: "nowrap",
+    wordBreak: "keep-all",
+    textAlign: "center",
+  },
+
+  "@media (hover: hover) and (pointer: fine)": {
+    "&:hover": {
+      opacity: 0.75,
+    },
   },
 
   "@media (max-width: 767px)": {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
     justifyContent: "flex-start",
     width: "100%",
     minWidth: 0,
-    gap: "7px",
     padding: "0 2px",
-    border: "none",
-    backgroundColor: "transparent",
-
-    "& span": {
-      fontSize: "11px",
-      lineHeight: 1.3,
-      whiteSpace: "nowrap",
-      wordBreak: "keep-all",
-      textAlign: "center",
-    },
   },
 });
 
 export const SharePlatformIcon = styled.div<{
-  $platform: "naver" | "kakao" | "email";
+  $platform: "instagram" | "kakao" | "email";
 }>(({ $platform }) => ({
   ...CENTERED_FLEX,
   width: "52px",
   height: "52px",
   borderRadius: "50%",
-  backgroundColor:
-    $platform === "naver"
-      ? "#03C75A"
+  background:
+    $platform === "instagram"
+      ? "linear-gradient(45deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5)"
       : $platform === "kakao"
         ? "#FEE500"
         : "#F1F6F7",
-  color: $platform === "naver" ? "#FFFFFF" : "#102C3D",
+  color: $platform === "instagram" ? "#FFFFFF" : "#102C3D",
   fontSize: "27px",
   fontWeight: 900,
   fontFamily: "Arial, sans-serif",
@@ -509,4 +514,123 @@ export const KakaoBubble = styled.div({
     backgroundColor: "#211D1D",
     clipPath: "polygon(0 0, 100% 0, 0 100%)",
   },
+});
+
+// 추가 UI: 기존 공유 모달과 권한 카드, 링크, 플랫폼 아이콘 스타일은 변경하지 않습니다.
+export const RoomSecurityCard = styled.div({
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  padding: "14px",
+  border: "1px solid #DFEBE6",
+  borderRadius: "10px",
+  backgroundColor: "#F7FBF9",
+
+  "@media (max-width: 767px)": {
+    padding: "12px",
+    gap: "9px",
+  },
+});
+
+export const RoomPasswordLabel = styled.label({
+  color: "#0C293D",
+  fontSize: "11px",
+  fontWeight: 700,
+});
+
+export const RoomPasswordGroup = styled.div({
+  display: "flex",
+  alignItems: "center",
+  width: "100%",
+  minWidth: 0,
+  overflow: "hidden",
+  height: "40px",
+  border: "1px solid #D9E2EC",
+  borderRadius: "7px",
+  backgroundColor: "#FFFFFF",
+});
+
+export const RoomPasswordText = styled.input({
+  flex: 1,
+  minWidth: 0,
+  width: "100%",
+  height: "100%",
+  padding: "0 10px",
+  border: "none",
+  outline: "none",
+  backgroundColor: "transparent",
+  color: "#203B53",
+  fontSize: "12px",
+  fontWeight: 700,
+  letterSpacing: "0.3px",
+  textOverflow: "ellipsis",
+
+  "&::placeholder": {
+    color: "#83949D",
+    fontWeight: 400,
+    letterSpacing: 0,
+  },
+
+  "@media (max-width: 767px)": {
+    fontSize: "11px",
+    padding: "0 8px",
+  },
+});
+
+export const RoomPasswordRefreshButton = styled.button({
+  ...CENTERED_FLEX,
+  width: "36px",
+  height: "100%",
+  flexShrink: 0,
+  border: "none",
+  backgroundColor: "transparent",
+  color: "#255F68",
+
+  "&:hover:not(:disabled)": { backgroundColor: "#EDF8F4" },
+  "&:disabled": { cursor: "not-allowed", opacity: 0.45 },
+});
+
+export const RoomPasswordCopyButton = styled.button({
+  ...CENTERED_FLEX,
+  gap: "5px",
+  height: "100%",
+  padding: "0 10px",
+  flexShrink: 0,
+  border: "none",
+  borderLeft: "1px solid #E2E8ED",
+  backgroundColor: "#FFFFFF",
+  color: "#006458",
+  fontSize: "11px",
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+
+  "&:hover:not(:disabled)": { backgroundColor: "#EDF8F4" },
+  "&:disabled": { cursor: "not-allowed", opacity: 0.45 },
+
+  "@media (max-width: 767px)": {
+    padding: "0 8px",
+    fontSize: "10px",
+    gap: "4px",
+
+    "& svg": { width: "12px", height: "12px" },
+  },
+});
+
+export const RoomPasswordHelp = styled.p({
+  margin: 0,
+  color: "#81949D",
+  fontSize: "10px",
+  lineHeight: 1.6,
+  wordBreak: "keep-all",
+});
+
+export const ShareExpiryNote = styled.p({
+  display: "flex",
+  alignItems: "center",
+  gap: "5px",
+  margin: 0,
+  color: "#18775D",
+  fontSize: "10px",
+  fontWeight: 700,
+  lineHeight: 1.5,
 });
