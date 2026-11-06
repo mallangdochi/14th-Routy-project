@@ -1,3 +1,4 @@
+import { readTripInviteReturn, isTripInviteReturn } from "../../utils/tripInviteReturn";
 import {
   useCallback,
   useEffect,
@@ -166,7 +167,9 @@ export default function RoutyBookLogin({
       user.email ?? "",
       user.profileCompleted,
     );
-    navigate(destination, { replace: true });
+    const stateReturn: unknown = location.state?.from;
+    const inviteReturn = isTripInviteReturn(stateReturn) ? stateReturn : readTripInviteReturn();
+    navigate(destination === "/" ? (inviteReturn ?? destination) : destination, { replace: true });
   };
 
   // 최초 진입 및 새로고침 시에는 항상 닫힌 여권부터 표시합니다.

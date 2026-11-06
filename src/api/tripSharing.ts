@@ -70,18 +70,52 @@ export async function createTripInvite(
     throw new Error("초대 링크 응답을 확인하지 못했습니다.");
   return result;
 }
-export async function acceptTripInvite(tripId: string, token: string) {
-  const result = await request<{ tripId: string; permission: TripPermission }>(
-    "accept",
-    tripId,
-    { token },
-  );
-  if (
-    result.tripId !== tripId ||
-    !["owner", "editor", "viewer"].includes(result.permission)
-  )
-    throw new Error("초대 수락 응답을 확인하지 못했습니다.");
+export type JoinRequestResult =
+  | { tripId: string; status: "approved"; permission: TripPermission }
+  | { tripId: string; status: "pending"; requestedPermission: SharePermission };
+/** 승인 전에는 permission이 없으므로 상세 페이지로 이동하면 안 됩니다. */
+export async function acceptTripInvite(tripId: string, token: string, password?: string) {
+  const result = await request<JoinRequestResult>("accept", tripId, { token, password });
+  if (result.tripId !== tripId ||
+      (result.status !== "pending" && result.status !== "approved"))
+    throw new Error("승인 요청 응답을 확인하지 못했습니다.");
+  if (result.status === "approved" &&
+      !["owner", "editor", "viewer"].includes(result.permission))
+    throw new Error("참여 권한을 확인하지 못했습니다.");
   return result;
+}
+export function getRoomPassword(tripId: string, signal?: AbortSignal) {
+  return request<{ tripId: string; password: string | null }>("password_get", tripId, undefined, signal);
+}
+export async function refreshRoomPassword(tripId: string): Promise<string> {
+  const result = await request<{ tripId: string; password: string }>("password_refresh", tripId, {});
+  if (result.tripId !== tripId || !/^[a-f0-9]{32}$/.test(result.password))
+    throw new Error("방 비밀번호를 확인하지 못했습니다.");
+  return result.password;
+}
+export type TripJoinRequest = {
+  requestId: string;
+  userId: string;
+  nickname: string;
+  permission: SharePermission;
+  status: "pending" | "approved" | "rejected";
+  requestedAt: string;
+  decidedAt: string | null;
+};
+export function getTripJoinRequests(tripId: string, signal?: AbortSignal) {
+  return request<{ tripId: string; requests: TripJoinRequest[] }>("requests", tripId, undefined, signal);
+}
+export function getTripJoinStatus(tripId: string, signal?: AbortSignal) {
+  return request<{
+    tripId: string;
+    status: "none" | "pending" | "approved" | "rejected" | "removed";
+    permission?: TripPermission;
+    requestedPermission?: SharePermission | null;
+  }>("request_status", tripId, undefined, signal);
+}
+export function decideTripJoinRequest(tripId: string, requestId: string, approve: boolean) {
+  return request<{ tripId: string; requestId: string; status: "approved" | "rejected" }>(
+    approve ? "request_approve" : "request_reject", tripId, { requestId });
 }
 export function revokeTripInvites(tripId: string, permission: SharePermission) {
   return request<{ revoked: boolean }>("revoke", tripId, { permission });
@@ -148,4 +182,23 @@ export function removeTripMember(tripId: string, userId: string) {
 }
 export function leaveTrip(tripId: string) {
   return request<{ tripId: string; left: boolean }>("leave", tripId, {});
+}
+
+export type TripInvitePreview = {
+  tripId: string;
+  tripName: string;
+  permission: SharePermission;
+  expiresAt: string;
+  status: "ready" | "expired";
+};
+export async function previewTripInvite(token: string, signal?: AbortSignal): Promise<TripInvitePreview> {
+  const response = await fetch(`/api/trips/share?${new URLSearchParams({ operation: "preview", token })}`, {
+    credentials: "include", cache: "no-store", signal,
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(result?.message ?? "초대 링크를 확인하지 못했습니다.");
+  if (typeof result?.tripId !== "string" || typeof result.tripName !== "string" ||
+      !["editor", "viewer"].includes(result.permission) || !["ready", "expired"].includes(result.status))
+    throw new Error("초대 링크 응답을 확인하지 못했습니다.");
+  return result as TripInvitePreview;
 }

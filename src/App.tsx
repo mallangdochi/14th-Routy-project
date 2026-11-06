@@ -14,6 +14,9 @@ import TravelBudgetStatsPage from "./components/travelBudget/TravelBudgetStatsPa
 import RoutyProfile from "./components/RoutyProfile/RoutyProfile";
 import { useAuth } from "./contexts/AuthContext";
 import Schedule from "./pages/tripDetailPage/Schedule";
+import TripInvitePage from "./pages/tripInvitePage/TripInvitePage";
+// import NotificationPage from "./pages/notificationPage/NotificationPage";
+import NotificationPreview from "./components/notification/NotificationPreview";
 
 function CreateTripRoute() {
   const navigate = useNavigate();
@@ -41,6 +44,7 @@ function ProfileSetupRoute() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/trip-invite/:tripId" element={<TripInvitePage />} />
       <Route path="/" element={<MyTripsPage />} />
       <Route path="/trips/new" element={<CreateTripRoute />} />
 
@@ -57,6 +61,8 @@ export default function App() {
       <Route path="/trips/:tripId" element={<TripDaysPage />} />
       <Route path="/search" element={<Search />} />
       <Route path="/profile" element={<ProfileSetupRoute />} />
+      {/* <Route path="/notifications" element={<NotificationPage />} /> */}
+      <Route path="/notifications" element={<NotificationPreview />} />
 
       <Route
         path="/mypage"

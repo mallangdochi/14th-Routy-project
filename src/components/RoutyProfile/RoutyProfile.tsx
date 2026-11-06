@@ -1,3 +1,4 @@
+import { readTripInviteReturn } from "../../utils/tripInviteReturn";
 import {
   useEffect,
   useRef,
@@ -303,7 +304,7 @@ export default function RoutyProfile({
               </WelcomeSubTitle>
               <SecondaryButton
                 type="button"
-                onClick={() => (onFinish ? onFinish() : navigate("/"))}
+                onClick={() => (onFinish ? onFinish() : navigate(readTripInviteReturn() ?? "/"))}
               >
                 여행 시작하기 <ChevronRight size={18} />
               </SecondaryButton>
@@ -393,7 +394,7 @@ export default function RoutyProfile({
               </MobileTravelerPill>
               <MobileActionButton
                 type="button"
-                onClick={() => (onFinish ? onFinish() : navigate("/"))}
+                onClick={() => (onFinish ? onFinish() : navigate(readTripInviteReturn() ?? "/"))}
               >
                 확인
               </MobileActionButton>
