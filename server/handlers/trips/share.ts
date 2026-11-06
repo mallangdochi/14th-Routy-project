@@ -8,7 +8,7 @@ export default async function handler(
   request: VercelRequest,
   response: VercelResponse,
 ) {
-  response.setHeader("X-Routy-Share-Version", "members-save-v2");
+  response.setHeader("X-Routy-Share-Version", "approval-v3");
   response.setHeader("Cache-Control", "private, no-store");
   response.setHeader("Referrer-Policy", "no-referrer");
   if (request.method !== "GET" && request.method !== "POST") {
@@ -62,7 +62,7 @@ export default async function handler(
 
   const actions =
     request.method === "GET"
-      ? ["participants", "detail"]
+      ? ["participants", "detail", "password_get", "requests", "request_status", "preview"]
       : [
           "create",
           "accept",
@@ -71,6 +71,10 @@ export default async function handler(
           "members_save",
           "member_remove",
           "leave",
+          "password_refresh",
+          "password_ensure",
+          "request_approve",
+          "request_reject",
         ];
 
   if (typeof action !== "string" || !actions.includes(action)) {
@@ -79,19 +83,31 @@ export default async function handler(
     });
   }
 
-  if (typeof tripId !== "string" || !uuid.test(tripId)) {
+  if (action !== "preview" && (typeof tripId !== "string" || !uuid.test(tripId))) {
     return response.status(400).json({
       message: "여행 ID가 올바른 UUID 형식이 아닙니다.",
     });
   }
 
   if (
-    action === "accept" &&
+    (action === "accept" || action === "preview") &&
     (typeof input.token !== "string" || !/^[a-f0-9]{64}$/.test(input.token))
   ) {
     return response
       .status(400)
       .json({ message: "유효하지 않은 초대 링크입니다." });
+  }
+  if (action === "accept" && input.password !== undefined &&
+      (typeof input.password !== "string" || input.password.length > 128)) {
+    return response.status(400).json({ message: "방 비밀번호를 확인해주세요." });
+  }
+  if (["request_approve", "request_reject"].includes(action) &&
+      (typeof input.requestId !== "string" || !uuid.test(input.requestId))) {
+    return response.status(400).json({ message: "승인 요청 ID를 확인해주세요." });
+  }
+  if (["create", "revoke"].includes(action) &&
+      !["editor", "viewer"].includes(String(input.permission))) {
+    return response.status(400).json({ message: "공유 권한을 확인해주세요." });
   }
   const patch = Object.fromEntries(
     ["name", "region", "people"]
@@ -150,6 +166,15 @@ export default async function handler(
     return response.status(400).json({ message: "참여자 ID를 확인해주세요." });
   try {
     const supabase = createSupabaseServer(request, response);
+    if (action === "preview") {
+      const { data, error } = await supabase.rpc("routy_trip_invite_preview", {
+        p_token: String(input.token),
+      });
+      if (error) return response.status(error.code === "22023" ? 400 : 500).json({
+        message: error.code === "22023" ? error.message : "초대 링크를 확인하지 못했습니다.",
+      });
+      return response.status(200).json(data);
+    }
     const {
       data: { user },
       error: authError,
@@ -168,7 +193,11 @@ export default async function handler(
       p_token: action === "accept" ? String(input.token) : null,
 
       p_patch:
-        action === "update"
+        action === "accept"
+          ? { password: input.password ?? "" }
+          : action === "request_approve" || action === "request_reject"
+            ? { requestId: input.requestId }
+            : action === "update"
           ? patch
           : action === "members_save"
             ? {

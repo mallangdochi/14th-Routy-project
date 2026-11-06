@@ -1,5 +1,12 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { lookupRegionPhoto } from "../../server/tourRegionPhotoService";
+import { isPhotoKeyConfigured } from "../../server/tourPhotoService.js";
+import { lookupRegionPhoto } from "../../server/tourRegionPhotoService.js";
+
+function numeric(value: unknown): number | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const v = Number(value);
+  return Number.isFinite(v) ? v : NaN;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -7,14 +14,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ message: "GET 요청만 허용됩니다." });
   }
   const name = typeof req.query.name === "string" ? req.query.name.trim() : "";
-  const lat =
-    typeof req.query.lat === "string" && req.query.lat.trim() !== ""
-      ? Number(req.query.lat)
-      : undefined;
-  const lng =
-    typeof req.query.lng === "string" && req.query.lng.trim() !== ""
-      ? Number(req.query.lng)
-      : undefined;
+  const lat = numeric(req.query.lat);
+  const lng = numeric(req.query.lng);
+  const preferDaum = req.query.prefer === "daum";
   if (
     !name ||
     name.length > 80 ||
@@ -25,21 +27,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .status(400)
       .json({ message: "지역 이름이나 좌표가 올바르지 않습니다." });
   }
-  if (!process.env.TOUR_API_SERVICE_KEY?.trim()) {
-    return res
-      .status(503)
-      .json({ message: "관광공사 API 키가 설정되지 않았습니다." });
+  if (!isPhotoKeyConfigured()) {
+    return res.status(503).json({
+      message:
+        "사진 조회용 API 키(TOUR_API_SERVICE_KEY 또는 KAKAO_REST_API_KEY)가 서버에 없습니다.",
+    });
   }
   try {
-    const photo = await lookupRegionPhoto(name, lat, lng);
+    const result = await lookupRegionPhoto(name, lat, lng, preferDaum);
     res.setHeader(
       "Cache-Control",
-      "public, s-maxage=3600, stale-while-revalidate=86400",
+      "public, s-maxage=300, stale-while-revalidate=1800",
     );
-    return res.status(200).json(photo);
+    return res.status(200).json(result);
   } catch {
     return res
       .status(502)
-      .json({ message: "지역 관광 사진 조회에 실패했습니다." });
+      .json({ message: "관광공사/다음 지역 이미지 조회에 실패했습니다." });
   }
 }

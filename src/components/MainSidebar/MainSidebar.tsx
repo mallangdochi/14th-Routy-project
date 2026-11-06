@@ -1,3 +1,5 @@
+import NotificationBadge from "../notification/NotificationBadge";
+import { usePendingNotificationCount } from "../notification/notificationCountStore";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import type {
@@ -46,7 +48,7 @@ const MENU_PATHS: Record<MenuId, string> = {
   myTrip: "/",
   search: "/search",
   saved: "/saved",
-  notification: "/mypage/settings#notifications",
+  notification: "/notifications",
   settings: "/mypage/settings",
 };
 
@@ -138,6 +140,7 @@ function getProfileImage(avatarUrl?: string | null): string {
 const MainSidebar = () => {
   const navigate = useNavigate();
   const { user, loading, error, refreshUser } = useAuth();
+  const pendingCount = usePendingNotificationCount(user?.id);
 
   const profileLabel = loading
     ? "확인 중..."
@@ -446,7 +449,7 @@ const MainSidebar = () => {
           setIsProfileOpen(false);
           setTooltip(null);
           setIsLogoutClosing(false);
-    setIsLogoutOpen(true);
+          setIsLogoutOpen(true);
           setLogoutError("");
         }}
       >
@@ -705,7 +708,17 @@ const MainSidebar = () => {
                     key={item.id}
                     type="button"
                     $active={isActive}
+                    style={
+                      item.id === "notification"
+                        ? { position: "relative" }
+                        : undefined
+                    }
                     {...tooltipProps(item.label)}
+                    aria-label={
+                      item.id === "notification"
+                        ? `알림, 미처리 승인 요청 ${pendingCount}건`
+                        : item.label
+                    }
                     onClick={() => handleMenuNavigate(item.id)}
                   >
                     <S.MenuIcon data-menu-icon="">
@@ -713,6 +726,13 @@ const MainSidebar = () => {
                     </S.MenuIcon>
 
                     <S.MenuLabel data-menu-label="">{item.label}</S.MenuLabel>
+                    {item.id === "notification" && (
+                      <NotificationBadge
+                        count={pendingCount}
+                        placement="sidebar"
+                        compact={isCollapsed}
+                      />
+                    )}
                   </S.MenuButton>
                 );
               })}
@@ -757,7 +777,8 @@ const MainSidebar = () => {
             <S.LogoutDialog
               data-open={!isLogoutClosing}
               onAnimationEnd={(event) => {
-                if (event.target !== event.currentTarget || !isLogoutClosing) return;
+                if (event.target !== event.currentTarget || !isLogoutClosing)
+                  return;
 
                 setIsLogoutOpen(false);
                 setIsLogoutClosing(false);

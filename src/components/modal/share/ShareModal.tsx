@@ -1,8 +1,43 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Copy, Eye, Link, Mail, Pencil, Share2, Users, X } from "lucide-react";
+import {
+  Clock3,
+  Copy,
+  Eye,
+  Link,
+  LockKeyhole,
+  Pencil,
+  RefreshCw,
+  Users,
+  X,
+} from "lucide-react";
 import modalMascote from "../../../assets/go.webp";
 import * as S from "./ShareModalStyle";
+import ShareOtherMethods from "../../share/ShareOtherMethods";
+
+async function roomPasswordRequest(
+  tripId: string,
+  action: "password_ensure" | "password_refresh",
+  signal?: AbortSignal,
+) {
+  const response = await fetch("/api/trips/share", {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    signal,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, tripId }),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok)
+    throw new Error(data?.message ?? "방 비밀번호를 처리하지 못했습니다.");
+  if (
+    data?.tripId !== tripId ||
+    (data.password !== null && typeof data.password !== "string")
+  )
+    throw new Error("방 비밀번호 응답을 확인하지 못했습니다.");
+  return data.password as string | null;
+}
 
 type Permission = "editor" | "viewer";
 type Props = {
@@ -10,6 +45,10 @@ type Props = {
   onClose: () => void;
   tripId: string;
   tripName: string;
+  /** 소유자 인증을 거친 서버가 제공하는 편집자 전용 비밀번호. */
+  roomPassword?: string | null;
+  /** 서버에서 비밀번호를 교체하고 새 값을 반환하는 콜백. */
+  onRefreshRoomPassword?: () => Promise<string>;
 };
 
 export default function ShareModal(props: Props) {
@@ -43,11 +82,14 @@ function ShareSession({ isOpen, ...props }: Props) {
 }
 
 type Invite = { token: string; expiresAt: number };
+
 function ShareContent({
   isOpen,
   onClose,
   tripId,
   tripName,
+  roomPassword,
+  onRefreshRoomPassword,
   permission,
   setPermission,
   onExited,
@@ -60,6 +102,14 @@ function ShareContent({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState<Partial<Record<Permission, Invite>>>({});
+  const [refreshedPassword, setRefreshedPassword] = useState<string | null>(
+    null,
+  );
+  const password = refreshedPassword ?? roomPassword ?? "";
+  const editorPasswordRequired = permission === "editor" && !password.trim();
+  const [passwordBusy, setPasswordBusy] = useState(permission === "editor");
+  const passwordTaskRef = useRef(false);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const busyRef = useRef(false);
   const aliveRef = useRef(false);
   const openRef = useRef(isOpen);
@@ -68,8 +118,11 @@ function ShareContent({
   const closeRef = useRef<HTMLButtonElement>(null);
   const descriptionId = useId();
   const urlFor = (token: string) => {
-    const url = new URL(window.location.href);
-    const hash = new URLSearchParams(url.hash.slice(1));
+    const url = new URL(
+      `/trip-invite/${encodeURIComponent(tripId)}`,
+      window.location.origin,
+    );
+    const hash = new URLSearchParams();
     hash.set("invite", token);
     url.hash = hash.toString();
     return url.toString();
@@ -101,19 +154,55 @@ function ShareContent({
     return () => window.clearTimeout(timer);
   }, [isOpen, onExited]);
 
+  useEffect(() => {
+    if (!isOpen || permission !== "editor") return;
+    const controller = new AbortController();
+    passwordTaskRef.current = true;
+    void roomPasswordRequest(tripId, "password_ensure", controller.signal)
+      .then((value) => {
+        if (!value?.trim()) throw new Error("자동 생성된 비밀번호를 확인하지 못했습니다.");
+        if (!controller.signal.aborted && aliveRef.current && openRef.current) {
+          setRefreshedPassword(value);
+          setPasswordCopied(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted && aliveRef.current && openRef.current)
+          setMessage(error instanceof Error ? error.message : "비밀번호 생성에 실패했습니다.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          passwordTaskRef.current = false;
+          if (aliveRef.current) setPasswordBusy(false);
+        }
+      });
+    return () => {
+      controller.abort();
+      passwordTaskRef.current = false;
+    };
+  }, [isOpen, permission, tripId]);
+
   const close = () => {
     openRef.current = false;
     abortRef.current?.abort();
     onClose();
   };
   const selectPermission = (next: Permission) => {
-    if (busyRef.current || !openRef.current) return;
+    if (busyRef.current || passwordBusy || !openRef.current) return;
+    if (next === permission) return;
+    setPasswordBusy(next === "editor");
     setPermission(next);
     setCopied(false);
     setMessage("");
   };
   const ensureInvite = async (): Promise<string | null> => {
-    if (busyRef.current || !openRef.current) return null;
+    if (busyRef.current || passwordBusy || passwordTaskRef.current || !openRef.current) return null;
+    if (editorPasswordRequired) {
+      setMessage(
+        "방 전용 비밀번호를 준비한 후 다시 시도해주세요.",
+      );
+      return null;
+    }
     const cached = links[permission];
     if (cached && cached.expiresAt > Date.now() + 1000)
       return urlFor(cached.token);
@@ -194,10 +283,47 @@ function ShareContent({
       }
     }
   };
-  const shareEmail = async () => {
-    const url = await ensureInvite();
-    if (!url || !openRef.current) return;
-    window.location.href = `mailto:?subject=${encodeURIComponent(`${tripName} 일정 공유`)}&body=${encodeURIComponent(url)}`;
+  // 비밀번호 생성/교체는 반드시 서버에서 이루어져야 하며, UI에서 임의로 만들지 않습니다.
+  const refreshRoomPassword = async () => {
+    if (passwordBusy || busyRef.current || !openRef.current) return;
+    setPasswordBusy(true);
+    setPasswordCopied(false);
+    setMessage("");
+    try {
+      const newPassword = onRefreshRoomPassword
+        ? await onRefreshRoomPassword()
+        : await roomPasswordRequest(tripId, "password_refresh");
+      if (!newPassword || !newPassword.trim()) {
+        throw new Error("새 비밀번호를 확인하지 못했습니다.");
+      }
+      if (!aliveRef.current || !openRef.current) return;
+      setRefreshedPassword(newPassword);
+    } catch (error) {
+      if (aliveRef.current && openRef.current) {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "비밀번호를 변경하지 못했습니다.",
+        );
+      }
+    } finally {
+      if (aliveRef.current) setPasswordBusy(false);
+    }
+  };
+
+  const copyRoomPassword = async () => {
+    if (!password || !openRef.current) return;
+    try {
+      await navigator.clipboard.writeText(password);
+      if (aliveRef.current && openRef.current) {
+        setPasswordCopied(true);
+        setMessage("");
+      }
+    } catch {
+      if (aliveRef.current && openRef.current) {
+        setMessage("비밀번호를 복사하지 못했습니다.");
+      }
+    }
   };
 
   return createPortal(
@@ -213,7 +339,7 @@ function ShareContent({
         aria-modal="true"
         aria-label="여행 공유하기"
         aria-describedby={message ? descriptionId : undefined}
-        aria-busy={busy}
+        aria-busy={busy || passwordBusy}
         data-open={isOpen}
         inert={!isOpen}
         onAnimationEnd={(event) => {
@@ -244,6 +370,14 @@ function ShareContent({
         }}
         onClick={(event) => event.stopPropagation()}
       >
+        <S.ShareCloseButton
+          ref={closeRef}
+          type="button"
+          onClick={close}
+          aria-label="닫기"
+        >
+          <X size={18} />
+        </S.ShareCloseButton>
         <S.ShareBanner>
           <S.ShareBannerText>
             <h2>여행 공유하기</h2>
@@ -252,14 +386,6 @@ function ShareContent({
           <S.ShareMascot aria-hidden="true">
             <img src={modalMascote} alt="" />
           </S.ShareMascot>
-          <S.ShareCloseButton
-            ref={closeRef}
-            type="button"
-            onClick={close}
-            aria-label="닫기"
-          >
-            <X size={20} />
-          </S.ShareCloseButton>
         </S.ShareBanner>
         <S.ShareModalBody>
           <S.ShareSection>
@@ -272,7 +398,7 @@ function ShareContent({
                 type="button"
                 $active={permission === "editor"}
                 aria-pressed={permission === "editor"}
-                disabled={busy}
+                disabled={busy || passwordBusy}
                 onClick={() => selectPermission("editor")}
               >
                 <S.PermissionRadio $active={permission === "editor"} />
@@ -288,7 +414,7 @@ function ShareContent({
                 type="button"
                 $active={permission === "viewer"}
                 aria-pressed={permission === "viewer"}
-                disabled={busy}
+                disabled={busy || passwordBusy}
                 onClick={() => selectPermission("viewer")}
               >
                 <S.PermissionRadio $active={permission === "viewer"} />
@@ -302,6 +428,54 @@ function ShareContent({
               </S.PermissionCard>
             </S.PermissionList>
           </S.ShareSection>
+          {permission === "editor" && (
+            <S.ShareSection>
+              <S.RoomSecurityCard>
+                <S.ShareSectionTitle>
+                  <LockKeyhole size={16} />
+                  <strong>방 전용 비밀번호</strong>
+                </S.ShareSectionTitle>
+                <S.RoomPasswordGroup>
+                  <S.RoomPasswordText
+                    value={password}
+                    placeholder={passwordBusy ? "비밀번호를 준비하고 있어요…" : "새로고침 버튼으로 다시 시도해주세요"}
+                    readOnly
+                    aria-label="방 전용 비밀번호"
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                  <S.RoomPasswordRefreshButton
+                    type="button"
+                    title={
+                      password
+                        ? "방 전용 비밀번호 변경"
+                        : "방 전용 비밀번호 설정"
+                    }
+                    aria-label={
+                      password
+                        ? "방 전용 비밀번호 변경"
+                        : "방 전용 비밀번호 설정"
+                    }
+                    disabled={passwordBusy || busy}
+                    onClick={() => void refreshRoomPassword()}
+                  >
+                    <RefreshCw size={16} />
+                  </S.RoomPasswordRefreshButton>
+                  <S.RoomPasswordCopyButton
+                    type="button"
+                    disabled={!password || passwordBusy}
+                    onClick={() => void copyRoomPassword()}
+                  >
+                    <Copy size={14} />
+                    {passwordCopied ? "복사 완료" : "복사"}
+                  </S.RoomPasswordCopyButton>
+                </S.RoomPasswordGroup>
+                <S.RoomPasswordHelp>
+                  비밀번호는 방장만 조회할 수 있어요. 편집자에게 별도로 전달해
+                  주세요. 비밀번호를 입력해도 방장 승인 전에는 입장할 수 없어요.
+                </S.RoomPasswordHelp>
+              </S.RoomSecurityCard>
+            </S.ShareSection>
+          )}
           <S.ShareSection>
             <S.ShareSectionTitle>
               <Link size={16} />
@@ -317,54 +491,36 @@ function ShareContent({
               />
               <S.CopyLinkButton
                 type="button"
-                disabled={busy}
+                disabled={busy || passwordBusy || editorPasswordRequired}
                 onClick={() => void copyShareLink()}
               >
                 <Copy size={15} />
                 {busy ? "생성 중…" : copied ? "복사 완료" : "링크 복사"}
               </S.CopyLinkButton>
             </S.ShareLinkBox>
-            {/* <p id={descriptionId} role={message ? "alert" : "status"}>{message || "선택한 권한으로 초대 링크를 생성합니다. 로그인 후 초대를 수락하면 참여자로 등록돼요."}</p> */}
+            <S.ShareExpiryNote>
+              <Clock3 size={12} />
+              초대 링크는 발급 후 72시간 동안 유효해요.
+            </S.ShareExpiryNote>
             {message && (
               <p id={descriptionId} role="alert">
                 {message}
               </p>
             )}
           </S.ShareSection>
-          <S.ShareSection>
-            <S.ShareSectionTitle>
-              <Share2 size={16} />
-              <strong>다른 방법으로 공유</strong>
-            </S.ShareSectionTitle>
-            <S.SharePlatformList>
-              <S.SharePlatformButton
-                type="button"
-                onClick={() => alert("네이버 공유는 추후 연결 예정입니다.")}
-              >
-                <S.SharePlatformIcon $platform="naver">N</S.SharePlatformIcon>
-                네이버
-              </S.SharePlatformButton>
-              <S.SharePlatformButton
-                type="button"
-                onClick={() => alert("카카오톡 공유는 추후 연결 예정입니다.")}
-              >
-                <S.SharePlatformIcon $platform="kakao">
-                  <S.KakaoBubble />
-                </S.SharePlatformIcon>
-                카카오톡
-              </S.SharePlatformButton>
-              <S.SharePlatformButton
-                type="button"
-                disabled={busy}
-                onClick={() => void shareEmail()}
-              >
-                <S.SharePlatformIcon $platform="email">
-                  <Mail size={25} />
-                </S.SharePlatformIcon>
-                이메일
-              </S.SharePlatformButton>
-            </S.SharePlatformList>
-          </S.ShareSection>
+
+          <ShareOtherMethods
+            tripName={tripName}
+            shareText={`[Routy] ${tripName} 여행에 초대합니다.\n${
+              permission === "editor"
+                ? "편집자 초대: 링크 접속 후 로그인하고, 별도로 전달받은 방 비밀번호를 입력해 방장에게 승인을 요청해주세요."
+                : "보기 전용 초대: 링크에 접속해 방장에게 승인을 요청해주세요. 비밀번호는 필요하지 않아요."
+            }\n방장 승인 후 여행에 참여할 수 있어요.`}
+            busy={busy || passwordBusy || editorPasswordRequired}
+            ensureInvite={ensureInvite}
+            openRef={openRef}
+            setMessage={setMessage}
+          />
         </S.ShareModalBody>
       </S.ShareModal>
     </S.ShareOverlay>,

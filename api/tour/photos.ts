@@ -1,5 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isTourKeyConfigured, lookupTourImage } from "../../server/tourPhotoService.js";
+import {
+  isPhotoKeyConfigured,
+  lookupTourImage,
+} from "../../server/tourPhotoService.js";
+
+function numeric(value: unknown): number | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const v = Number(value);
+  return Number.isFinite(v) ? v : NaN;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -7,23 +16,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ message: "GET 요청만 허용됩니다." });
   }
   const name = typeof req.query.name === "string" ? req.query.name.trim() : "";
-  const address = typeof req.query.address === "string" ? req.query.address.trim() : "";
-  const lat = typeof req.query.lat === "string" ? Number(req.query.lat) : undefined;
-  const lng = typeof req.query.lng === "string" ? Number(req.query.lng) : undefined;
-  if (!name || name.length > 80 || !address || address.length > 180 ||
-      (lat !== undefined && (!Number.isFinite(lat) || lat < 33 || lat > 43)) ||
-      (lng !== undefined && (!Number.isFinite(lng) || lng < 124 || lng > 132))) {
-    return res.status(400).json({ message: "장소 이름이나 주소가 올바르지 않습니다." });
+  const address =
+    typeof req.query.address === "string" ? req.query.address.trim() : "";
+  const lat = numeric(req.query.lat);
+  const lng = numeric(req.query.lng);
+  const preferDaum = req.query.prefer === "daum";
+  if (
+    !name ||
+    name.length > 80 ||
+    !address ||
+    address.length > 180 ||
+    (lat !== undefined && (!Number.isFinite(lat) || lat < 33 || lat > 43)) ||
+    (lng !== undefined && (!Number.isFinite(lng) || lng < 124 || lng > 132))
+  ) {
+    return res
+      .status(400)
+      .json({ message: "장소 이름, 주소 또는 좌표가 올바르지 않습니다." });
   }
-  if (!isTourKeyConfigured()) {
-    return res.status(503).json({ message: "서버에 관광공사 API 키가 없습니다." });
+  if (!isPhotoKeyConfigured()) {
+    return res
+      .status(503)
+      .json({
+        message:
+          "사진 조회용 API 키(TOUR_API_SERVICE_KEY 또는 KAKAO_REST_API_KEY)가 서버에 없습니다.",
+      });
   }
   try {
-    const result = await lookupTourImage(name, address, lat, lng);
-    res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+    const result = await lookupTourImage(name, address, lat, lng, preferDaum);
+    res.setHeader(
+      "Cache-Control",
+      "public, s-maxage=300, stale-while-revalidate=1800",
+    );
     return res.status(200).json(result);
   } catch {
-    // 클라이언트에는 인증키와 원본 URL을 내보내지 않습니다.
-    return res.status(502).json({ message: "관광공사 사진 조회에 실패했습니다." });
+    return res
+      .status(502)
+      .json({ message: "관광공사/다음 이미지 조회에 실패했습니다." });
   }
 }

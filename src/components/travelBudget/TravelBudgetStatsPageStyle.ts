@@ -539,6 +539,24 @@ export const TravelBudgetStatsPageStyle = styled.div({
     height: "100%",
     position: "absolute",
     inset: 0,
+    ".donut-reveal": {
+      animation: "donutFill 1.4s cubic-bezier(0.22, 1, 0.36, 1) both",
+    },
+
+    "@keyframes donutFill": {
+      from: {
+        strokeDasharray: "0 100",
+      },
+      to: {
+        strokeDasharray: "100 100",
+      },
+    },
+
+    "@media (prefers-reduced-motion: reduce)": {
+      ".donut-reveal": {
+        animation: "none",
+      },
+    },
   },
   "@media (max-width: 1023px)": {
     "& .stats-main": {
