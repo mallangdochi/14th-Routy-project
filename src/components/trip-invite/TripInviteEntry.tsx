@@ -1,9 +1,9 @@
 import { useId, useState, type FormEvent } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
-  ArrowRight,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Eye,
   EyeOff,
@@ -101,7 +101,7 @@ function InviteEntryContent({
   const isEditor = permission === "editor";
   const isBlocked = currentStatus === "expired" || currentStatus === "invalid";
   const isReady = currentStatus === "ready";
-  const needsLogin = isReady && !isLoggedIn;
+  const needsLogin = isReady && isEditor && !isLoggedIn;
   const visibleError = localError || errorMessage;
 
   const handleRequest = async (event: FormEvent<HTMLFormElement>) => {
@@ -112,6 +112,10 @@ function InviteEntryContent({
     const trimmedName = displayName.trim();
     const trimmedPassword = password.trim();
 
+    if (!isEditor && (!trimmedName || trimmedName.length > 30)) {
+      setLocalError("이름을 1~30자로 입력해 주세요.");
+      return;
+    }
     if (isEditor && !trimmedPassword) {
       setLocalError("방 전용 비밀번호를 입력해 주세요.");
       return;
@@ -145,7 +149,9 @@ function InviteEntryContent({
       await onCheckStatus();
     } catch (error) {
       setLocalError(
-        error instanceof Error ? error.message : "승인 상태를 확인하지 못했어요.",
+        error instanceof Error
+          ? error.message
+          : "승인 상태를 확인하지 못했어요.",
       );
     } finally {
       setChecking(false);
@@ -162,7 +168,9 @@ function InviteEntryContent({
       // 상위 페이지가 status를 ready로 갱신하면 입력 화면을 다시 표시합니다.
     } catch (error) {
       setLocalError(
-        error instanceof Error ? error.message : "요청을 다시 시작하지 못했어요.",
+        error instanceof Error
+          ? error.message
+          : "요청을 다시 시작하지 못했어요.",
       );
     } finally {
       setWorking(false);
@@ -183,7 +191,11 @@ function InviteEntryContent({
           <S.Banner>
             <S.BannerContent>
               <S.BannerEyebrow>ROUTY TRIP INVITATION</S.BannerEyebrow>
-              <h1>{isBlocked ? "초대 링크를 확인해 주세요" : "여행에 초대되었어요!"}</h1>
+              <h1>
+                {isBlocked
+                  ? "초대 링크를 확인해 주세요"
+                  : "여행에 초대되었어요!"}
+              </h1>
               <p>
                 {isBlocked
                   ? "초대 링크가 유효하지 않거나 만료되었어요."
@@ -204,7 +216,9 @@ function InviteEntryContent({
                   <S.TripName title={tripName}>{tripName}</S.TripName>
                   <S.PermissionLine>
                     {isEditor ? <Pencil size={13} /> : <Eye size={14} />}
-                    {isEditor ? "편집자 · 일정 확인 및 수정" : "보기 전용 · 일정 확인만 가능"}
+                    {isEditor
+                      ? "편집자 · 일정 확인 및 수정"
+                      : "보기 전용 · 일정 확인만 가능"}
                   </S.PermissionLine>
                 </S.TripSummaryText>
                 <S.PermissionPill $editor={isEditor}>
@@ -222,33 +236,42 @@ function InviteEntryContent({
                     </S.StepIcon>
                     <S.StepTitle>로그인이 필요해요</S.StepTitle>
                     <S.StepDescription>
-                      {isEditor
-                        ? "편집자로 참여하려면 로그인 후 방 전용 비밀번호를 입력해주세요."
-                        : "승인 요청자를 확인하기 위해 로그인해주세요. 보기 전용은 방 비밀번호가 필요하지 않아요."}
+                      편집자로 참여하려면 로그인 후 방 전용 비밀번호를 입력해주세요.
                     </S.StepDescription>
                     <S.PrimaryButton
                       type="button"
                       disabled={!onLogin}
                       onClick={onLogin}
                     >
-                      로그인하고 계속하기 <ArrowRight size={17} />
+                      로그인하고 계속하기
+                      <ChevronRight size={17} />
                     </S.PrimaryButton>
                   </S.StepContent>
                 ) : (
-                  <S.RequestForm onSubmit={(event) => void handleRequest(event)}>
+                  <S.RequestForm
+                    onSubmit={(event) => void handleRequest(event)}
+                  >
                     <S.FormTitle>
-                      {isEditor ? <KeyRound size={18} /> : <UsersRound size={18} />}
-                      {isEditor ? "방 전용 비밀번호 확인" : "방장에게 입장 요청"}
+                      {isEditor ? (
+                        <KeyRound size={18} />
+                      ) : (
+                        <UsersRound size={18} />
+                      )}
+                      {isEditor
+                        ? "방 전용 비밀번호 확인"
+                        : "방장에게 입장 요청"}
                     </S.FormTitle>
                     <S.FormDescription>
                       {isEditor
                         ? "소유자로부터 전달받은 비밀번호를 입력해 주세요."
-                        : "비밀번호 없이 입장을 요청할 수 있어요."}
+                        : "로그인·비밀번호 없이 이름을 입력해 승인을 요청해주세요."}
                     </S.FormDescription>
 
                     {isEditor ? (
                       <S.FieldGroup>
-                        <S.FieldLabel htmlFor={passwordId}>방 전용 비밀번호</S.FieldLabel>
+                        <S.FieldLabel htmlFor={passwordId}>
+                          방 전용 비밀번호
+                        </S.FieldLabel>
                         <S.PasswordField>
                           <S.TextInput
                             id={passwordId}
@@ -261,7 +284,9 @@ function InviteEntryContent({
                             value={password}
                             disabled={working}
                             aria-invalid={Boolean(visibleError)}
-                            aria-describedby={visibleError ? errorId : undefined}
+                            aria-describedby={
+                              visibleError ? errorId : undefined
+                            }
                             onChange={(event) => {
                               setPassword(event.target.value);
                               setLocalError("");
@@ -269,20 +294,33 @@ function InviteEntryContent({
                           />
                           <S.VisibilityButton
                             type="button"
-                            aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
-                            title={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
-                            onClick={() => setShowPassword((previous) => !previous)}
+                            aria-label={
+                              showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
+                            }
+                            title={
+                              showPassword ? "비밀번호 숨기기" : "비밀번호 보기"
+                            }
+                            onClick={() =>
+                              setShowPassword((previous) => !previous)
+                            }
                           >
-                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            {showPassword ? (
+                              <EyeOff size={18} />
+                            ) : (
+                              <Eye size={18} />
+                            )}
                           </S.VisibilityButton>
                         </S.PasswordField>
                       </S.FieldGroup>
                     ) : (
                       <S.FieldGroup>
-                        <S.FieldLabel htmlFor={nameId}>요청자 이름 (선택)</S.FieldLabel>
+                        <S.FieldLabel htmlFor={nameId}>
+                          요청자 이름
+                        </S.FieldLabel>
                         <S.TextInput
                           id={nameId}
                           type="text"
+                          required
                           autoComplete="name"
                           maxLength={30}
                           placeholder="이름을 입력해 주세요"
@@ -299,11 +337,16 @@ function InviteEntryContent({
                     )}
 
                     <S.PrimaryButton type="submit" disabled={working}>
-                      {working ? <LoaderCircle size={18} className="spin" /> : <ShieldCheck size={18} />}
+                      {working ? (
+                        <LoaderCircle size={18} className="spin" />
+                      ) : (
+                        <ShieldCheck size={18} />
+                      )}
                       {working ? "요청 중…" : "방장에게 입장 요청하기"}
                     </S.PrimaryButton>
                     <S.SubtleInfo>
-                      <LockKeyhole size={13} /> 방장 승인 전에는 여행에 접근할 수 없어요.
+                      <LockKeyhole size={13} /> 방장 승인 전에는 여행에 접근할
+                      수 없어요.
                     </S.SubtleInfo>
                   </S.RequestForm>
                 )}
@@ -312,11 +355,13 @@ function InviteEntryContent({
 
             {currentStatus === "pending" && (
               <S.StatusContent>
-                <S.StatusIcon $tone="pending"><Clock3 size={30} /></S.StatusIcon>
+                <S.StatusIcon $tone="pending">
+                  <Clock3 size={30} />
+                </S.StatusIcon>
                 <S.StepTitle>방장의 승인을 기다리고 있어요</S.StepTitle>
                 <S.StepDescription>
-                  입장 요청이 전달되었어요. 방장이 요청한 여행과 권한을 확인한 후
-                  승인하면 참여할 수 있어요.
+                  입장 요청이 전달되었어요. 방장이 요청한 여행과 권한을 확인한
+                  후 승인하면 참여할 수 있어요.
                 </S.StepDescription>
                 <S.PendingInfo>
                   <Clock3 size={16} /> 승인 대기 중
@@ -327,7 +372,11 @@ function InviteEntryContent({
                     disabled={checking}
                     onClick={() => void handleCheckStatus()}
                   >
-                    {checking ? <LoaderCircle size={16} className="spin" /> : <RefreshCw size={16} />}
+                    {checking ? (
+                      <LoaderCircle size={16} className="spin" />
+                    ) : (
+                      <RefreshCw size={16} />
+                    )}
                     {checking ? "확인 중…" : "승인 상태 확인하기"}
                   </S.SecondaryButton>
                 )}
@@ -336,7 +385,9 @@ function InviteEntryContent({
 
             {currentStatus === "approved" && (
               <S.StatusContent>
-                <S.StatusIcon $tone="success"><CheckCircle2 size={32} /></S.StatusIcon>
+                <S.StatusIcon $tone="success">
+                  <CheckCircle2 size={32} />
+                </S.StatusIcon>
                 <S.StepTitle>여행 참여가 승인되었어요!</S.StepTitle>
                 <S.StepDescription>
                   {isEditor
@@ -345,7 +396,8 @@ function InviteEntryContent({
                 </S.StepDescription>
                 {onEnterTrip && (
                   <S.PrimaryButton type="button" onClick={onEnterTrip}>
-                    여행 일정 확인하기 <ArrowRight size={17} />
+                    여행 일정 확인하기
+                    <ChevronRight size={17} />
                   </S.PrimaryButton>
                 )}
               </S.StatusContent>
@@ -353,7 +405,9 @@ function InviteEntryContent({
 
             {currentStatus === "rejected" && (
               <S.StatusContent>
-                <S.StatusIcon $tone="danger"><XCircle size={32} /></S.StatusIcon>
+                <S.StatusIcon $tone="danger">
+                  <XCircle size={32} />
+                </S.StatusIcon>
                 <S.StepTitle>입장 요청이 거절되었어요</S.StepTitle>
                 <S.StepDescription>
                   현재 이 여행에 참여할 수 없어요. 필요한 경우 여행 소유자에게
@@ -373,7 +427,9 @@ function InviteEntryContent({
 
             {isBlocked && (
               <S.StatusContent>
-                <S.StatusIcon $tone="danger"><AlertCircle size={32} /></S.StatusIcon>
+                <S.StatusIcon $tone="danger">
+                  <AlertCircle size={32} />
+                </S.StatusIcon>
                 <S.StepTitle>
                   {currentStatus === "expired"
                     ? "초대 링크가 만료되었어요"
@@ -396,7 +452,8 @@ function InviteEntryContent({
             <S.CardFooter>
               {onBack && (
                 <S.BackButton type="button" onClick={onBack}>
-                  <ArrowLeft size={16} /> 돌아가기
+                  <ChevronLeft size={16} />
+                  돌아가기
                 </S.BackButton>
               )}
               <S.FooterNotice>

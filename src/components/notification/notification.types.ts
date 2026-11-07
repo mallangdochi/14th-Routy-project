@@ -20,4 +20,6 @@ export type NotificationProps = {
   /** 서버 처리가 성공한 뒤 상위에서 items를 갱신합니다. */
   onDecision?: (item: NotificationItem, decision: "approved" | "rejected") => Promise<void> | void;
   onRetry?: () => void;
+  onDelete?: (item: NotificationItem) => Promise<void>;
+  onRestore?: (items: NotificationItem[]) => Promise<void>;
 };

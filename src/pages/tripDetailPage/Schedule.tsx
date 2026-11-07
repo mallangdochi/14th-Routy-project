@@ -1,3 +1,4 @@
+// import TripRoleBadge from "../../components/main/TripRoleBadge";
 import { Global } from "@emotion/react";
 import Dropdown from "../../components/dropdown/Dropdown";
 import TimePicker from "../../components/pickers/TimePicker";
@@ -34,6 +35,7 @@ import {
 } from "../../api/kakao/searchPlaceModal";
 import React, { useEffect, useId, useRef, useState } from "react";
 import {
+  LogOut,
   TriangleAlert,
   CircleX,
   Check,
@@ -90,7 +92,8 @@ import defaultTripImage from "../../assets/where.webp";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import * as S from "./ScheduleStyle";
 import KakaoMap from "../../components/kakaoMap/KakaoMap";
-import TravelRouteSummary, {
+import {
+  // TravelRouteSummary,
   type RouteLine,
 } from "../../components/Schedule/TravelRouteSummary";
 import KakaoTravelMap, { type KakaoPlace } from "../../map/KakaoTravelMap";
@@ -897,6 +900,11 @@ function ScheduleContent({
   const navigate = useNavigate();
   const routerLocation = useLocation();
 
+  const isHost = selectedTrip.permission === "owner";
+  const canLeaveTrip =
+    selectedTrip.permission === "editor" ||
+    selectedTrip.permission === "viewer";
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const canEditTrip =
     selectedTrip.permission === "owner" || selectedTrip.permission === "editor";
 
@@ -1083,6 +1091,7 @@ function ScheduleContent({
   }, [isTripNameMenuOpen]);
 
   const startEditingTripName = () => {
+    if (!isHost) return;
     setIsTripNameMenuOpen(false);
     setDraftTripName(tripName);
     setTripNameError("");
@@ -1106,7 +1115,7 @@ function ScheduleContent({
   };
 
   const handleSaveTripName = async () => {
-    if (tripNameSavingRef.current) return;
+    if (!isHost || tripNameSavingRef.current) return;
 
     const name = draftTripName.trim();
 
@@ -1196,6 +1205,7 @@ function ScheduleContent({
     setMembersRevision((n) => n + 1);
   };
   const handleSaveMembers = async (changes: TripMemberChanges) => {
+    if (!isHost) throw new Error("호스트만 멤버를 관리할 수 있습니다.");
     const tripId = String(selectedTrip.id);
     const result = await saveTripMembers(tripId, changes);
     if (result.tripId !== tripId || result.editorLimit !== changes.editorLimit)
@@ -1204,6 +1214,7 @@ function ScheduleContent({
     return true;
   };
   const handleLeaveTrip = async () => {
+    if (!canLeaveTrip) throw new Error("참여한 여행에서만 나갈 수 있습니다.");
     const tripId = String(selectedTrip.id);
     const result = await leaveTrip(tripId);
     if (result.tripId !== tripId || !result.left)
@@ -1227,7 +1238,7 @@ function ScheduleContent({
       React.ComponentProps<typeof RegionSelectModal>["value"]
     >,
   ): Promise<void> => {
-    if (tripRegionSavingRef.current) return;
+    if (!isHost || tripRegionSavingRef.current) return;
 
     const nextRegion = region.name.trim();
 
@@ -1331,7 +1342,8 @@ function ScheduleContent({
   const scheduleSaveLock = useRef(false);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleError, setScheduleError] = useState("");
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [editModeRequested, setIsEditMode] = useState(false);
+  const isEditMode = canEditTrip && editModeRequested;
   const [expandedStopId, setExpandedStopId] = useState<number | null>(null);
   const [selectedStopIds, setSelectedStopIds] = useState<number[]>([]);
   const [stopDeleteIds, setStopDeleteIds] = useState<number[] | null>(null);
@@ -1413,7 +1425,8 @@ function ScheduleContent({
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const [showRoute, setShowRoute] = useState(true);
-  const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
+  // const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
+  const [routePaths] = useState<RouteLine[]>([]);
   const [mapZoom, setMapZoom] = useState(1);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -1972,28 +1985,8 @@ function ScheduleContent({
     ]);
   };
 
-  // const addDay = () => {
-  //   const lastDay = days[days.length - 1];
-  //   if (!lastDay) return;
-  //   const nextId = lastDay.id + 1;
-  //   const nextDate = new Date(`${lastDay.isoDate}T00:00:00Z`);
-  //   nextDate.setUTCDate(nextDate.getUTCDate() + 1);
-  //   const nextDay = createDay(nextDate.toISOString().slice(0, 10), nextId);
-
-  //   setDays((previous) => [...previous, nextDay]);
-
-  //   setStopsByDay((previous) => ({
-  //     ...previous,
-  //     [nextId]: [],
-  //   }));
-
-  //   setActiveDayId(nextId);
-  //   setIsEditMode(false);
-  //   setMenuId(null);
-  //   setShowSaveStatus(false);
-  //   resetDrag();
-  // };
   const handleApplyDates = async (dates: string[]) => {
+    if (!isHost) return;
     const nextDates = normalizeTripDates(dates);
 
     if (!nextDates.length) {
@@ -2086,103 +2079,112 @@ function ScheduleContent({
               <S.TripThumbnail src={defaultTripImage} alt="" />
 
               <S.TripDescription>
-                {/* <S.TripTitleRow>
-                  <S.TripTitle>{selectedTrip.name}</S.TripTitle>
-
-                  <S.IconButton type="button" aria-label="여행 제목 편집">
-                    <Pencil size={17} />
-                  </S.IconButton>
-                </S.TripTitleRow> */}
                 <S.TripTitleRow>
                   <>
                     <S.TripTitle>{tripName}</S.TripTitle>
+                    {/* <TripRoleBadge permission={selectedTrip.permission} /> */}
 
-                    <S.TripNameMenuAnchor ref={tripNameMenuRef}>
-                      <S.TripEditButton
-                        ref={tripNameEditButtonRef}
-                        type="button"
-                        aria-label="여행 편집"
-                        title="여행 편집"
-                        aria-expanded={isTripNameMenuOpen}
-                        onClick={() => {
-                          setIsTripNameMenuMounted(true);
-                          setIsTripNameMenuOpen(
-                            (previous) => canEditTrip && !previous,
-                          );
-                        }}
-                      >
-                        <Pencil size={20} />
-                      </S.TripEditButton>
-                      {isTripNameMenuMounted && (
-                        <S.TripNamePopoverPosition>
-                          <S.TripNamePopover
-                            aria-label="여행 관리"
-                            aria-hidden={!isTripNameMenuOpen}
-                            inert={!isTripNameMenuOpen}
-                            data-open={isTripNameMenuOpen}
-                            onAnimationEnd={(event) => {
-                              if (
-                                event.target === event.currentTarget &&
-                                !isTripNameMenuOpen
-                              ) {
-                                setIsTripNameMenuMounted(false);
-                              }
-                            }}
-                          >
-                            <S.TripNameMenuItem
-                              type="button"
-                              disabled={!canEditTrip}
-                              onClick={startEditingTripName}
-                            >
-                              <Pencil size={18} />
-                              <span>여행 제목 수정</span>
-                            </S.TripNameMenuItem>
-                            <S.TripNameMenuItem
-                              type="button"
-                              onClick={() => {
-                                setIsTripNameMenuOpen(false);
-                                setShowRegionModal(true);
+                    {(isHost || canLeaveTrip) && (
+                      <S.TripNameMenuAnchor ref={tripNameMenuRef}>
+                        <S.TripEditButton
+                          ref={tripNameEditButtonRef}
+                          type="button"
+                          aria-label={isHost ? "여행 관리" : "여행 나가기 메뉴"}
+                          title={isHost ? "여행 관리" : "여행 나가기 메뉴"}
+                          aria-expanded={isTripNameMenuOpen}
+                          onClick={() => {
+                            setIsTripNameMenuMounted(true);
+                            setIsTripNameMenuOpen((previous) => !previous);
+                          }}
+                        >
+                          <Pencil size={20} />
+                        </S.TripEditButton>
+                        {isTripNameMenuMounted && (
+                          <S.TripNamePopoverPosition>
+                            <S.TripNamePopover
+                              aria-label="여행 관리"
+                              aria-hidden={!isTripNameMenuOpen}
+                              inert={!isTripNameMenuOpen}
+                              data-open={isTripNameMenuOpen}
+                              onAnimationEnd={(event) => {
+                                if (
+                                  event.target === event.currentTarget &&
+                                  !isTripNameMenuOpen
+                                ) {
+                                  setIsTripNameMenuMounted(false);
+                                }
                               }}
                             >
-                              <MapPin size={18} />
-                              <span>여행 지역 수정</span>
-                            </S.TripNameMenuItem>
-                            <S.TripNameMenuItem
-                              type="button"
-                              onClick={() => {
-                                setIsTripNameMenuOpen(false);
-                                setShowDateModal(true);
-                              }}
-                            >
-                              <CalendarDays size={18} />
-                              <span>여행 날짜 수정</span>
-                            </S.TripNameMenuItem>
-                            <S.TripNameMenuItem
-                              type="button"
-                              onClick={() => {
-                                setIsTripNameMenuOpen(false);
-                                openMembersModal();
-                              }}
-                            >
-                              <Users size={18} />
-                              <span>여행 멤버 수정</span>
-                            </S.TripNameMenuItem>
-                            <S.TripNameMenuItem
-                              className="trip-menu-delete"
-                              type="button"
-                              disabled={
-                                selectedTrip.permission !== "owner" ||
-                                isDeletingTrip
-                              }
-                              onClick={openTripDeleteDialog}
-                            >
-                              <Trash2 size={18} />
-                              <span>여행 삭제</span>
-                            </S.TripNameMenuItem>
-                          </S.TripNamePopover>
-                        </S.TripNamePopoverPosition>
-                      )}
-                    </S.TripNameMenuAnchor>
+                              {isHost ? (
+                                <>
+                                  <S.TripNameMenuItem
+                                    type="button"
+                                    onClick={startEditingTripName}
+                                  >
+                                    <Pencil size={18} />
+                                    <span>여행 제목 수정</span>
+                                  </S.TripNameMenuItem>
+                                  <S.TripNameMenuItem
+                                    type="button"
+                                    onClick={() => {
+                                      setIsTripNameMenuOpen(false);
+                                      setShowRegionModal(true);
+                                    }}
+                                  >
+                                    <MapPin size={18} />
+                                    <span>여행 지역 수정</span>
+                                  </S.TripNameMenuItem>
+                                  <S.TripNameMenuItem
+                                    type="button"
+                                    onClick={() => {
+                                      setIsTripNameMenuOpen(false);
+                                      setShowDateModal(true);
+                                    }}
+                                  >
+                                    <CalendarDays size={18} />
+                                    <span>여행 날짜 수정</span>
+                                  </S.TripNameMenuItem>
+                                  <S.TripNameMenuItem
+                                    type="button"
+                                    onClick={() => {
+                                      setIsTripNameMenuOpen(false);
+                                      openMembersModal();
+                                    }}
+                                  >
+                                    <Users size={18} />
+                                    <span>여행 멤버 수정</span>
+                                  </S.TripNameMenuItem>
+                                  <S.TripNameMenuItem
+                                    className="trip-menu-delete"
+                                    type="button"
+                                    disabled={
+                                      selectedTrip.permission !== "owner" ||
+                                      isDeletingTrip
+                                    }
+                                    onClick={openTripDeleteDialog}
+                                  >
+                                    <Trash2 size={18} />
+                                    <span>여행 삭제</span>
+                                  </S.TripNameMenuItem>
+                                </>
+                              ) : (
+                                <S.TripNameMenuItem
+                                  className="trip-menu-delete"
+                                  type="button"
+                                  onClick={() => {
+                                    setIsTripNameMenuOpen(false);
+                                    setLeaveDialogOpen(true);
+                                  }}
+                                >
+                                  <LogOut size={18} />
+                                  <span>여행 나가기</span>
+                                </S.TripNameMenuItem>
+                              )}
+                            </S.TripNamePopover>
+                          </S.TripNamePopoverPosition>
+                        )}
+                      </S.TripNameMenuAnchor>
+                    )}
                   </>
                 </S.TripTitleRow>
                 <S.TripDate>{tripDateText}</S.TripDate>
@@ -2203,14 +2205,16 @@ function ScheduleContent({
                     }}
                   />
 
-                  <S.MemberAdd
-                    type="button"
-                    disabled={selectedTrip.permission !== "owner"}
-                    aria-label="여행 참여자 초대"
-                    onClick={() => setShowShareModal(true)}
-                  >
-                    <Plus size={17} />
-                  </S.MemberAdd>
+                  {isHost && (
+                    <S.MemberAdd
+                      type="button"
+                      disabled={selectedTrip.permission !== "owner"}
+                      aria-label="여행 참여자 초대"
+                      onClick={() => setShowShareModal(true)}
+                    >
+                      <Plus size={17} />
+                    </S.MemberAdd>
+                  )}
                 </S.MemberList>
               </S.TripDescription>
 
@@ -2301,7 +2305,7 @@ function ScheduleContent({
                     <S.Weather locationName={tripRegion} />
                   </S.ScheduleHeadingLeft>
 
-                  {(stops.length > 0 || isEditMode) && (
+                  {canEditTrip && (stops.length > 0 || isEditMode) && (
                     <S.DesktopEditAction>
                       {isEditMode ? (
                         <S.BatchActions>
@@ -2366,7 +2370,7 @@ function ScheduleContent({
                     </S.DesktopEditAction>
                   )}
 
-                  {(stops.length > 0 || isEditMode) && (
+                  {canEditTrip && (stops.length > 0 || isEditMode) && (
                     <S.MobileEditAction>
                       {isEditMode ? (
                         <S.BatchActions>
@@ -2454,14 +2458,22 @@ function ScheduleContent({
                   {stops.length === 0 && (
                     <S.EmptyState>
                       <S.Illustration src={emptyScheduleImage} alt="" />
-                      <S.Title>첫 장소를 추가해 볼까요?</S.Title>
+                      <S.Title>
+                        {canEditTrip
+                          ? "첫 장소를 추가해 볼까요?"
+                          : "아직 등록된 일정이 없어요."}
+                      </S.Title>
                       <S.Description>
-                        가고 싶은 곳을 담아 오늘의 여행을 시작해요.
+                        {canEditTrip
+                          ? "가고 싶은 곳을 담아 오늘의 여행을 시작해요."
+                          : "여행 멤버가 일정을 추가하면 여기에서 확인할 수 있어요."}
                       </S.Description>
-                      <S.AddButton type="button" onClick={openPlaceModal}>
-                        <Plus size={22} aria-hidden="true" />
-                        장소 추가
-                      </S.AddButton>
+                      {canEditTrip && (
+                        <S.AddButton type="button" onClick={openPlaceModal}>
+                          <Plus size={22} aria-hidden="true" />
+                          장소 추가
+                        </S.AddButton>
+                      )}
                     </S.EmptyState>
                   )}
                   {stops.map((stop, index) => (
@@ -2501,10 +2513,10 @@ function ScheduleContent({
                   ))}
                 </S.StopList>
 
-                <TravelRouteSummary
+                {/* <TravelRouteSummary
                   stops={stops}
                   onRoutesReady={setRoutePaths}
-                />
+                /> */}
 
                 {isEditMode && stops.length > 0 && (
                   <S.AddPlaceButton type="button" onClick={openPlaceModal}>
@@ -2703,7 +2715,7 @@ function ScheduleContent({
               />
             </S.ChecklistArea>
           ) : activeTab === "budget" ? (
-            <TravelBudgetTab />
+            <TravelBudgetTab canEdit={canEditTrip} />
           ) : null}
         </S.Container>
       </S.MainContent>
@@ -2721,7 +2733,7 @@ function ScheduleContent({
         <MobileNav />
       </S.MobileNavArea>
 
-      {editingStop && (
+      {canEditTrip && editingStop && (
         <S.EditOverlay onClick={() => setEditingStop(null)}>
           <S.EditModal
             role="dialog"
@@ -2923,8 +2935,16 @@ function ScheduleContent({
           document.body,
         )}
 
+      {canLeaveTrip && leaveDialogOpen && (
+        <TripLeaveDialog
+          tripName={tripName}
+          onClose={() => setLeaveDialogOpen(false)}
+          onConfirm={handleLeaveTrip}
+        />
+      )}
+
       <ShareModal
-        isOpen={showShareModal}
+        isOpen={isHost && showShareModal}
         onClose={() => setShowShareModal(false)}
         tripId={selectedTrip.id}
         tripName={selectedTrip.name}
@@ -2958,7 +2978,7 @@ function ScheduleContent({
         onLeave={handleLeaveTrip}
       />
       <RegionSelectModal
-        isOpen={showRegionModal}
+        isOpen={isHost && showRegionModal}
         value={selectedRegion}
         searchRegions={searchTravelRegions}
         onClose={() => setShowRegionModal(false)}
@@ -2967,7 +2987,7 @@ function ScheduleContent({
         }}
       />
       <MobileTripNameSheet
-        open={isEditingTripName}
+        open={isHost && isEditingTripName}
         value={draftTripName}
         busy={isSavingTripName}
         error={tripNameError}
@@ -2979,7 +2999,7 @@ function ScheduleContent({
         onClose={cancelEditingTripName}
       />
       <TripDateModal
-        open={showDateModal}
+        open={isHost && showDateModal}
         dates={days.map((day) => day.isoDate)}
         scheduleCounts={Object.fromEntries(
           days.map((day) => [day.isoDate, stopsByDay[day.id]?.length ?? 0]),
@@ -2991,7 +3011,7 @@ function ScheduleContent({
         {...placeModalSource}
         defaultTransport={modalDefaultTransport}
         defaultTransportLabel={modalDefaultTransportLabel}
-        open={isPlaceModalOpen}
+        open={canEditTrip && isPlaceModalOpen}
         onClose={() => setIsPlaceModalOpen(false)}
         dayLabel={`Day ${placeModalDay?.id ?? activeDay.id}`}
         dateLabel={`${(placeModalDay ?? activeDay).date} (${(placeModalDay ?? activeDay).weekday})`}
@@ -3557,6 +3577,106 @@ function SelectedStopsDeleteDialog({
         </button>
       </div>
     </S.SelectedStopDeleteDialog>,
+    document.body,
+  );
+}
+
+function TripLeaveDialog({
+  tripName,
+  onClose,
+  onConfirm,
+}: {
+  tripName: string;
+  onClose: () => void;
+  onConfirm: () => Promise<boolean>;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const lock = useRef(false);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    return () => {
+      if (dialog?.open) dialog.close();
+    };
+  }, []);
+  const confirm = async () => {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await onConfirm();
+    } catch (cause: unknown) {
+      setError(
+        cause instanceof Error ? cause.message : "여행에서 나가지 못했습니다.",
+      );
+      lock.current = false;
+      setBusy(false);
+    }
+  };
+  return createPortal(
+    <S.TripDeleteDialog
+      ref={dialogRef}
+      data-open={true}
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      aria-busy={busy}
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!busy) onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !busy) onClose();
+      }}
+    >
+      <div className="trip-delete-content">
+        <div className="trip-delete-handle" aria-hidden="true" />
+        <button
+          className="trip-delete-close"
+          type="button"
+          aria-label="여행 나가기 창 닫기"
+          disabled={busy}
+          onClick={onClose}
+        >
+          <X size={20} />
+        </button>
+        <div className="trip-delete-heading">
+          <LogOut className="trip-delete-icon" size={28} aria-hidden="true" />
+          <h2 id={titleId}>여행에서 나갈까요?</h2>
+        </div>
+        <p className="trip-delete-name">{tripName}</p>
+        <p id={descriptionId} className="trip-delete-description">
+          이 여행의 참여를 종료합니다. 다시 참여하려면 초대와 승인이 필요해요.
+        </p>
+        {error && (
+          <p className="trip-delete-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="trip-delete-actions">
+          <button
+            className="trip-delete-cancel"
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+          >
+            취소
+          </button>
+          <button
+            className="trip-delete-confirm"
+            type="button"
+            disabled={busy}
+            onClick={() => void confirm()}
+          >
+            {busy ? "나가는 중…" : "여행 나가기"}
+          </button>
+        </div>
+      </div>
+    </S.TripDeleteDialog>,
     document.body,
   );
 }

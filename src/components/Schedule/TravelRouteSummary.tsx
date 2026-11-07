@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Bike, BusFront, CarFront, Footprints, Route } from "lucide-react";
 import * as S from "./TravelRouteSummaryStyle";
 
-export type TravelMode = "walk" | "bike" | "car" | "transit";
-export type RoutePoint = { lat: number; lng: number };
-export type RouteLine = { path: RoutePoint[] };
+import type { RouteLine, RoutePoint, TravelMode } from "../map/RouteMapInfo";
+export type { RouteLine, RoutePoint, TravelMode } from "../map/RouteMapInfo";
 export type RouteStop = {
   id: number;
   title: string;
+  time?: string;
+  address?: string;
+  description?: string;
   lat?: number;
   lng?: number;
 };
@@ -92,11 +94,14 @@ async function fetchOne(
 export default function TravelRouteSummary({
   stops,
   onRoutesReady,
+  mode,
+  onModeChange,
 }: {
   stops: RouteStop[];
   onRoutesReady: (routes: RouteLine[]) => void;
+  mode: TravelMode;
+  onModeChange: (mode: TravelMode) => void;
 }) {
-  const [mode, setMode] = useState<TravelMode>("walk");
   const [results, setResults] = useState<LegStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const legs = useMemo(
@@ -153,9 +158,29 @@ export default function TravelRouteSummary({
         if (!alive) return;
         setResults([...next]);
         onRoutesReady(
-          next.flatMap((leg) =>
-            leg.data?.path?.length ? [{ path: leg.data.path }] : [],
-          ),
+          next.flatMap((leg, legIndex): RouteLine[] => {
+            if (!leg.data || leg.data.path.length < 2) return [];
+            return [{
+              path: leg.data.path,
+              order: legIndex + 1,
+              fromId: leg.from.id,
+              toId: leg.to.id,
+              fromName: leg.from.title,
+              toName: leg.to.title,
+              fromTime: leg.from.time,
+              toTime: leg.to.time,
+              fromAddress: leg.from.address,
+              toAddress: leg.to.address,
+              fromDescription: leg.from.description,
+              toDescription: leg.to.description,
+              mode,
+              distanceMeters: leg.data.distanceMeters,
+              durationSeconds: leg.data.durationSeconds,
+              transfers: leg.data.transfers,
+              fareWon: leg.data.fareWon,
+              link: leg.data.link,
+            }];
+          }),
         );
       }
       if (alive) setLoading(false);
@@ -191,7 +216,7 @@ export default function TravelRouteSummary({
             type="button"
             $active={mode === id}
             aria-pressed={mode === id}
-            onClick={() => setMode(id)}
+            onClick={() => onModeChange(id)}
           >
             <Icon size={17} />
             {label}
@@ -235,6 +260,8 @@ export default function TravelRouteSummary({
                     ` · 환승 ${leg.data.transfers}회`}
                   {leg.data?.fareWon !== undefined &&
                     ` · ${leg.data.fareWon.toLocaleString()}원`}
+                  {leg.data && leg.data.path.length < 2 &&
+                    " · 경로 선형 정보 없음"}
                   {leg.data?.link && (
                     <a
                       href={leg.data.link}

@@ -86,7 +86,7 @@ function Avatar({ item }: { item: NotificationItem }) {
 }
 export default function Notification({
   items = [], loading = false, error, initialTab = "all", emptyImageSrc = defaultEmptyImage,
-  onDecision, onRetry,
+  onDecision, onRetry, onDelete, onRestore,
 }: NotificationProps) {
   const { user } = useAuth();
   useEffect(() => {
@@ -109,7 +109,18 @@ export default function Notification({
     if (deleteTimer.current !== null) clearTimeout(deleteTimer.current);
     deleteTimer.current = null; undoRef.current = []; setUndoIds([]);
   };
-  const removeNotification = (item: NotificationItem) => {
+  const deletedItems = useRef(new Map<string, NotificationItem>());
+  const deleteBusy = useRef(false);
+  const removeNotification = async (item: NotificationItem) => {
+    if (!onDelete || deleteBusy.current) return;
+    deleteBusy.current = true;
+    try {
+      await onDelete(item);
+      deletedItems.current.set(item.id, item);
+    } catch (reason) {
+      setActionError(reason instanceof Error ? reason.message : "알림을 삭제하지 못했습니다.");
+      return;
+    } finally { deleteBusy.current = false; }
     if (item.status === "pending" || deletedRef.current.has(item.id)) return;
     deletedRef.current.add(item.id);
     setDeletedIds(new Set(deletedRef.current));
@@ -121,9 +132,19 @@ export default function Notification({
       undoRef.current = []; setUndoIds([]); deleteTimer.current = null;
     }, 3000);
   };
-  const undoDelete = () => {
+  const undoDelete = async () => {
     const restored = undoRef.current;
     if (!restored.length) return;
+    if (!onRestore || deleteBusy.current) return;
+    deleteBusy.current = true;
+    // 복원 요청 도중 토스트 만료로 실행취소 대상이 사라지지 않게 합니다.
+    if (deleteTimer.current !== null) clearTimeout(deleteTimer.current);
+    try {
+      await onRestore(restored.flatMap(id => { const item = deletedItems.current.get(id); return item ? [item] : []; }));
+    } catch (reason) {
+      setActionError(reason instanceof Error ? reason.message : "알림을 복원하지 못했습니다.");
+      return;
+    } finally { deleteBusy.current = false; }
     for (const deletedId of restored) deletedRef.current.delete(deletedId);
     setDeletedIds(new Set(deletedRef.current));
     closeToast();
@@ -178,7 +199,7 @@ export default function Notification({
               const time = pending ? item.requestedAt : item.decidedAt ?? item.requestedAt;
               const timeLabel = relativeTime(time, now);
               return <SwipeRow key={item.id} item={item} open={openRow === item.id}
-                onOpen={setOpenRow} onDelete={removeNotification} busy={pendingId === item.id}>
+                onOpen={setOpenRow} onDelete={(item) => { void removeNotification(item); }} busy={pendingId === item.id}>
                 <Avatar item={item} />
                 <S.Name>{item.requesterName}</S.Name>
                 {timeLabel && <S.Time dateTime={time}>{timeLabel}</S.Time>}
@@ -213,7 +234,7 @@ export default function Notification({
           <CheckCircle2 size={19} aria-hidden="true" />
           <span>{undoIds.length === 1 ? "알림이 삭제됐어요" : `알림 ${undoIds.length}건이 삭제됐어요`}</span>
         </S.ToastMessage>
-        <S.UndoButton type="button" onClick={undoDelete}>실행취소</S.UndoButton>
+        <S.UndoButton type="button" onClick={() => { void undoDelete(); }}>실행취소</S.UndoButton>
         <S.ToastClose type="button" aria-label="삭제 안내 닫기" onClick={closeToast}><X size={17} /></S.ToastClose>
       </S.Toast>
     </S.ToastLayer>}

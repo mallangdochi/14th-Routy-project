@@ -23,6 +23,8 @@ export type RouteLine = {
   transfers?: number;
   fareWon?: number;
   link?: string | null;
+  /** 안내용 직선 연결선: 실제 도로 경로/거리/시간이 아님 */
+  isFallback?: boolean;
 };
 export type MapStopInfo = {
   id: string | number;
@@ -33,6 +35,52 @@ export type MapStopInfo = {
   category?: string;
   externalUrl?: string;
 };
+/** 일정에 저장된 방문 순서를 보존하며 API 누락 구간만 직선으로 표시합니다. */
+export function buildDisplayRoutes(
+  stops: Array<{
+    id: number | string; title: string; time?: string; address?: string;
+    description?: string; lat?: number; lng?: number;
+  }>,
+  routes: RouteLine[] = [],
+  mode?: TravelMode,
+): RouteLine[] {
+  return stops.slice(1).flatMap((to, index) => {
+    const from = stops[index];
+    const order = index + 1;
+    const matched = routes.find((route) =>
+      route.order === order &&
+      (route.fromId == null || String(route.fromId) === String(from.id)) &&
+      (route.toId == null || String(route.toId) === String(to.id)),
+    );
+    const actual = matched && matched.path.length >= 2;
+    const valid = (stop: typeof from) =>
+      typeof stop.lat === "number" && Number.isFinite(stop.lat) &&
+      typeof stop.lng === "number" && Number.isFinite(stop.lng);
+    if (!actual && (!valid(from) || !valid(to))) return [];
+    const path = actual ? matched.path : [
+      { lat: from.lat!, lng: from.lng! },
+      { lat: to.lat!, lng: to.lng! },
+    ];
+    return [{
+      ...(actual ? matched : {}),
+      path,
+      order,
+      fromId: from.id,
+      toId: to.id,
+      fromName: from.title,
+      toName: to.title,
+      fromTime: from.time,
+      toTime: to.time,
+      fromAddress: from.address,
+      toAddress: to.address,
+      fromDescription: from.description,
+      toDescription: to.description,
+      mode: actual ? matched.mode ?? mode : mode,
+      isFallback: !actual,
+    }];
+  });
+}
+
 export type RouteSelection =
   | { kind: "route"; route: RouteLine; order: number }
   | { kind: "stop"; stop: MapStopInfo; order: number; total: number };
@@ -164,7 +212,11 @@ export function RouteMapDetails({
       </S.DetailHeader>
       {expanded && <S.DetailBody>
         <div><strong>이동 방식</strong><span>{modeName(route.mode)}</span></div>
-        <div><strong>거리 · 예상 시간</strong><span>{distanceLabel(route.distanceMeters)} · {durationLabel(route.durationSeconds)}</span></div>
+        {route.isFallback ? (
+          <S.Description>방문 순서만 표시한 직선 연결선입니다. 실제 이동 경로·거리·시간은 조회되지 않았습니다.</S.Description>
+        ) : (
+          <div><strong>거리 · 예상 시간</strong><span>{distanceLabel(route.distanceMeters)} · {durationLabel(route.durationSeconds)}</span></div>
+        )}
         {route.fromTime && <div><strong>출발 예정</strong><span>{route.fromTime}</span></div>}
         {route.fromAddress && <div><strong>출발지 주소</strong><span>{route.fromAddress}</span></div>}
         {route.fromDescription && <S.Description><strong>출발 장소 설명</strong> · {route.fromDescription}</S.Description>}
@@ -174,7 +226,7 @@ export function RouteMapDetails({
         {typeof route.transfers === "number" && <div><strong>환승</strong><span>{route.transfers}회</span></div>}
         {typeof route.fareWon === "number" && <div><strong>요금</strong><span>{route.fareWon.toLocaleString()}원</span></div>}
         {link && <S.ExternalLink href={link} target="_blank" rel="noopener noreferrer">카카오맵 상세 경로 보기</S.ExternalLink>}
-        <S.Disclaimer>예상 이동 시간은 API 조회값이며 교통 상황에 따라 달라질 수 있습니다.</S.Disclaimer>
+        {!route.isFallback && <S.Disclaimer>예상 이동 시간은 API 조회값이며 교통 상황에 따라 달라질 수 있습니다.</S.Disclaimer>}
       </S.DetailBody>}
     </S.DetailPanel>
   );

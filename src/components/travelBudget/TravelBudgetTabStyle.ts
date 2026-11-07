@@ -22,6 +22,15 @@ export const TravelBudgetTabStyle = styled.section({
     outlineOffset: 2,
   },
   "& .budget-form-error": { color: "#bc4352", fontSize: 12, margin: "8px 0" },
+  "& .budget-grid.is-empty": { gridTemplateColumns: "minmax(0, 1fr)" },
+  "& .budget-blank-slate": {
+    minHeight: 300, padding: "32px 18px", display: "flex",
+    flexDirection: "column", alignItems: "center", justifyContent: "center",
+    gap: 15, textAlign: "center",
+  },
+  "& .budget-blank-slate h3": { margin: 0, fontSize: 22, fontWeight: 750, color: "#0A414B" },
+  "& .budget-blank-slate p": { margin: 0, fontSize: 16, lineHeight: 1.5, color: "#778D90" },
+  "& .budget-blank-slate .button-primary": { marginTop: 10, fontSize: 16, minHeight: 46 },
   "& .budget-grid": {
     display: "grid",
     gridTemplateColumns: "minmax(0, 7fr) minmax(0, 3fr)",

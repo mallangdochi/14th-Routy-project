@@ -6,7 +6,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import {
   ArrowRightLeft,
   CalendarDays,
@@ -34,7 +34,7 @@ import {
   type StoredStop,
   getTripPlaces,
 } from "../../api/tripPlaces";
-import { getSharedTripDetail } from "../../api/tripSharing";
+import { getGuestSchedule, getSharedTripDetail } from "../../api/tripSharing";
 import { useAuth } from "../../contexts/AuthContext";
 import Loader from "../../components/loader/Loader";
 import Logout from "../../components/emptyUI/logout/Logout";
@@ -226,7 +226,9 @@ export default function TripDaysPage() {
   const { tripId } = useParams<{ tripId: string }>();
 
   const { user } = useAuth();
-  const userId = user?.id;
+  const location = useLocation();
+  const guestView = new URLSearchParams(location.search).get("access") === "viewer";
+  const userId = guestView ? `guest:${tripId ?? ""}` : user?.id;
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<TimetableResult | null>(null);
   const currentResult =
@@ -237,16 +239,20 @@ export default function TripDaysPage() {
       : null;
   const isLoading = Boolean(userId && tripId) && !currentResult;
   const loadError = currentResult?.error ?? "";
+  const canEditTrip = !guestView && (currentResult?.permission === "owner" || currentResult?.permission === "editor");
   const days = useMemo(() => currentResult?.days ?? [], [currentResult]);
 
   useEffect(() => {
     if (!userId || !tripId) return;
     const controller = new AbortController();
-    void Promise.all([
-      getSharedTripDetail(tripId, controller.signal),
-      getTripDays(tripId, controller.signal),
-      getTripPlaces(tripId, controller.signal),
-    ])
+    const load = guestView
+      ? getGuestSchedule(tripId, controller.signal).then(value => [value.detail, value.dateResult, value.schedule] as const)
+      : Promise.all([
+          getSharedTripDetail(tripId, controller.signal),
+          getTripDays(tripId, controller.signal),
+          getTripPlaces(tripId, controller.signal),
+        ]);
+    void load
       .then(([detail, dateResult, schedule]) => {
         if (controller.signal.aborted) return;
         if (dateResult.tripId !== tripId || schedule.tripId !== tripId) {
@@ -294,7 +300,7 @@ export default function TripDaysPage() {
         });
       });
     return () => controller.abort();
-  }, [userId, tripId, attempt]);
+  }, [userId, tripId, attempt, guestView]);
 
   const [placeModalOpen, setPlaceModalOpen] = useState(false);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
@@ -346,6 +352,7 @@ export default function TripDaysPage() {
 
   const handleAddPlaces = async (places: ScheduledPlace[]) => {
     if (
+      !canEditTrip ||
       !tripId ||
       !targetDay ||
       !currentResult?.trip ||
@@ -735,7 +742,7 @@ export default function TripDaysPage() {
         <div className="trip-days-inner">
           {/* <Breadcrumb className="trip-days-breadcrumb" /> */}
 
-          {!user ? (
+          {!user && !guestView ? (
             <Logout />
           ) : !tripId ? (
             <div className="empty-state" role="alert">
@@ -776,8 +783,9 @@ export default function TripDaysPage() {
                   <button
                     type="button"
                     className="share-button"
+                    style={guestView ? { display: "none" } : undefined}
                     aria-label="여행 시간표 공유"
-                    onClick={() => setIsTimetableShareOpen(true)}
+                    onClick={() => { if (!guestView) setIsTimetableShareOpen(true); }}
                   >
                     <Share2 aria-hidden="true" />
                   </button>
@@ -798,11 +806,12 @@ export default function TripDaysPage() {
                     {view === "table" ? "목록 보기" : "시간표 보기"}
                   </button>
 
-                  <div className="add-place-anchor" ref={datePopoverRef}>
+                  {canEditTrip && <div className="add-place-anchor" ref={datePopoverRef} style={guestView ? { display: "none" } : undefined}>
                     <button
                       ref={addPlaceButtonRef}
                       type="button"
                       className="add-button"
+                      hidden={guestView}
                       disabled={
                         !days.length || currentResult?.permission === "viewer"
                       }
@@ -893,7 +902,7 @@ export default function TripDaysPage() {
                         </button>
                       </div>
                     )}
-                  </div>
+                  </div>}
                 </div>
               </header>
 
@@ -1182,7 +1191,7 @@ export default function TripDaysPage() {
       {currentResult?.trip && targetDay && (
         <PlaceAddModal
           key={`${userId}:${tripId}`}
-          open={placeModalOpen && !loadError}
+          open={canEditTrip && placeModalOpen && !loadError}
           dayLabel={`DAY ${targetDay.day}`}
           dateLabel={formatDate(targetDay.date)}
           region={currentResult.trip.region}
@@ -1197,7 +1206,7 @@ export default function TripDaysPage() {
       )}
       <TimetableShareModal
         key={`${userId ?? ""}:${tripId ?? ""}`}
-        isOpen={Boolean(currentResult && !loadError && isTimetableShareOpen)}
+        isOpen={!guestView && Boolean(currentResult && !loadError && isTimetableShareOpen)}
         onClose={() => setIsTimetableShareOpen(false)}
         days={days}
       />
