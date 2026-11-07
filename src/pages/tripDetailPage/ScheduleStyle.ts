@@ -3121,21 +3121,28 @@ export const EditMapRoot = styled.div({
       filter: "drop-shadow(0 3px 5px rgba(0, 124, 128, 0.3))",
     },
 
-    '.route-map-marker:not([data-selected="true"]) .route-map-pin:hover path': {
-      fill: "#399C9F",
-    },
+
   },
   '.route-map-marker[data-selected="true"] .route-map-pin': {
     transform: "scale(1.2)",
   },
   '.route-map-marker[data-selected="true"] .route-map-pin path': {
-    fill: "#EB654B",
+    stroke: "#D3B16A",
+    strokeWidth: "4px",
   },
   '.route-map-marker[data-selected="true"] .route-map-tooltip': {
     bottom: "calc(120% + 8px)",
   },
   "@media (prefers-reduced-motion: reduce)": {
     ".route-map-pin": { transition: "none" },
+  },
+  ".route-map-pin-time": {
+    position: "absolute", top: "52px", left: "50%",
+    transform: "translateX(-50%)", whiteSpace: "nowrap",
+    padding: "2px 6px", border: "1px solid #DCE5E6",
+    borderRadius: "6px", backgroundColor: "#FFFFFF",
+    color: "#0A414B", fontSize: "15px", fontWeight: 700,
+    boxShadow: "0 2px 6px rgba(0,0,0,.1)", pointerEvents: "none",
   },
   ".route-map-tooltip": {
     position: "absolute",

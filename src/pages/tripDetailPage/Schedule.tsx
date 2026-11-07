@@ -89,7 +89,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import defaultTripImage from "../../assets/where.webp";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import * as S from "./ScheduleStyle";
+import { RouteMapDetails, buildDisplayRoutes, routeColor, useTouchMap, type RouteSelection, type TravelMode } from "../../components/map/RouteMapInfo";
 import KakaoMap from "../../components/kakaoMap/KakaoMap";
+import { getKakaoMapPointUrl } from "../../api/kakao/kakaoLinks";
+import MapSearchOverlay, { type SearchedMapPlace } from "../../components/map/MapSearchOverlay";
+import { getAllowedCurrentLocation, LOCATION_CHANGE_EVENT } from "../../utils/locationService";
 import TravelRouteSummary, {
   type RouteLine,
 } from "../../components/Schedule/TravelRouteSummary";
@@ -1413,7 +1417,10 @@ function ScheduleContent({
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const [showRoute, setShowRoute] = useState(true);
+  const [routeMode, setRouteMode] = useState<TravelMode>("walk");
   const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
+  const [locatedStops, setLocatedStops] = useState<Record<number, { lat: number; lng: number }>>({});
+  const [mapPlaceSaving, setMapPlaceSaving] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -1426,6 +1433,35 @@ function ScheduleContent({
     () => stopsByDay[activeDayId] ?? [],
     [stopsByDay, activeDayId],
   );
+
+  // 경로 API와 두 지도 탭이 동일한 좌표를 사용하도록 저장되지 않은 장소 좌표를 보완합니다.
+  // 좌표는 화면의 메모리에서만 유지하며 DB에는 임의로 기록하지 않습니다.
+  useEffect(() => {
+    let cancelled = false;
+    setLocatedStops({});
+    if (!stops.some((stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng)))
+      return () => { cancelled = true; };
+    void loadKakaoMaps().then(async (sdk) => {
+      const places = new sdk.services.Places();
+      const resolved = await Promise.all(stops.map((stop) => resolveKakaoPlace(sdk, places, {
+        id: stop.id, title: stop.title, address: stop.address,
+        latitude: stop.lat, longitude: stop.lng,
+      })));
+      if (cancelled) return;
+      const positions: Record<number, { lat: number; lng: number }> = {};
+      resolved.forEach((point, index) => {
+        if (point) positions[stops[index].id] = { lat: point.latitude, lng: point.longitude };
+      });
+      setLocatedStops(positions);
+    }).catch(() => { /* 좌표가 조회되지 않은 구간은 경로 추정 없이 미조회로 표시 */ });
+    return () => { cancelled = true; };
+  }, [stops]);
+
+  const routeStops = React.useMemo(() => stops.map((stop) => ({
+    ...stop,
+    lat: Number.isFinite(stop.lat) ? stop.lat : locatedStops[stop.id]?.lat,
+    lng: Number.isFinite(stop.lng) ? stop.lng : locatedStops[stop.id]?.lng,
+  })), [stops, locatedStops]);
 
   const selectedStopCount = stops.filter((stop) =>
     selectedStopIds.includes(stop.id),
@@ -1441,18 +1477,18 @@ function ScheduleContent({
   };
   const showMapPanel = activeTab === "map" || stops.length > 0;
 
-  const visibleMapStops = stops.filter(
+  const visibleMapStops = routeStops.filter(
     (stop) => activeFilter === "전체" || stop.category === activeFilter,
   );
 
   const kakaoMapStops = React.useMemo(
     () =>
-      stops.map((stop) => ({
+      routeStops.map((stop) => ({
         ...stop,
         latitude: stop.lat,
         longitude: stop.lng,
       })),
-    [stops],
+    [routeStops],
   );
 
   const updateStops = (updater: (previous: Stop[]) => Stop[]) => {
@@ -1952,24 +1988,58 @@ function ScheduleContent({
     }
   };
 
-  // 카카오 지도에서 선택한 장소 추가
-  const addPlaceFromKakao = (place: KakaoPlace) => {
-    updateStops((previous) => [
-      ...previous,
-      {
-        id: Date.now(),
-        title: place.name,
-        time: selectedTrip.startTime,
-        description: "카카오 지도에서 추가한 장소",
-        address: place.address,
-        category: "관광지",
-        image: defaultTripImage,
-        x: 50,
-        y: 50,
-        lat: place.lat,
-        lng: place.lng,
-      },
-    ]);
+  // 지도 검색 결과의 장소를 DB에 저장합니다. 화면 상태만 바꾸지 않습니다.
+  const addPlaceFromKakao = async (place: SearchedMapPlace | KakaoPlace): Promise<void> => {
+    if (!canEditTrip) throw new Error("일정을 편집할 권한이 없습니다.");
+    if (scheduleSaveLock.current) throw new Error("다른 일정 저장이 진행 중입니다.");
+
+    const added: Stop = {
+      id: Date.now(),
+      placeId: "id" in place && place.id ? place.id : "map-" + place.lat + "-" + place.lng,
+      title: place.name,
+      time: selectedTrip.startTime,
+      description: "description" in place && place.description ? place.description : "카카오 지도에서 선택한 장소",
+      address: place.address,
+      category: "category" in place ? place.category : "관광지",
+      image: defaultTripImage,
+      x: 50,
+      y: 50,
+      stayDurationMinutes: 60,
+      transport: modalDefaultTransport,
+      lat: place.lat,
+      lng: place.lng,
+    };
+    scheduleSaveLock.current = true;
+    setMapPlaceSaving(true);
+    try {
+      const saved = await appendTripPlaces(String(selectedTrip.id), activeDay.isoDate, [added]);
+      const previousVersion = scheduleVersionRef.current;
+      if (!isEditMode || saved.version === previousVersion + 1) {
+        scheduleVersionRef.current = saved.version;
+      }
+      const persisted = createStoredStopsByDay(saved, days.map((day) => day.isoDate));
+      const mergeAdded = (previous: Record<number, Stop[]>) => {
+        const oldDay = previous[activeDay.id] ?? [];
+        const persistedDay = persisted[activeDay.id] ?? [];
+        const newStops = persistedDay.filter((stop) =>
+          stop.placeId === added.placeId &&
+          !oldDay.some((entry) => entry.id === stop.id),
+        );
+        return { ...previous, [activeDay.id]: [...oldDay, ...newStops] };
+      };
+      if (isEditMode) {
+        setStopsByDay(mergeAdded);
+        if (editAllSnapshotRef.current) {
+          editAllSnapshotRef.current = mergeAdded(editAllSnapshotRef.current);
+        }
+      } else {
+        setStopsByDay(persisted);
+      }
+      setShowSaveStatus(true);
+    } finally {
+      scheduleSaveLock.current = false;
+      setMapPlaceSaving(false);
+    }
   };
 
   // const addDay = () => {
@@ -2502,7 +2572,9 @@ function ScheduleContent({
                 </S.StopList>
 
                 <TravelRouteSummary
-                  stops={stops}
+                  stops={routeStops}
+                  mode={routeMode}
+                  onModeChange={setRouteMode}
                   onRoutesReady={setRoutePaths}
                 />
 
@@ -2531,14 +2603,17 @@ function ScheduleContent({
                         category="전체"
                         showRoute={showRoute}
                         routePaths={routePaths}
+                        routeMode={routeMode}
                         zoom={mapZoom}
                       />
                     ) : activeTab === "map" ? (
                       <KakaoTravelMap
                         region={tripRegion}
                         stops={visibleMapStops}
-                        routeStops={stops}
+                        routeStops={routeStops}
                         routePaths={routePaths}
+                        routeMode={routeMode}
+                        onRouteModeChange={setRouteMode}
                         showRoute={showRoute}
                         zoom={mapZoom}
                         onAddPlace={addPlaceFromKakao}
@@ -2549,8 +2624,23 @@ function ScheduleContent({
                         stops={kakaoMapStops}
                         category={activeFilter}
                         routePaths={routePaths}
+                        routeMode={routeMode}
+                        onRouteModeChange={setRouteMode}
                         showRoute={showRoute}
                         zoom={mapZoom}
+                      />
+                    )}
+                    {(activeTab === "schedule" || activeTab === "map") && (
+                      <MapSearchOverlay
+                        key={activeTab + ":" + activeDayId}
+                        region={tripRegion}
+                        canAdd={canEditTrip && !mapPlaceSaving}
+                        onAddPlace={addPlaceFromKakao}
+                        onFocus={(lat, lng) => {
+                          window.dispatchEvent(new CustomEvent("routy:map:focus", {
+                            detail: { lat, lng },
+                          }));
+                        }}
                       />
                     )}
                   </S.MapCanvas>
@@ -3164,6 +3254,7 @@ type EditRouteMapProps = {
   category: string;
   showRoute: boolean;
   routePaths: RouteLine[];
+  routeMode: TravelMode;
   zoom: number;
 };
 
@@ -3172,13 +3263,16 @@ function createMarkerContent(
   order: number,
   total: number,
   onActiveChange: (active: boolean) => void,
+  onSelect: (selected: boolean) => void,
+  onHover: (active: boolean) => void,
 ): HTMLElement {
   const marker = document.createElement("div");
   marker.className = "route-map-marker";
   const button = document.createElement("button");
   button.type = "button";
   button.className = "route-map-pin";
-  button.setAttribute("aria-label", `${order}번 ${stop.title} 일정 정보`);
+  const role = total === 1 ? "출발·도착" : order === 1 ? "출발지" : order === total ? "도착지" : "경유지";
+  button.setAttribute("aria-label", `${order}번 ${role} ${stop.title}${stop.time ? ` · ${stop.time}` : ""}`);
   button.setAttribute("aria-expanded", "false");
   button.innerHTML = renderToStaticMarkup(
     <svg width="44" height="54" viewBox="0 0 44 54" aria-hidden="true">
@@ -3210,7 +3304,16 @@ function createMarkerContent(
     address.textContent = stop.address;
     tooltip.append(address);
   }
-  marker.append(button, tooltip);
+  const description = (stop as KakaoStop & { description?: string }).description;
+  if (description?.trim()) {
+    const info = document.createElement("span");
+    info.textContent = description;
+    tooltip.append(info);
+  }
+  const timeLabel = document.createElement("span");
+  timeLabel.className = "route-map-pin-time";
+  timeLabel.textContent = stop.time || "시간 미정";
+  marker.append(button, timeLabel, tooltip);
   const show = (active: boolean) => {
     tooltip.hidden = !active;
     button.setAttribute("aria-expanded", String(active));
@@ -3223,6 +3326,7 @@ function createMarkerContent(
     marker.dataset.selected = "false";
     button.setAttribute("aria-pressed", "false");
     show(false);
+    onSelect(false);
   };
   marker.addEventListener("route-marker-deselect", deselect);
   button.setAttribute("aria-pressed", "false");
@@ -3240,7 +3344,10 @@ function createMarkerContent(
     marker.dataset.selected = String(tapped);
     button.setAttribute("aria-pressed", String(tapped));
     show(tapped);
+    onSelect(tapped);
   });
+  button.addEventListener("mouseenter", () => onHover(true));
+  button.addEventListener("mouseleave", () => onHover(false));
   button.addEventListener("keydown", (event) => {
     if (event.key === "Escape") deselect();
   });
@@ -3252,17 +3359,23 @@ function ScheduleEditRouteMap({
   category,
   showRoute,
   routePaths,
+  routeMode,
   zoom,
 }: EditRouteMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const layersRef = useRef<OverlayInstance[]>([]);
+  const userLocationOverlayRef = useRef<OverlayInstance | null>(null);
   const locatedRef = useRef<LocatedStop[]>([]);
   const initialLevelRef = useRef(9);
   const [sdk, setSdk] = useState<KakaoMapsSDK | null>(null);
   const [error, setError] = useState("");
   const [unresolved, setUnresolved] = useState(0);
   const [loading, setLoading] = useState(Boolean(KAKAO_KEY));
+  // Routy desktop route hover patch v1. Touch devices use the same expandable detail panel.
+  const [routeSelection, setRouteSelection] = useState<RouteSelection | null>(null);
+  const isTouchMap = useTouchMap();
+  const routePinnedRef = useRef(false);
 
   useEffect(() => {
     if (!KAKAO_KEY) return;
@@ -3297,6 +3410,59 @@ function ScheduleEditRouteMap({
       mapRef.current = null;
     };
   }, []);
+
+  // 지도 검색 결과를 선택하거나 현재 위치 버튼을 누르면 지도 중심으로 이동합니다.
+  useEffect(() => {
+    if (!sdk) return;
+    const focus = (event: Event) => {
+      const point = (event as CustomEvent<{ lat: number; lng: number }>).detail;
+      if (!point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return;
+      const map = mapRef.current;
+      if (!map) return;
+      map.setCenter(new sdk.LatLng(point.lat, point.lng));
+      map.setLevel(4);
+    };
+    window.addEventListener("routy:map:focus", focus);
+    return () => window.removeEventListener("routy:map:focus", focus);
+  }, [sdk]);
+
+  // 사용자 위치 좌표는 메모리에서만 사용하며 DB/로컬 저장소에 기록하지 않습니다.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!sdk || !map) return;
+    let cancelled = false;
+    const refresh = () => {
+      userLocationOverlayRef.current?.setMap(null);
+      userLocationOverlayRef.current = null;
+      void getAllowedCurrentLocation().then((location) => {
+        if (cancelled || !location) return;
+        const bubble = document.createElement("div");
+        bubble.textContent = "● 현재 위치";
+        bubble.setAttribute("aria-label", "내 현재 위치");
+        bubble.style.cssText = "background:#0B626A;color:white;padding:6px 10px;border:2px solid white;border-radius:16px;font-size:15px;font-weight:700;box-shadow:0 2px 10px #0004;white-space:nowrap;";
+        const overlay = new sdk.CustomOverlay({
+          map,
+          position: new sdk.LatLng(location.lat, location.lng),
+          content: bubble,
+          yAnchor: 1,
+          zIndex: 15,
+        });
+        userLocationOverlayRef.current = overlay;
+        if (stops.length === 0) {
+          map.setCenter(new sdk.LatLng(location.lat, location.lng));
+          map.setLevel(5);
+        }
+      }).catch(() => { /* GPS 거부/실패 시 기존 일정 지도 유지 */ });
+    };
+    refresh();
+    window.addEventListener(LOCATION_CHANGE_EVENT, refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(LOCATION_CHANGE_EVENT, refresh);
+      userLocationOverlayRef.current?.setMap(null);
+      userLocationOverlayRef.current = null;
+    };
+  }, [sdk, stops.length]);
 
   // 일정/날짜 변경 시 위치를 다시 찾되, API 응답이 늦게 오면 기존 결과를 표시하지 않습니다.
   useEffect(() => {
@@ -3358,36 +3524,44 @@ function ScheduleEditRouteMap({
     layersRef.current.forEach((layer) => layer.setMap(null));
     layersRef.current = [];
     const coordinatePoints = locatedRef.current;
+    const openRouteInfo = (info: RouteSelection, pinned: boolean) => {
+      routePinnedRef.current = pinned;
+      setRouteSelection(info);
+    };
+    const hoverRouteInfo = (info: RouteSelection) => {
+      if (!isTouchMap && !routePinnedRef.current) setRouteSelection(info);
+    };
+    const leaveRouteInfo = () => {
+      if (!isTouchMap && !routePinnedRef.current) setRouteSelection(null);
+    };
+    const kakaoEvent = (sdk as KakaoMapsSDK & {
+      event?: { addListener(target: object, event: string, listener: () => void): void };
+    }).event;
     if (showRoute) {
-      const actualRoutes = routePaths.filter((leg) => leg.path.length >= 2);
-      if (actualRoutes.length > 0) {
-        for (const leg of actualRoutes) {
-          layersRef.current.push(
-            new sdk.Polyline({
-              map,
-              path: leg.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
-              strokeWeight: 4,
-              strokeColor: "#005259",
-              strokeOpacity: 0.85,
-              strokeStyle: "solid",
-            }),
-          );
-        }
-      } else if (coordinatePoints.length >= 2) {
-        // Fallback is a visit-order line, not a real road route.
-        layersRef.current.push(
-          new sdk.Polyline({
-            map,
-            path: coordinatePoints.map(
-              ({ latitude, longitude }) => new sdk.LatLng(latitude, longitude),
-            ),
-            strokeWeight: 3,
-            strokeColor: "#005259",
-            strokeOpacity: 0.8,
-            strokeStyle: "solid",
-          }),
-        );
-      }
+      const ordered = stops.map((stop) => {
+        const found = coordinatePoints.find((point) => String(point.stop.id) === String(stop.id));
+        return {
+          id: stop.id, title: stop.title, time: stop.time,
+          address: stop.address,
+          description: "description" in stop && typeof stop.description === "string" ? stop.description : undefined,
+          lat: found?.latitude, lng: found?.longitude,
+        };
+      });
+      buildDisplayRoutes(ordered, routePaths, routeMode).forEach((leg) => {
+        const line = new sdk.Polyline({
+          map,
+          path: leg.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
+          strokeWeight: leg.isFallback ? 5 : 9,
+          strokeColor: leg.isFallback ? "#778D90" : routeColor(leg.mode),
+          strokeOpacity: leg.isFallback ? 0.7 : 0.92,
+          strokeStyle: leg.isFallback ? "shortdash" : "solid",
+        });
+        layersRef.current.push(line);
+        const info: RouteSelection = { kind: "route", route: leg, order: leg.order ?? 1 };
+        kakaoEvent?.addListener(line, "mouseover", () => hoverRouteInfo(info));
+        kakaoEvent?.addListener(line, "mouseout", leaveRouteInfo);
+        kakaoEvent?.addListener(line, "click", () => openRouteInfo(info, true));
+      });
     }
     coordinatePoints.forEach(({ stop, latitude, longitude }) => {
       if (category !== "전체" && stop.category !== category) return;
@@ -3401,6 +3575,33 @@ function ScheduleEditRouteMap({
         stops.length,
         (active) => {
           overlay?.setZIndex?.(active ? 20 : 3);
+        },
+        (selected) => {
+          if (selected) {
+            openRouteInfo({
+              kind: "stop", order, total: stops.length,
+              stop: {
+                id: stop.id, title: stop.title, time: stop.time,
+                address: stop.address, category: stop.category,
+                description: "description" in stop && typeof stop.description === "string" ? stop.description : undefined,
+                externalUrl: getKakaoMapPointUrl(stop.title, latitude, longitude),
+              },
+            }, true);
+          } else {
+            routePinnedRef.current = false;
+            setRouteSelection(null);
+          }
+        },
+        (active) => {
+          if (!active || isTouchMap) return;
+          hoverRouteInfo({
+            kind: "stop", order, total: stops.length,
+            stop: { id: stop.id, title: stop.title, time: stop.time,
+              address: stop.address, category: stop.category,
+              description: "description" in stop && typeof stop.description === "string" ? stop.description : undefined,
+              externalUrl: getKakaoMapPointUrl(stop.title, latitude, longitude),
+            },
+          });
         },
       );
       overlay = new sdk.CustomOverlay({
@@ -3416,7 +3617,12 @@ function ScheduleEditRouteMap({
       layersRef.current.forEach((layer) => layer.setMap(null));
       layersRef.current = [];
     };
-  }, [sdk, stops, category, showRoute, routePaths, loading]);
+  }, [sdk, stops, category, showRoute, routePaths, routeMode, loading, isTouchMap]);
+
+  useEffect(() => {
+    routePinnedRef.current = false;
+    setRouteSelection(null);
+  }, [stops, routePaths, showRoute, routeMode]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -3446,6 +3652,11 @@ function ScheduleEditRouteMap({
         style={{ width: "100%", height: "100%" }}
         aria-label="카카오 지도"
       />
+      <RouteMapDetails
+        selection={routeSelection}
+        isTouch={isTouchMap}
+        onClose={() => { routePinnedRef.current = false; setRouteSelection(null); }}
+      />
       {!KAKAO_KEY ? (
         <S.EditMapMessage role="status">
           <strong>카카오맵 API 키가 필요해요.</strong>
@@ -3471,8 +3682,8 @@ function ScheduleEditRouteMap({
             ? `위치를 확인할 수 없는 장소 ${unresolved}개 · `
             : ""}
           {routePaths.some((leg) => leg.path.length >= 2)
-            ? "API에서 조회한 경로를 표시하고 있습니다."
-            : "연결선은 방문 순서이며 실제 도로 경로가 아닙니다."}
+            ? "실선은 API 경로, 점선은 조회되지 않은 방문 구간입니다."
+            : "점선은 방문 순서만 표시하며 실제 도로 경로가 아닙니다."}
         </S.EditMapNote>
       )}
     </S.EditMapRoot>

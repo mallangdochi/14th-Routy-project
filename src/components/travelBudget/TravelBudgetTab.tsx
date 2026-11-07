@@ -5,13 +5,10 @@ import {
   BarChart3,
   CheckCircle,
   ChevronRight,
-  // Pencil,
   Plus,
   Trash2,
-  Wallet,
   X,
 } from "lucide-react";
-import budgetMascot from "../../assets/budgetMascot.png";
 import Dropdown from "../dropdown/Dropdown";
 import DatePicker from "../pickers/DatePicker";
 import { TravelBudgetTabStyle } from "./TravelBudgetTabStyle";
@@ -363,7 +360,9 @@ function BudgetContents({ tripId }: { tripId: string }) {
   }, [deleteToast]);
 
   const visibleGroups = groups.filter(
-    (group) => filter === "all" || filter === group.key,
+    (group) =>
+      (filter === "all" || filter === group.key) &&
+      expenses.some((expense) => groupForDate(expense.date) === group.key),
   );
 
   useEffect(() => {
@@ -584,16 +583,7 @@ function BudgetContents({ tripId }: { tripId: string }) {
                   onChange={setFilter}
                 />
               )}
-              {/* {expenses.length === 0 && (
-                <button
-                  type="button"
-                  className="button-outline edit-button"
-                  onClick={() => openNew()}
-                  disabled={!canEdit || saving || members.length === 0}
-                >
-                  <Pencil size={17} /> 편집
-                </button>
-              )} */}
+              {/*  */}
               <button
                 type="button"
                 className="button-primary add-button"
@@ -754,68 +744,49 @@ function BudgetContents({ tripId }: { tripId: string }) {
               })}
             </div>
           ) : (
-            <div className="empty-ledger">
-              <img src={budgetMascot} alt="계산기를 들고 있는 라우티 캐릭터" />
-              <h3>아직 등록된 지출이 없어요</h3>
-              <p>
-                여행 중 사용한 비용을 기록하고
-                <br />
-                함께 예산을 관리해보세요.
-              </p>
+            <div className="budget-blank-slate" role="status">
+              <h3>아직 지출 내역이 없습니다</h3>
+              <p>지출을 추가하면 여행 날짜별로 가계부가 정리됩니다.</p>
+              <button
+                type="button"
+                className="button-primary"
+                onClick={() => openNew()}
+              >
+                <Plus size={18} aria-hidden="true" /> 첫 지출 추가
+              </button>
             </div>
           )}
         </section>
 
-        <aside className="summary-panel" aria-label="예산 현황">
-          <div className="summary-card">
-            {expenses.length > 0 ? (
+        {expenses.length > 0 && (
+          <aside className="summary-panel" aria-label="예산 현황">
+            <div className="summary-card">
               <div className="total-display">
                 <span className="summary-label">◆ 총 지출</span>
                 <strong>{formatWon(total)}</strong>
                 <p>여행 전체 누적 지출</p>
               </div>
-            ) : (
-              <div className="empty-total">
-                <h2>예산 현황</h2>
-                <p>
-                  총 지출 <strong>0</strong> 원
-                </p>
-                <div className="empty-progress" aria-hidden="true" />
-              </div>
-            )}
-            {expenses.length > 0 && (
-              <button
-                className="stats-button"
-                type="button"
-                onClick={goToStats}
-              >
-                <BarChart3 size={20} /> 지출 통계 및 정산 보기{" "}
-                <ChevronRight size={20} />
-              </button>
-            )}
-            {renderBudgetStatus()}
-            <div className="summary-tip">
-              {expenses.length === 0 ? (
-                <>
-                  <Wallet size={49} strokeWidth={1.9} aria-hidden="true" />
-                  <p>
-                    지출을 추가하면
-                    <br />
-                    예산 현황을 확인할 수 있어요.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <strong>지출 내역을 한눈에 관리하세요</strong>
-                  <p>
-                    상세 그래프, 카테고리별 지출, 멤버별 결제 내역을 확인할 수
-                    있어요.
-                  </p>
-                </>
+              {expenses.length > 0 && (
+                <button
+                  className="stats-button"
+                  type="button"
+                  onClick={goToStats}
+                >
+                  <BarChart3 size={20} /> 지출 통계 및 정산 보기{" "}
+                  <ChevronRight size={20} />
+                </button>
               )}
+              {renderBudgetStatus()}
+              <div className="summary-tip">
+                <strong>지출 내역을 한눈에 관리하세요</strong>
+                <p>
+                  상세 그래프, 카테고리별 지출, 멤버별 결제 내역을 확인할 수
+                  있어요.
+                </p>
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
       {budgetDialogMounted && (
         <div
