@@ -202,3 +202,35 @@ export async function previewTripInvite(token: string, signal?: AbortSignal): Pr
     throw new Error("초대 링크 응답을 확인하지 못했습니다.");
   return result as TripInvitePreview;
 }
+
+export type GuestJoinStatus = {
+ tripId: string;
+ status: "none" | "pending" | "approved" | "rejected" | "removed";
+ permission?: "viewer";
+};
+export async function getGuestJoinStatus(tripId: string, signal?: AbortSignal) {
+ const result = await request<GuestJoinStatus>("guest_status", tripId, undefined, signal);
+ if (result.tripId !== tripId || !["none", "pending", "approved", "rejected", "removed"].includes(result.status) ||
+     (result.status === "approved" && result.permission !== "viewer"))
+  throw new Error("방문자 승인 상태를 확인하지 못했습니다.");
+ return result;
+}
+export async function requestGuestAccess(tripId: string, token: string, displayName: string) {
+ const result = await request<GuestJoinStatus>("guest_accept", tripId, { token, displayName });
+ if (result.tripId !== tripId || !["pending", "approved"].includes(result.status))
+  throw new Error("방문자 승인 요청 결과를 확인하지 못했습니다.");
+ return result;
+}
+export type GuestScheduleResult = {
+ detail: { trip: SavedTrip; permission: "viewer" };
+ dateResult: { tripId: string; dates: string[] };
+ schedule: { tripId: string; places: import("./tripPlaces").StoredStop[] };
+};
+export async function getGuestSchedule(tripId: string, signal?: AbortSignal) {
+ const result = await request<GuestScheduleResult>("guest_read", tripId, undefined, signal);
+ if (result.detail?.trip?.id !== tripId || result.detail.permission !== "viewer" ||
+  result.dateResult?.tripId !== tripId || !Array.isArray(result.dateResult.dates) ||
+  result.schedule?.tripId !== tripId || !Array.isArray(result.schedule.places))
+  throw new Error("보기 전용 일정 응답을 확인하지 못했습니다.");
+ return result;
+}

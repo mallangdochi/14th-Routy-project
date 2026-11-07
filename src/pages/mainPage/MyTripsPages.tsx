@@ -15,6 +15,7 @@ import Logout from "../../components/emptyUI/logout/Logout";
 import { useAuth } from "../../contexts/AuthContext";
 import { getMyTrips, type SavedTrip } from "../../api/trips";
 import type { trips, TripStatus } from "../../data/trips";
+import { getTripPermission } from "../../utils/tripPermissions";
 import Loader from "../../components/loader/Loader";
 
 type TripCardData = (typeof trips)[number];
@@ -386,6 +387,7 @@ export default function MyTripsPage() {
                       key={trip.id}
                       trip={trip}
                       view={view}
+                      permission={getTripPermission(currentResult?.trips.find((saved) => saved.id === trip.id))}
                       onOpen={handleOpenTrip}
                       onEdit={handleEditTrip}
                       onDelete={handleDeleteTrip}

@@ -30,12 +30,16 @@ export const TripCardStyle = styled.article({
 
   "& .trip-title-button": {
     flex: 1,
+    display: "flex",
+    gap: 20,
+
     minWidth: 0,
 
     textAlign: "left",
   },
 
   "& .trip-menu": {
+    display: "none",
     "& .sort-trigger": {
       justifyContent: "center",
       height: "30px",
@@ -120,7 +124,7 @@ export const TripCardStyle = styled.article({
 
   "& .trip-content h2": {
     overflow: "hidden",
-    paddingRight: "20px",
+    // paddingRight: "20px",
     color: "#152c45",
     fontSize: "18px",
     fontWeight: 600,
@@ -343,7 +347,7 @@ export const TripCardStyle = styled.article({
 
     "& .trip-content h2": {
       overflow: "hidden",
-      paddingRight: "20px",
+      // paddingRight: "20px",
       color: "#152c45",
       fontSize: "18px",
       fontWeight: 600,
