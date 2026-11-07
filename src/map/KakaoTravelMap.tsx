@@ -3,7 +3,7 @@ import { getKakaoMapKey } from "../api/kakao/kakaoSdk";
 import { getAllowedCurrentLocation } from "../utils/locationService";
 import * as S from "./KakaoTravelMapStyle";
 import {
-  RouteMapDetails, RouteModePicker, useTouchMap, routeColor,
+  RouteMapDetails, RouteModePicker, buildDisplayRoutes, useTouchMap, routeColor,
   type RouteLine, type RouteSelection, type TravelMode,
 } from "../components/map/RouteMapInfo";
 import { getKakaoMapPointUrl } from "../api/kakao/kakaoLinks";
@@ -92,6 +92,7 @@ type KakaoSDK = {
     strokeWeight: number;
     strokeColor: string;
     strokeOpacity: number;
+    strokeStyle?: "solid" | "shortdash";
   }) => Overlay;
   services: {
     Places: new () => {
@@ -338,17 +339,17 @@ export default function KakaoTravelMap({
     });
 
     if (showRoute) {
-      routePaths?.forEach((route, index) => {
-        if (route.path.length < 2) return;
+      buildDisplayRoutes(ordered, routePaths, routeMode).forEach((route) => {
         const polyline = new sdk.Polyline({
           map,
           path: route.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
-          strokeWeight: 6,
-          strokeColor: routeColor(route.mode),
-          strokeOpacity: 0.92,
+          strokeWeight: route.isFallback ? 5 : 9,
+          strokeColor: route.isFallback ? "#778D90" : routeColor(route.mode),
+          strokeOpacity: route.isFallback ? 0.7 : 0.92,
+          strokeStyle: route.isFallback ? "shortdash" : "solid",
         });
         overlaysRef.current.push(polyline);
-        const info: RouteSelection = { kind: "route", route, order: index + 1 };
+        const info: RouteSelection = { kind: "route", route, order: route.order ?? 1 };
         sdk.event?.addListener(polyline, "mouseover", () => hover(info));
         sdk.event?.addListener(polyline, "mouseout", leave);
         sdk.event?.addListener(polyline, "click", () => show(info, true));
@@ -358,12 +359,12 @@ export default function KakaoTravelMap({
       overlaysRef.current.forEach((overlay) => overlay.setMap(null));
       overlaysRef.current = [];
     };
-  }, [stops, routeStops, routePaths, showRoute, ready, isTouch]);
+  }, [stops, routeStops, routePaths, routeMode, showRoute, ready, isTouch]);
 
   useEffect(() => {
     setSelection(null);
     pinnedRef.current = false;
-  }, [stops, routeStops, routePaths, showRoute]);
+  }, [stops, routeStops, routePaths, routeMode, showRoute]);
 
   // 일정 변경 시 해당 장소들이 보이도록 한 번만 지도 범위를 조정합니다.
   useEffect(() => {

@@ -2,7 +2,7 @@ import styled from "@emotion/styled";
 
 export const ModePicker = styled.div`
   position: absolute;
-  left: 12px;
+  right: 12px;
   top: 12px;
   z-index: 8;
   display: flex;
@@ -14,6 +14,13 @@ export const ModePicker = styled.div`
   border: 1px solid #dce5e6;
   border-radius: 11px;
   box-shadow: 0 3px 12px rgba(3, 40, 46, .12);
+  @media (max-width: 1100px) {
+    top: auto;
+    bottom: 62px;
+    right: 8px;
+    left: 8px;
+    justify-content: center;
+  }
 `;
 export const ModeButton = styled.button<{ $active: boolean }>`
   border: 0;

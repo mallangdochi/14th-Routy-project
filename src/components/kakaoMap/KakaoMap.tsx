@@ -7,7 +7,7 @@ import {
 } from "../../api/kakao/kakaoPlaces";
 import { getKakaoMapPointUrl } from "../../api/kakao/kakaoLinks";
 import {
-  RouteMapDetails, RouteModePicker, useTouchMap, routeColor,
+  RouteMapDetails, RouteModePicker, buildDisplayRoutes, useTouchMap, routeColor,
   type RouteLine, type RouteSelection, type TravelMode,
 } from "../map/RouteMapInfo";
 import type {
@@ -201,18 +201,23 @@ export default function KakaoMap({
     };
 
     if (showRoute) {
-      routePaths?.forEach((route, index) => {
-        if (route.path.length < 2) return;
+      const ordered = stops.map((stop) => {
+        const point = locatedRef.current.find((row) => String(row.stop.id) === String(stop.id));
+        return { id: stop.id, title: stop.title, time: stop.time, address: stop.address,
+          description: "description" in stop && typeof stop.description === "string" ? stop.description : undefined,
+          lat: point?.latitude, lng: point?.longitude };
+      });
+      buildDisplayRoutes(ordered, routePaths, routeMode).forEach((route) => {
         const line = new sdk.Polyline({
           map,
           path: route.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
-          strokeWeight: 6,
-          strokeColor: routeColor(route.mode),
-          strokeOpacity: 0.92,
-          strokeStyle: "solid",
+          strokeWeight: route.isFallback ? 5 : 9,
+          strokeColor: route.isFallback ? "#778D90" : routeColor(route.mode),
+          strokeOpacity: route.isFallback ? 0.7 : 0.92,
+          strokeStyle: route.isFallback ? "shortdash" : "solid",
         });
         layersRef.current.push(line);
-        const info: RouteSelection = { kind: "route", route, order: index + 1 };
+        const info: RouteSelection = { kind: "route", route, order: route.order ?? 1 };
         eventApi?.addListener(line, "mouseover", () => hoverInfo(info));
         eventApi?.addListener(line, "mouseout", endHover);
         eventApi?.addListener(line, "click", () => openInfo(info, true));
@@ -251,12 +256,12 @@ export default function KakaoMap({
       layersRef.current.forEach((layer) => layer.setMap(null));
       layersRef.current = [];
     };
-  }, [sdk, stops, category, routePaths, showRoute, loading, isTouch]);
+  }, [sdk, stops, category, routePaths, routeMode, showRoute, loading, isTouch]);
 
   useEffect(() => {
     setSelection(null);
     pinnedRef.current = false;
-  }, [stops, routePaths, showRoute]);
+  }, [stops, routePaths, routeMode, showRoute]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -314,7 +319,7 @@ export default function KakaoMap({
           {unresolved > 0
             ? `위치를 확인할 수 없는 장소 ${unresolved}개 · `
             : ""}
-          {routePaths?.length ? "경로선을 눌러 이동 정보를 확인하세요." : "조회된 경로가 없습니다. 좌표·API 설정을 확인하세요."}
+          {routePaths?.length ? "실선: 실제 API 경로 · 점선: 조회되지 않은 구간" : "점선은 방문 순서이며 실제 경로는 조회되지 않았습니다."}
         </Note>
       )}
     </MapRoot>
