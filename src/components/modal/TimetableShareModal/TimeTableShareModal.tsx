@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { FileText, Image as ImageIcon, Mail, Share2 } from "lucide-react";
+import { FileText, Image as ImageIcon, X } from "lucide-react";
 import modalMascote from "../../../assets/go.webp";
 import type { TripDay } from "../../../data/tripDays";
 import * as S from "./TimeTableShareModalStyle";
+import ShareOtherMethods from "../../share/ShareOtherMethods";
 
 type TimetableShareModalProps = {
   isOpen: boolean;
@@ -209,25 +210,31 @@ export default function TimetableShareModal({
   days,
 }: TimetableShareModalProps) {
   const [isMounted, setIsMounted] = useState(isOpen);
+  const [previousIsOpen, setPreviousIsOpen] = useState(isOpen);
 
-  useEffect(() => {
+  if (previousIsOpen !== isOpen) {
+    setPreviousIsOpen(isOpen);
+
     if (isOpen) {
       setIsMounted(true);
-      return;
     }
-    // 닫힘 애니메이션(270ms)이 끝난 뒤 콘텐츠를 제거합니다.
-    const timer = window.setTimeout(() => setIsMounted(false), 270);
+  }
+
+  useEffect(() => {
+    if (isOpen || !isMounted) return;
+
+    // 닫힘 애니메이션이 끝난 뒤 콘텐츠 제거
+    const timer = window.setTimeout(() => {
+      setIsMounted(false);
+    }, 270);
+
     return () => window.clearTimeout(timer);
-  }, [isOpen]);
+  }, [isOpen, isMounted]);
 
   if (!isOpen && !isMounted) return null;
 
   return (
-    <TimetableShareModalContent
-      isOpen={isOpen}
-      onClose={onClose}
-      days={days}
-    />
+    <TimetableShareModalContent isOpen={isOpen} onClose={onClose} days={days} />
   );
 }
 
@@ -304,6 +311,9 @@ function TimetableShareModalContent({
         aria-label="여행 시간표 공유하기"
         onClick={(event) => event.stopPropagation()}
       >
+        <S.ShareCloseButton type="button" onClick={onClose} aria-label="닫기">
+          <X size={18} />
+        </S.ShareCloseButton>
         {/* 상단 배너 */}
         <S.PreviewBanner>
           <S.PreviewBannerText>
@@ -356,76 +366,37 @@ function TimetableShareModalContent({
                 </S.ThumbnailTable>
               </S.ThumbnailCanvas>
             </S.PreviewThumbnail>
+            {/* 복사 버튼 */}
+            <S.ShareActionList>
+              <S.ShareActionButton type="button" onClick={copyText}>
+                <FileText size={20} />
+                {copied === "text" ? "텍스트 복사 완료" : "텍스트 공유하기"}
+              </S.ShareActionButton>
+
+              <S.ShareActionButton
+                type="button"
+                disabled={busy}
+                onClick={copyImage}
+              >
+                <ImageIcon size={20} />
+                {busy
+                  ? "이미지 생성 중..."
+                  : copied === "image"
+                    ? "이미지 복사 완료"
+                    : "이미지 공유하기"}
+              </S.ShareActionButton>
+            </S.ShareActionList>
           </S.PreviewSection>
 
-          {/* 복사 버튼 */}
-          <S.ShareActionList>
-            <S.ShareActionButton type="button" onClick={copyText}>
-              <FileText size={20} />
-              {copied === "text" ? "텍스트 복사 완료" : "텍스트 공유하기"}
-            </S.ShareActionButton>
-
-            <S.ShareActionButton
-              type="button"
-              disabled={busy}
-              onClick={copyImage}
-            >
-              <ImageIcon size={20} />
-              {busy
-                ? "이미지 생성 중..."
-                : copied === "image"
-                  ? "이미지 복사 완료"
-                  : "이미지 공유하기"}
-            </S.ShareActionButton>
-          </S.ShareActionList>
-
           {/* SNS 공유 */}
-          <S.ShareSection>
-            <S.ShareSectionTitle>
-              <Share2 size={16} />
-              <strong>다른 방법으로 공유</strong>
-            </S.ShareSectionTitle>
-
-            <S.SharePlatformList>
-              <S.SharePlatformButton
-                type="button"
-                onClick={() => alert("네이버 공유는 추후 연결 예정입니다.")}
-              >
-                <S.SharePlatformIcon $platform="naver">N</S.SharePlatformIcon>
-                네이버
-              </S.SharePlatformButton>
-
-              <S.SharePlatformButton
-                type="button"
-                onClick={() => alert("카카오톡 공유는 추후 연결 예정입니다.")}
-              >
-                <S.SharePlatformIcon $platform="kakao">
-                  <S.KakaoBubble />
-                </S.SharePlatformIcon>
-                카카오톡
-              </S.SharePlatformButton>
-
-              <S.SharePlatformButton
-                type="button"
-                onClick={() => {
-                  window.location.href =
-                    `mailto:?subject=${encodeURIComponent("Routy 여행 시간표")}` +
-                    `&body=${encodeURIComponent(scheduleText + "\n" + shareUrl)}`;
-                }}
-              >
-                <S.SharePlatformIcon $platform="email">
-                  <Mail size={25} />
-                </S.SharePlatformIcon>
-                이메일
-              </S.SharePlatformButton>
-            </S.SharePlatformList>
-          </S.ShareSection>
-
-          <S.BottomArea>
-            <S.BottomCloseButton type="button" onClick={onClose}>
-              닫기
-            </S.BottomCloseButton>
-          </S.BottomArea>
+          <ShareOtherMethods
+            tripName="Routy 여행 시간표"
+            shareText={scheduleText}
+            busy={busy}
+            ensureInvite={async () => shareUrl || null}
+            openRef={{ current: isOpen }}
+            setMessage={(message) => window.alert(message)}
+          />
         </S.PreviewModalBody>
       </S.ShareModal>
     </S.ShareOverlay>
