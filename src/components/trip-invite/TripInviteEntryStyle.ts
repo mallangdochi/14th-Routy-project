@@ -21,7 +21,7 @@ export const Page = styled.main({
   color: COLORS.ink,
   "@media (max-width: 767px)": {
     alignItems: "flex-start",
-    padding: "20px 12px 36px",
+    padding: "20px 0px 36px",
   },
 });
 
@@ -39,23 +39,8 @@ export const BrandBar = styled.div({
   marginBottom: "20px",
 });
 
-export const BrandMark = styled.span({
-  display: "grid",
-  placeItems: "center",
-  width: "31px",
-  height: "31px",
-  borderRadius: "10px",
-  backgroundColor: COLORS.primary,
-  color: "#FFFFFF",
-  fontSize: "19px",
-  fontWeight: 800,
-});
-
 export const BrandName = styled.span({
-  color: COLORS.primary,
-  fontSize: "18px",
-  fontWeight: 800,
-  letterSpacing: "-0.7px",
+  width: 80,
 });
 
 export const BrandDivider = styled.span({
@@ -76,7 +61,9 @@ export const Card = styled.article({
   backgroundColor: "#FFFFFF",
   border: "1px solid #E2E9E6",
   boxShadow: "0 14px 40px rgba(13, 62, 65, 0.08)",
-  "@media (max-width: 767px)": { borderRadius: "13px" },
+  "@media (max-width: 470px)": {
+    borderRadius: 0,
+  },
 });
 
 export const Banner = styled.header({
@@ -129,17 +116,18 @@ export const BannerEyebrow = styled.span({
 
 export const BannerMascot = styled.img({
   position: "absolute",
-  bottom: "0",
-  right: "5px",
-  width: "163px",
-  height: "153px",
+  bottom: 0,
+  right: "15px",
+  width: "185px",
+  height: "165px",
   objectFit: "contain",
   objectPosition: "center bottom",
   pointerEvents: "none",
+
   "@media (max-width: 767px)": {
-    width: "116px",
-    height: "120px",
-    right: "0",
+    width: "140px",
+    height: "135px",
+    right: "10px",
   },
 });
 
@@ -207,15 +195,17 @@ export const PermissionLine = styled.span({
   "@media (max-width: 767px)": { fontSize: "10px" },
 });
 
-export const PermissionPill = styled.span<{ $editor: boolean }>(({ $editor }) => ({
-  flexShrink: 0,
-  padding: "6px 8px",
-  fontSize: "10px",
-  borderRadius: "6px",
-  fontWeight: 800,
-  color: $editor ? "#87612C" : "#16765E",
-  backgroundColor: $editor ? "#FBF1E2" : "#E1F3E9",
-}));
+export const PermissionPill = styled.span<{ $editor: boolean }>(
+  ({ $editor }) => ({
+    flexShrink: 0,
+    padding: "6px 8px",
+    fontSize: "10px",
+    borderRadius: "6px",
+    fontWeight: 800,
+    color: $editor ? "#87612C" : "#16765E",
+    backgroundColor: $editor ? "#FBF1E2" : "#E1F3E9",
+  }),
+);
 
 export const StepContent = styled.section({
   display: "flex",
@@ -308,7 +298,10 @@ export const TextInput = styled.input({
   color: COLORS.ink,
   fontSize: "13px",
   "&::placeholder": { color: "#95A2AC" },
-  "&:focus-visible": { borderColor: "#527F79", boxShadow: "0 0 0 2px #527F7926" },
+  "&:focus-visible": {
+    borderColor: "#527F79",
+    boxShadow: "0 0 0 2px #527F7926",
+  },
   "&[aria-invalid='true']": { borderColor: "#D76B5D" },
   "&:disabled": { opacity: 0.65, cursor: "not-allowed" },
 });
@@ -319,7 +312,10 @@ export const PasswordField = styled.div({
   border: `1px solid ${COLORS.outline}`,
   borderRadius: "8px",
   overflow: "hidden",
-  "&:focus-within": { borderColor: "#527F79", boxShadow: "0 0 0 2px #527F7926" },
+  "&:focus-within": {
+    borderColor: "#527F79",
+    boxShadow: "0 0 0 2px #527F7926",
+  },
   "& > input": {
     flex: 1,
     border: "none",

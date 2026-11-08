@@ -33,7 +33,8 @@ export function useNotificationSync(userId: string | null, loading: boolean) {
   return () => {
    session.consumers--;
    if (active === session && session.consumers === 0) {
-    session.stop(); active = null; selectNotificationUser(null);
+    session.stop(); active = null;
+    // 페이지 이동으로 소비자가 잠시 없어져도 현재 계정의 조회 결과는 유지합니다.
    }
   };
  }, [userId, loading]);

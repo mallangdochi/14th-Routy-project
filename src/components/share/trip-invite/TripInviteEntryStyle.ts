@@ -52,10 +52,11 @@ export const BrandMark = styled.span({
 });
 
 export const BrandName = styled.span({
-  color: COLORS.primary,
-  fontSize: "18px",
-  fontWeight: 800,
-  letterSpacing: "-0.7px",
+  // color: COLORS.primary,
+  // fontSize: "18px",
+  // fontWeight: 800,
+  // letterSpacing: "-0.7px",
+  width: 80,
 });
 
 export const BrandDivider = styled.span({
@@ -207,15 +208,17 @@ export const PermissionLine = styled.span({
   "@media (max-width: 767px)": { fontSize: "10px" },
 });
 
-export const PermissionPill = styled.span<{ $editor: boolean }>(({ $editor }) => ({
-  flexShrink: 0,
-  padding: "6px 8px",
-  fontSize: "10px",
-  borderRadius: "6px",
-  fontWeight: 800,
-  color: $editor ? "#87612C" : "#16765E",
-  backgroundColor: $editor ? "#FBF1E2" : "#E1F3E9",
-}));
+export const PermissionPill = styled.span<{ $editor: boolean }>(
+  ({ $editor }) => ({
+    flexShrink: 0,
+    padding: "6px 8px",
+    fontSize: "10px",
+    borderRadius: "6px",
+    fontWeight: 800,
+    color: $editor ? "#87612C" : "#16765E",
+    backgroundColor: $editor ? "#FBF1E2" : "#E1F3E9",
+  }),
+);
 
 export const StepContent = styled.section({
   display: "flex",
@@ -308,7 +311,10 @@ export const TextInput = styled.input({
   color: COLORS.ink,
   fontSize: "13px",
   "&::placeholder": { color: "#95A2AC" },
-  "&:focus-visible": { borderColor: "#527F79", boxShadow: "0 0 0 2px #527F7926" },
+  "&:focus-visible": {
+    borderColor: "#527F79",
+    boxShadow: "0 0 0 2px #527F7926",
+  },
   "&[aria-invalid='true']": { borderColor: "#D76B5D" },
   "&:disabled": { opacity: 0.65, cursor: "not-allowed" },
 });
@@ -319,7 +325,10 @@ export const PasswordField = styled.div({
   border: `1px solid ${COLORS.outline}`,
   borderRadius: "8px",
   overflow: "hidden",
-  "&:focus-within": { borderColor: "#527F79", boxShadow: "0 0 0 2px #527F7926" },
+  "&:focus-within": {
+    borderColor: "#527F79",
+    boxShadow: "0 0 0 2px #527F7926",
+  },
   "& > input": {
     flex: 1,
     border: "none",
