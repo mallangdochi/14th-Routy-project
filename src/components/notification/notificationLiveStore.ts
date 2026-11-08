@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { loadNotifications } from "../../api/notifications";
-import { setPendingNotificationItems, setPendingNotificationCount } from "./notificationCountStore";
+import { setPendingNotificationItems, setPendingNotificationCount } from "./notificationCountState";
 import type { NotificationItem } from "./notification.types";
 type State = { userId: string | null; items: NotificationItem[]; loading: boolean; error: string };
 const empty: State = { userId: null, items: [], loading: true, error: "" };

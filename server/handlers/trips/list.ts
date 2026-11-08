@@ -11,6 +11,7 @@ export default async function handler(
   response: VercelResponse,
 ) {
   response.setHeader("Cache-Control", "private, no-store");
+  response.setHeader("X-Routy-Trip-List-Version", "shared-roles-v2");
 
   if (request.method !== "GET") {
     response.setHeader("Allow", "GET");
@@ -51,27 +52,7 @@ export default async function handler(
       });
     }
 
-    const { data, error } = await supabase
-      .from("trips")
-      .select(
-        `
-          id,
-          name,
-          region,
-          start_date,
-          end_date,
-          start_time,
-          transport,
-          people,
-          styles,
-          budget,
-          created_at,
-          updated_at
-        `,
-      )
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false });
+    const { data, error } = await supabase.rpc("routy_my_trips");
 
     if (error) {
       console.error("Trip list error:", {
@@ -79,25 +60,15 @@ export default async function handler(
         message: error.message,
       });
 
-      return response.status(500).json({
-        message: "여행 목록을 조회하지 못했습니다.",
+      return response.status(error.code === "42501" ? 403 : 503).json({
+        message: error.code === "42501" ? "로그인이 필요합니다." : "여행 목록을 조회하지 못했습니다. 권한 SQL 적용 여부를 확인해주세요.",
       });
     }
 
-    const trips = (data ?? []).map((trip) => ({
-      id: trip.id,
-      name: trip.name,
-      region: trip.region,
-      startDate: trip.start_date,
-      endDate: trip.end_date,
-      startTime: trip.start_time.slice(0, 5),
-      transport: trip.transport,
-      people: trip.people,
-      styles: trip.styles,
-      budget: trip.budget,
-      createdAt: trip.created_at,
-      updatedAt: trip.updated_at,
-    }));
+    if (!Array.isArray(data)) {
+      return response.status(503).json({ message: "여행 목록 응답을 확인하지 못했습니다." });
+    }
+    const trips = data;
 
     return response.status(200).json({ trips });
   } catch (error) {
