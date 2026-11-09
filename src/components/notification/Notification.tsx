@@ -14,7 +14,10 @@ import {
   getNotificationReadAt,
   saveNotificationReadAt,
 } from "./notificationReadState";
-import { useNotificationState, updateNotificationItems } from "./notificationLiveStore";
+import {
+  useNotificationState,
+  updateNotificationItems,
+} from "./notificationLiveStore";
 import {
   CalendarDays,
   CalendarClock,
@@ -28,7 +31,7 @@ import {
   X,
 } from "lucide-react";
 import Breadcrumb from "../MainSidebar/mainHeader/Breadcrumb";
-import defaultEmptyImage from "../../assets/go.webp";
+import defaultEmptyImage from "../../assets/ball.webp";
 import type {
   NotificationItem,
   NotificationProps,
@@ -257,7 +260,10 @@ export default function Notification({
 }: NotificationProps) {
   const { user } = useAuth();
   const notificationState = useNotificationState();
-  const settings = notificationState.userId === user?.id ? notificationState.settings : undefined;
+  const settings =
+    notificationState.userId === user?.id
+      ? notificationState.settings
+      : undefined;
   const navigate = useNavigate();
   const [category, setCategory] = useState<NotificationCategory>("all");
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -367,10 +373,19 @@ export default function Notification({
   const selectedLabel = tabs[selectedIndex]?.label ?? "전체";
   const showStatusFilter = category === "all" || category === "invite";
   const effectiveStatus = showStatusFilter ? tab : "all";
-  const settingKey = category === "invite" ? "inviteNotifications" : category === "schedule_changed" ? "itineraryNotifications" : "tripStartNotifications";
-  const disabled = settings ? category === "all"
-    ? !settings.inviteNotifications && !settings.itineraryNotifications && !settings.tripStartNotifications
-    : !settings[settingKey] : false;
+  const settingKey =
+    category === "invite"
+      ? "inviteNotifications"
+      : category === "schedule_changed"
+        ? "itineraryNotifications"
+        : "tripStartNotifications";
+  const disabled = settings
+    ? category === "all"
+      ? !settings.inviteNotifications &&
+        !settings.itineraryNotifications &&
+        !settings.tripStartNotifications
+      : !settings[settingKey]
+    : false;
   const emptyCopy = getEmptyCopy(category, effectiveStatus);
   const visible = filterNotifications(
     items.filter((item) => isPendingInvite(item) || !deletedIds.has(item.id)),
@@ -510,9 +525,18 @@ export default function Notification({
         ) : disabled ? (
           <S.Empty>
             <img src={emptyImageSrc} alt="" aria-hidden="true" />
-            <h2>{category === "all" ? "알림이 꺼져 있어요" : `${tabs.find(value => value.key === category)?.label ?? "알림"} 알림이 꺼져 있어요`}</h2>
+            <h2>
+              {category === "all"
+                ? "알림이 꺼져 있어요"
+                : `${tabs.find((value) => value.key === category)?.label ?? "알림"} 알림이 꺼져 있어요`}
+            </h2>
             <p>마이페이지에서 알림을 켜면 여행 소식을 받을 수 있어요.</p>
-            <S.ActionButton type="button" onClick={() => navigate("/mypage/settings#notifications")}>알림 설정하기</S.ActionButton>
+            <S.ActionButton
+              type="button"
+              onClick={() => navigate("/mypage/settings#notifications")}
+            >
+              알림 설정하기
+            </S.ActionButton>
           </S.Empty>
         ) : (
           <>

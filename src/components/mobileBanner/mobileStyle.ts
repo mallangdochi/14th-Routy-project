@@ -13,7 +13,7 @@ export const HeaderStyle = styled.header({
 
   width: "100%",
   minHeight: "56px",
-  padding: "15px 20px",
+  padding: "24px 24px",
   backgroundColor: "#fefefd",
 
   "& .logo-wrapper": {
@@ -23,6 +23,23 @@ export const HeaderStyle = styled.header({
   "& .alarmbell-svg": {
     width: 19,
     height: 23,
+  },
+
+  "@media (max-width: 767px)": {
+    minHeight: 0,
+    padding: "24px 24px 16px",
+
+    "& .logo-wrapper": {
+      width: 97,
+      height: 36,
+      flexShrink: 0,
+    },
+
+    "& .alarmbell-svg": {
+      width: 19,
+      height: 23,
+      flexShrink: 0,
+    },
   },
 });
 
@@ -100,11 +117,12 @@ export const HeaderStyle = styled.header({
 export const NavStyle = styled.nav({
   position: "fixed",
   bottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
-  left: "50%",
-  transform: "translateX(-50%)",
+  left: "24px",
+  right: "24px",
+  transform: "none",
 
-  width: "90%",
-  margin: "0 auto",
+  width: "auto",
+  margin: 0,
   padding: "10px 22px",
 
   backgroundColor: "#fefefd",
@@ -214,13 +232,101 @@ export const NavStyle = styled.nav({
     outlineOffset: 4,
     borderRadius: 12,
   },
+
+  "@media (max-width: 767px)": {
+    // 모든 메뉴 공통
+    "& .nav-icon": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      height: 24,
+    },
+
+    "& .move-loc": {
+      fontSize: 11,
+      lineHeight: 1.2,
+      whiteSpace: "nowrap",
+    },
+
+    // 1. 내 여행
+    "& .nav-trip": {
+      "& a": {
+        gap: 4,
+      },
+      "& .nav-icon svg": {
+        width: 23,
+        height: 23,
+      },
+      "& .move-loc": {
+        fontSize: 11,
+      },
+    },
+
+    // 2. 검색
+    "& .nav-search": {
+      "& a": {
+        gap: 4,
+      },
+      "& .nav-icon svg": {
+        width: 23,
+        height: 23,
+      },
+      "& .move-loc": {
+        fontSize: 11,
+      },
+    },
+
+    // 3. 새 여행 만들기
+    "& .nav-add": {
+      "& .profile-container": {
+        width: 45,
+        height: 45,
+      },
+      "& .profile-container svg": {
+        width: 25,
+        height: 25,
+      },
+    },
+
+    // 4. 좋아요
+    "& .nav-saved": {
+      "& a, & .guest-saved-button": {
+        gap: 4,
+      },
+      "& .nav-icon svg": {
+        width: 23,
+        height: 23,
+      },
+      "& .move-loc": {
+        fontSize: 11,
+      },
+    },
+
+    // 5. 프로필
+    "& .nav-profile": {
+      "& a": {
+        gap: 4,
+      },
+      "& .nav-icon svg": {
+        width: 23,
+        height: 23,
+      },
+      "& .move-loc": {
+        fontSize: 11,
+      },
+    },
+  },
 });
 
 export const UlStyle = styled.ul({
   display: "flex",
   alignItems: "center",
+  justifyContent: "space-between",
   gap: 0,
   width: "100%",
+  margin: 0,
+  padding: 0,
+  listStyle: "none",
 
   "& > li": {
     display: "flex",
@@ -229,6 +335,16 @@ export const UlStyle = styled.ul({
     flex: "1 1 0",
     minWidth: 0,
   },
+
+  "@media (max-width: 767px)": {
+    justifyContent: "center",
+    columnGap: "8px",
+
+    "& > li": {
+      flex: "0 0 44px",
+      minWidth: 0,
+    },
+  },
 });
 
 export const LinkStyle = styled(Link)({
@@ -236,8 +352,8 @@ export const LinkStyle = styled(Link)({
   flexDirection: "column",
   justifyContent: "center",
   alignItems: "center",
-  gap: "3px",
 
+  gap: 3,
   width: "100%",
   minWidth: 0,
   minHeight: 44,

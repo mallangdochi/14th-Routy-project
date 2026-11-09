@@ -27,7 +27,20 @@ export const PageWrapper = styled.main({
   },
 
   "@media (max-width: 767px)": {
-    padding: "calc(80px + env(safe-area-inset-top, 0px)) 20px 20px",
+    padding: "80px 24px 20px",
+  },
+});
+
+export const PageSubtitle = styled.p({
+  margin: 0,
+  color: TEXT,
+  fontSize: 16,
+  lineHeight: 1.5,
+
+  "@media (max-width: 767px)": {
+    fontSize: 16,
+    lineHeight: 1.5,
+    whiteSpace: "nowrap",
   },
 });
 
@@ -50,6 +63,10 @@ export const PageHeader = styled.div({
   "@media (max-width: 767px)": {
     paddingBottom: 18,
     marginBottom: 18,
+
+    "& h1": {
+      display: "none",
+    },
   },
 });
 
@@ -68,46 +85,57 @@ export const HeaderLoginButton = styled.button({
 });
 
 export const EmptyBanner = styled.section({
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.1fr)",
+  display: "flex",
   alignItems: "center",
+  justifyContent: "center",
   flex: "1 0 auto",
   width: "100%",
   minWidth: 0,
   padding: "32px 26px",
   borderRadius: 20,
-  // background: "linear-gradient(110deg, #F1FCFB 0%, #F0FFFC 60%, #E6FAF6 100%)",
 
   "@media (max-width: 1023px)": {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
     padding: "28px 24px",
   },
 
   "@media (max-width: 767px)": {
-    padding: "24px 20px",
+    padding: 0,
   },
 });
 
 export const BannerImageArea = styled.div({
   gridColumn: 1,
-  gridRow: 1,
+  gridRow: "1 / 3",
+
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+
   width: "100%",
   minWidth: 0,
 
   "@media (max-width: 1023px)": {
-    order: 2,
     flexShrink: 0,
     margin: "20px 0",
   },
+});
+
+export const BannerButtonArea = styled.div({
+  gridColumn: 2,
+  gridRow: 2,
+
+  display: "flex",
+  justifyContent: "center",
+  width: "100%",
+  minWidth: 0,
+  marginTop: 16,
+
+  "@media (max-width: 1023px)": {
+    marginTop: 0,
+  },
 
   "@media (max-width: 767px)": {
-    margin: "18px 0 22px",
+    width: "100%",
   },
 });
 
@@ -133,19 +161,54 @@ export const MascotImage = styled.img({
 });
 
 export const BannerContent = styled.div({
-  gridColumn: 2,
-  gridRow: 1,
-  display: "flex",
-  flexDirection: "column",
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.1fr)",
+  gridTemplateRows: "auto auto",
   alignItems: "center",
-  justifyContent: "center",
+  columnGap: 40,
+
   width: "100%",
   minWidth: 0,
   padding: "16px 10px",
   textAlign: "center",
 
   "@media (max-width: 1023px)": {
-    display: "contents",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+  },
+
+  "@media (max-width: 767px)": {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+
+    width: "100%",
+    padding: 0,
+    gap: "16px",
+  },
+});
+
+export const BannerTextGroup = styled.div({
+  gridColumn: 2,
+  gridRow: 1,
+
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+
+  width: "100%",
+  minWidth: 0,
+
+  "@media (max-width: 1023px)": {
+    width: "100%",
+  },
+
+  "@media (max-width: 767px)": {
+    gap: "8px",
   },
 });
 
@@ -174,7 +237,8 @@ export const BannerTitle = styled.h2({
 
   "@media (max-width: 767px)": {
     fontSize: 24,
-    marginBottom: 14,
+    marginBottom: 0,
+    whiteSpace: "nowrap",
   },
 });
 
@@ -264,8 +328,17 @@ export const BannerLoginButton = styled.button({
   },
 
   "@media (max-width: 767px)": {
-    maxWidth: 360,
-    minHeight: 52,
+    width: "100%",
+    maxWidth: "360px",
+
+    height: "48px",
+    minHeight: "48px",
+
+    padding: "13px 16px",
+    borderRadius: "10px",
+
+    fontSize: "16px",
+    lineHeight: "22px",
   },
 });
 

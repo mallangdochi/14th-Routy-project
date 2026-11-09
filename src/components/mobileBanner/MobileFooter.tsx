@@ -123,31 +123,38 @@ function MobileNavContent({ pathname, isLoggedIn }: MobileNavContentProps) {
       )}
 
       <UlStyle>
-        <li>
+        {/* 내 여행 */}
+        <li className="nav-trip">
           <LinkStyle
             to="/"
             className={isTravelPage ? "is-selected" : ""}
             aria-current={pathname === "/" ? "page" : undefined}
             onClick={closeNotice}
           >
-            <Briefcase size={23} strokeWidth={1.8} aria-hidden="true" />
+            <span className="nav-icon">
+              <Briefcase size={23} strokeWidth={1.8} aria-hidden="true" />
+            </span>
             <span className="move-loc">내 여행</span>
           </LinkStyle>
         </li>
 
-        <li>
+        {/* 검색 */}
+        <li className="nav-search">
           <LinkStyle
             to="/search"
             className={isSearchPage ? "is-selected" : ""}
             aria-current={pathname === "/search" ? "page" : undefined}
             onClick={closeNotice}
           >
-            <Search size={23} aria-hidden="true" />
+            <span className="nav-icon">
+              <Search size={23} aria-hidden="true" />
+            </span>
             <span className="move-loc">검색</span>
           </LinkStyle>
         </li>
 
-        <li>
+        {/* 새 여행 만들기 */}
+        <li className="nav-add">
           {isLoggedIn ? (
             <Link
               className="new-trip-link"
@@ -171,15 +178,13 @@ function MobileNavContent({ pathname, isLoggedIn }: MobileNavContentProps) {
             >
               <MobileProfile className="profile-container is-disabled">
                 <Plus size={25} strokeWidth={3} aria-hidden="true" />
-                {/* <span className="login-lock" aria-hidden="true">
-                  <LockKeyhole size={10} strokeWidth={2} />
-                </span> */}
               </MobileProfile>
             </button>
           )}
         </li>
 
-        <li>
+        {/* 좋아요 */}
+        <li className="nav-saved">
           {isLoggedIn ? (
             <LinkStyle
               to="/saved"
@@ -187,7 +192,9 @@ function MobileNavContent({ pathname, isLoggedIn }: MobileNavContentProps) {
               aria-current={pathname === "/saved" ? "page" : undefined}
               onClick={closeNotice}
             >
-              <Heart size={23} strokeWidth={1.5} aria-hidden="true" />
+              <span className="nav-icon">
+                <Heart size={23} strokeWidth={1.5} aria-hidden="true" />
+              </span>
               <span className="move-loc">좋아요</span>
             </LinkStyle>
           ) : (
@@ -199,25 +206,25 @@ function MobileNavContent({ pathname, isLoggedIn }: MobileNavContentProps) {
               aria-describedby={notice === "saved" ? noticeId : undefined}
               onClick={() => toggleNotice("saved")}
             >
-              <span className="saved-icon">
+              <span className="nav-icon saved-icon">
                 <Heart size={23} strokeWidth={1.5} aria-hidden="true" />
-                {/* <span className="login-lock" aria-hidden="true">
-                  <LockKeyhole size={10} strokeWidth={2} />
-                </span> */}
               </span>
               <span className="move-loc">좋아요</span>
             </button>
           )}
         </li>
 
-        <li>
+        {/* 프로필 */}
+        <li className="nav-profile">
           <LinkStyle
             to="/mypage/profile"
             className={isProfilePage ? "is-selected" : ""}
             aria-current={pathname === "/mypage/profile" ? "page" : undefined}
             onClick={closeNotice}
           >
-            <UserRound size={23} strokeWidth={1.3} aria-hidden="true" />
+            <span className="nav-icon">
+              <UserRound size={23} strokeWidth={1.3} aria-hidden="true" />
+            </span>
             <span className="move-loc">프로필</span>
           </LinkStyle>
         </li>
