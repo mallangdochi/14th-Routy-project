@@ -1,6 +1,6 @@
 import type { NotificationItem } from "../components/notification/notification.types";
 async function request(action: string, ids?: string[], signal?: AbortSignal) {
- const response = await fetch(ids ? "/api/trips/share" : "/api/trips/share?operation=notifications", {
+ const response = await fetch(`/api/profile/notifications?action=${ids ? (action === "notification_dismiss" ? "dismiss" : "restore") : "feed"}`, {
   method: ids ? "POST" : "GET", credentials: "include", cache: "no-store", signal,
   ...(ids ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ids }) } : {}),
  });

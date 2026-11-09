@@ -43,6 +43,13 @@ export const Avatar = styled.span({
   overflow: "hidden",
   background: "#F1F3F6",
   color: "#718596",
+  '&[data-initial="true"]': {
+    background: "#ECF5F3",
+    color: "#527F79",
+    fontSize: 16,
+    fontWeight: 700,
+    lineHeight: 1,
+  },
   "& img": { width: "100%", height: "100%", objectFit: "cover" },
 });
 export const Layer = styled.div({

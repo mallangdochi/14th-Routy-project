@@ -4,9 +4,12 @@ import handler1 from "../../server/handlers/profile/setup.js";
 
 import savedPlacesHandler from "../../server/handlers/profile/saved-places.js";
 
+import notificationsHandler from "../../server/handlers/profile/notifications.js";
+
 type Handler = (request: VercelRequest, response: VercelResponse) => unknown;
 
 const handlers: Record<string, Handler> = {
+  "notifications": notificationsHandler,
   "manage": handler0,
   "setup": handler1,
   "saved-places": savedPlacesHandler,

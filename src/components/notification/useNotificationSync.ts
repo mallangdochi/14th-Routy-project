@@ -1,3 +1,4 @@
+import { syncBrowserPushSession } from "../../api/browserPush";
 import { useEffect } from "react";
 import { refreshNotifications, selectNotificationUser } from "./notificationLiveStore";
 
@@ -11,18 +12,23 @@ export function useNotificationSync(userId: string | null, loading: boolean) {
   if (!userId) {
    active?.stop(); active = null;
    selectNotificationUser(null);
+   void syncBrowserPushSession(null).catch(() => undefined);
    return;
   }
   if (!active || active.userId !== userId) {
    active?.stop();
    selectNotificationUser(userId);
+   void syncBrowserPushSession(userId).catch(() => undefined);
    const refresh = () => { if (document.visibilityState === "visible") void refreshNotifications(); };
+   const settingsRefresh = () => { void refreshNotifications(true); };
    const timer = window.setInterval(refresh, 30000);
    window.addEventListener("focus", refresh);
+   window.addEventListener("routy:notification-settings-changed", settingsRefresh);
    document.addEventListener("visibilitychange", refresh);
    active = { userId, consumers: 0, stop: () => {
     window.clearInterval(timer);
     window.removeEventListener("focus", refresh);
+    window.removeEventListener("routy:notification-settings-changed", settingsRefresh);
     document.removeEventListener("visibilitychange", refresh);
    } };
    // 페이지 진입 시에는 탭 표시 상태와 무관하게 최초 조회합니다.
