@@ -73,18 +73,28 @@ export const MyTripsPageStyle = styled.div({
   },
 
   "& .schedule-button": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+
+    minWidth: "40px",
+    width: "40px",
+    height: "40px",
+    padding: 0,
     flexShrink: 0,
-    minWidth: "154px",
-    padding: "12px 24px",
-    borderRadius: "9px",
-    backgroundColor: "#005358",
-    color: "#fff",
-    fontSize: "17px",
-    fontWeight: 600,
-    letterSpacing: "-0.01em",
-  },
-  "& .schedule-button-icon": {
-    display: "none",
+
+    backgroundColor: "transparent",
+
+    color: "#005358",
+
+    border: "none",
+    boxShadow: "none",
+
+    "& svg": {
+      width: "24px",
+      height: "24px",
+      stroke: "#005358",
+    },
   },
 
   "& .trips-toolbar": {
