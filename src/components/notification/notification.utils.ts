@@ -1,9 +1,10 @@
-import type { NotificationItem, NotificationTab } from "./notification.types";
+import type { NotificationItem, NotificationTab, NotificationCategory } from "./notification.types";
 
-export function filterNotifications(items: readonly NotificationItem[], tab: NotificationTab) {
-  return items.filter((item) => tab === "all" || (tab === "pending"
-    ? item.status === "pending"
-    : item.status === "approved" || item.status === "rejected"));
+export const isInviteNotification = (item: NotificationItem) => !item.kind || item.kind === "invite";
+export const isPendingInvite = (item: NotificationItem) => isInviteNotification(item) && item.status === "pending";
+export function filterNotifications(items: readonly NotificationItem[], tab: NotificationTab, category: NotificationCategory = "all") {
+  return items.filter(item => (category === "all" || (item.kind ?? "invite") === category) &&
+    (tab === "all" || (isInviteNotification(item) && (tab === "pending" ? item.status === "pending" : item.status === "approved" || item.status === "rejected"))));
 }
 
 export function relativeTime(value: string, now: number) {

@@ -8,5 +8,5 @@ export { setPendingNotificationItems, setPendingNotificationCount } from "./noti
 export function usePendingNotificationCount(userId?: string | null) {
   const { user, loading } = useAuth();
   useNotificationSync(user?.id ?? null, loading);
-  return useSyncExternalStore(subscribe, () => getNotificationCount(userId), serverSnapshot);
+  return useSyncExternalStore(subscribe, () => getNotificationCount(userId === undefined ? user?.id : userId), serverSnapshot);
 }

@@ -3,7 +3,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type FormEvent,
+  type SubmitEvent,
 } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
@@ -31,8 +31,37 @@ import avatarP12 from "../../assets/profileAvatars/P12.webp";
 import avatarP13 from "../../assets/profileAvatars/P13.webp";
 import * as S from "./myPageStyle";
 import { useAuth } from "../../contexts/AuthContext";
-import { isLocationEnabled, saveLocationEnabled } from "../../utils/locationService";
+import { saveLocationEnabled } from "../../utils/locationService";
 import MyLoginRequired from "../../components/emptyUI/myLoginRequired/MyLoginRequired";
+
+import { updateProfile } from "../../api/auth";
+import {
+  saveAccount,
+  saveSettings,
+  changePassword,
+  withdrawAccount,
+  DEFAULT_SETTINGS,
+  formatPhone,
+  type AccountSaveData,
+} from "../../api/mypage";
+
+const avatarIds = [
+  "P1",
+  "P2",
+  "P3",
+  "P7",
+  "P8",
+  "P9",
+  "P10",
+  "P11",
+  "P12",
+  "P13",
+];
+function resolveAvatar(value?: string | null) {
+  if (!value) return profileAvatar;
+  if (!value.startsWith("default:")) return value;
+  return defaultAvatars[avatarIds.indexOf(value.slice(8))] ?? profileAvatar;
+}
 
 type PageId = "profile" | "security" | "settings" | "support";
 type PasswordFieldId = "current" | "new" | "confirm";
@@ -102,26 +131,6 @@ type AccountData = {
   email: string;
 };
 
-const initialProfile: ProfileData = {
-  nickname: "홍길동",
-  image: profileAvatar,
-};
-
-const initialAccount: AccountData = {
-  name: "김나은",
-  phone: "010-1234-5678",
-  email: "naeun@example.com",
-};
-
-const initialSettings: SettingsData = {
-  inviteNotifications: true,
-  itineraryNotifications: true,
-  tripStartNotifications: false,
-  locationServiceAllowed: false,
-  marketingAllowed: false,
-  defaultItineraryView: "schedule",
-};
-
 const passwordFields = [
   {
     id: "current",
@@ -174,16 +183,6 @@ const pageText: Record<PageId, { title: string; description: string }> = {
     description: "필요한 도움을 빠르게 찾아보세요.",
   },
 };
-
-function maskPhone(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
-  }
-
-  return phone;
-}
 
 function maskEmail(email: string) {
   const atIndex = email.indexOf("@");
@@ -261,8 +260,8 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
   const handleSave = () => {
     const trimmed = nickname.trim();
 
-    if (trimmed.length < 2 || trimmed.length > 20) {
-      setNameError("이름은 2~20자로 입력해 주세요.");
+    if (trimmed.length < 2 || trimmed.length > 12) {
+      setNameError("이름은 2~12자로 입력해 주세요.");
       return;
     }
 
@@ -309,22 +308,22 @@ function ProfileView({ savedProfile, onSave }: ProfileViewProps) {
         </S.ImageColumn>
 
         <S.InputColumn>
-          <S.FieldLabel htmlFor="profile-nickname">이름</S.FieldLabel>
+          <S.FieldLabel htmlFor="profile-nickname">닉네임</S.FieldLabel>
 
           <S.InputBox>
             <S.NameInput
               id="profile-nickname"
               value={nickname}
-              maxLength={20}
+              maxLength={12}
               onChange={(event) => {
                 setNickname(event.target.value);
                 setNameError("");
               }}
             />
-            <S.CharacterCount>{nickname.length}/20</S.CharacterCount>
+            <S.CharacterCount>{nickname.length}/12</S.CharacterCount>
           </S.InputBox>
 
-          <S.InputHelp>2~20자로 입력해 주세요.</S.InputHelp>
+          <S.InputHelp>2~12자로 입력해 주세요.</S.InputHelp>
 
           {nameError && <S.NameError role="alert">{nameError}</S.NameError>}
         </S.InputColumn>
@@ -399,7 +398,7 @@ type BasicInfoCardProps = {
   account: AccountData;
   editing: boolean;
   onEdit: () => void;
-  onSave: (account: AccountData) => void;
+  onSave: (account: AccountSaveData) => void;
   mobileEditLayout?: boolean;
   onCancel?: () => void;
 };
@@ -422,8 +421,23 @@ function BasicInfoCard({
 
   const displayValue: AccountData = {
     name: account.name,
-    phone: maskPhone(account.phone),
+    phone: formatPhone(account.phone),
     email: maskEmail(account.email),
+  };
+
+  const saveChanges = () => {
+    const changes: AccountSaveData = {};
+    if (draft.name.trim() !== account.name.trim())
+      changes.name = draft.name.trim();
+    if (draft.phone.replace(/\D/g, "") !== account.phone.replace(/\D/g, "")) {
+      changes.phone = draft.phone.replace(/\D/g, "");
+    }
+    if (
+      draft.email.trim().toLowerCase() !== account.email.trim().toLowerCase()
+    ) {
+      changes.email = draft.email.trim();
+    }
+    onSave(changes);
   };
 
   return (
@@ -436,7 +450,7 @@ function BasicInfoCard({
             type="button"
             onClick={() => {
               if (editing) {
-                onSave(draft);
+                saveChanges();
               } else {
                 onEdit();
               }
@@ -460,11 +474,20 @@ function BasicInfoCard({
               <S.SecurityInput
                 id={`account-${field.id}`}
                 type={field.type}
-                value={draft[field.id]}
+                value={
+                  field.id === "phone"
+                    ? formatPhone(draft.phone)
+                    : draft[field.id]
+                }
+                inputMode={field.id === "phone" ? "numeric" : undefined}
+                maxLength={field.id === "phone" ? 13 : undefined}
                 onChange={(event) =>
                   setDraft((previous) => ({
                     ...previous,
-                    [field.id]: event.target.value,
+                    [field.id]:
+                      field.id === "phone"
+                        ? event.target.value.replace(/\D/g, "").slice(0, 11)
+                        : event.target.value,
                   }))
                 }
               />
@@ -482,7 +505,7 @@ function BasicInfoCard({
           <S.PasswordCancelButton type="button" onClick={onCancel}>
             취소
           </S.PasswordCancelButton>
-          <S.PasswordSubmitButton type="button" onClick={() => onSave(draft)}>
+          <S.PasswordSubmitButton type="button" onClick={saveChanges}>
             저장
           </S.PasswordSubmitButton>
         </S.PasswordActionRow>
@@ -506,7 +529,9 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
     new: false,
     confirm: false,
   });
-  const [showNotice, setShowNotice] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const submitLock = useRef(false);
   const [validationError, setValidationError] = useState<{
     field: PasswordFieldId;
     message: string;
@@ -534,10 +559,9 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
   const showValidation = (field: PasswordFieldId, message: string) => {
     attemptRef.current += 1;
     setValidationError({ field, message, attempt: attemptRef.current });
-    setShowNotice(false);
   };
 
-  const handlePasswordSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handlePasswordSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const emptyField = passwordFields.find(({ id }) => !passwords[id].trim());
@@ -552,8 +576,25 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
       return;
     }
 
+    if (submitLock.current) return;
+    submitLock.current = true;
+    setSubmitting(true);
+    setSubmitError("");
     setValidationError(null);
-    setShowNotice(true);
+    try {
+      await changePassword(passwords.current, passwords.new, passwords.confirm);
+      setPasswords({ current: "", new: "", confirm: "" });
+      onBack();
+    } catch (reason) {
+      setSubmitError(
+        reason instanceof Error
+          ? reason.message
+          : "비밀번호를 변경하지 못했습니다.",
+      );
+    } finally {
+      submitLock.current = false;
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -567,6 +608,7 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
       </S.PasswordDescription>
 
       <S.PasswordForm noValidate onSubmit={handlePasswordSubmit}>
+        {submitError && <p role="alert">{submitError}</p>}
         {passwordFields.map((field) => {
           const hasError = validationError?.field === field.id;
 
@@ -601,7 +643,6 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
                       [field.id]: event.target.value,
                     }));
                     if (hasError) setValidationError(null);
-                    setShowNotice(false);
                   }}
                 />
 
@@ -630,18 +671,12 @@ function PasswordEditView({ onBack }: PasswordEditViewProps) {
           );
         })}
 
-        {showNotice && (
-          <S.PasswordNotice role="status">
-            현재는 화면 시안으로 실제 비밀번호가 변경되지 않습니다.
-          </S.PasswordNotice>
-        )}
-
         <S.PasswordActionRow>
           <S.PasswordCancelButton type="button" onClick={onBack}>
             취소
           </S.PasswordCancelButton>
-          <S.PasswordSubmitButton type="submit">
-            변경하기
+          <S.PasswordSubmitButton type="submit" disabled={submitting}>
+            {submitting ? "변경 중..." : "변경하기"}
           </S.PasswordSubmitButton>
         </S.PasswordActionRow>
       </S.PasswordForm>
@@ -653,7 +688,7 @@ type SecurityViewProps = {
   account: AccountData;
   editingAccount: boolean;
   onEditAccount: () => void;
-  onSaveAccount: (account: AccountData) => void;
+  onSaveAccount: (account: AccountSaveData) => void;
   onChangePassword: () => void;
   onWithdraw: () => void;
 };
@@ -705,7 +740,7 @@ function SecurityView({
 }
 
 export default function MyPage() {
-  const { user } = useAuth();
+  const { user, loading, error: authError, refreshUser } = useAuth();
   const isLoggedIn = Boolean(user);
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -714,9 +749,75 @@ export default function MyPage() {
   const section = pathParts[2];
   const detail = pathParts[3];
 
-  const [savedProfile, setSavedProfile] = useState<ProfileData>(initialProfile);
-  const [account, setAccount] = useState<AccountData>(initialAccount);
+  const savedProfile: ProfileData = {
+    nickname: user?.username ?? "",
+    image: resolveAvatar(user?.avatarUrl),
+  };
+  const account: AccountData = {
+    name: user?.fullName || `${user?.lastName ?? ""}${user?.firstName ?? ""}`,
+    phone: user?.phone ?? "",
+    email: user?.email ?? "",
+  };
+  const savedSettings: SettingsData = {
+    inviteNotifications: user?.settings?.inviteNotifications ?? false,
+    itineraryNotifications: user?.settings?.itineraryNotifications ?? false,
+    tripStartNotifications: user?.settings?.tripStartNotifications ?? false,
+    locationServiceAllowed:
+      user?.settings?.locationServiceAllowed ?? user?.agreeLocation ?? false,
+    marketingAllowed:
+      user?.settings?.marketingAllowed ?? user?.agreeMarketing ?? false,
+  };
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+  const runSave = async (
+    save: () => Promise<unknown>,
+    after?: () => void,
+    successMessage = "저장되었습니다.",
+  ) => {
+    if (saveLock.current) return;
+    saveLock.current = true;
+    setSaving(true);
+    try {
+      const result = await save();
+      await refreshUser();
+      after?.();
+      showSavedToast(typeof result === "string" ? result : successMessage);
+    } catch (reason) {
+      showSavedToast(
+        reason instanceof Error ? reason.message : "저장하지 못했습니다.",
+      );
+      // 일부 필드만 저장된 경우에도 서버의 최신 값을 반영합니다.
+      await refreshUser();
+    } finally {
+      saveLock.current = false;
+      setSaving(false);
+    }
+  };
+  const persistProfile = (next: ProfileData) =>
+    runSave(async () => {
+      const avatarIndex = defaultAvatars.indexOf(next.image);
+      if (next.image.startsWith("data:")) {
+        const blob = await (await fetch(next.image)).blob();
+        await updateProfile(next.nickname, {
+          avatarFile: new File([blob], "avatar", { type: blob.type }),
+        });
+      } else {
+        await updateProfile(
+          next.nickname,
+          avatarIndex >= 0 ? { defaultAvatarId: avatarIds[avatarIndex] } : {},
+        );
+      }
+    });
+  const persistAccount = (next: AccountSaveData) =>
+    runSave(
+      async () => {
+        const result = await saveAccount(next);
+        return result.message ?? "회원 정보가 저장되었습니다.";
+      },
+      () => navigate("/mypage/security"),
+    );
   const [toastVersion, setToastVersion] = useState(0);
+  const [toastMessage, setToastMessage] = useState("저장되었습니다.");
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(
@@ -724,11 +825,6 @@ export default function MyPage() {
       typeof window !== "undefined" &&
       window.matchMedia("(max-width: 767px)").matches,
   );
-
-  const [savedSettings, setSavedSettings] = useState<SettingsData>(() => ({
-    ...initialSettings,
-    locationServiceAllowed: isLocationEnabled(),
-  }));
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -766,7 +862,8 @@ export default function MyPage() {
     return () => window.clearTimeout(timer);
   }, [toastVersion]);
 
-  const showSavedToast = () => {
+  const showSavedToast = (message = "저장되었습니다.") => {
+    setToastMessage(message);
     setToastVersion((version) => version + 1);
   };
 
@@ -778,6 +875,19 @@ export default function MyPage() {
   const { title, description } = pageText[currentPage];
 
   const renderContent = () => {
+    if (currentPage !== "support" && loading && !user) {
+      return <p role="status">회원 정보를 불러오는 중...</p>;
+    }
+    if (currentPage !== "support" && authError && !user) {
+      return (
+        <div role="alert">
+          {authError}
+          <button type="button" onClick={() => void refreshUser()}>
+            다시 시도
+          </button>
+        </div>
+      );
+    }
     if (!isLoggedIn && currentPage !== "support") {
       return <MyLoginRequired />;
     }
@@ -785,11 +895,9 @@ export default function MyPage() {
     if (currentPage === "profile") {
       return (
         <ProfileView
+          key={JSON.stringify(savedProfile)}
           savedProfile={savedProfile}
-          onSave={(nextProfile) => {
-            setSavedProfile(nextProfile);
-            showSavedToast();
-          }}
+          onSave={(next) => void persistProfile(next)}
         />
       );
     }
@@ -808,26 +916,18 @@ export default function MyPage() {
             mobileEditLayout
             onCancel={() => navigate("/mypage/security")}
             onEdit={() => navigate("/mypage/security/edit")}
-            onSave={(next) => {
-              setAccount(next);
-              navigate("/mypage/security");
-              showSavedToast();
-            }}
+            onSave={(next) => void persistAccount(next)}
           />
         );
       }
 
       return (
         <SecurityView
-          key={detail ?? "overview"}
+          key={detail === "edit" ? "basic-info-edit" : JSON.stringify(account)}
           account={account}
           editingAccount={detail === "edit"}
           onEditAccount={() => navigate("/mypage/security/edit")}
-          onSaveAccount={(next) => {
-            setAccount(next);
-            navigate("/mypage/security");
-            showSavedToast();
-          }}
+          onSaveAccount={(next) => void persistAccount(next)}
           onChangePassword={() => navigate("/mypage/security/password")}
           onWithdraw={() => setIsWithdrawOpen(true)}
         />
@@ -837,12 +937,32 @@ export default function MyPage() {
     if (currentPage === "settings") {
       return (
         <Settings
+          key={JSON.stringify(savedSettings)}
           savedSettings={savedSettings}
-          onSave={(nextSettings) => {
-            saveLocationEnabled(nextSettings.locationServiceAllowed);
-            setSavedSettings(nextSettings);
-            showSavedToast();
+          saving={saving}
+          onTemporaryDataResult={(success) => {
+            setToastMessage(
+              success
+                ? isMobileViewport
+                  ? "임시데이터 삭제됨"
+                  : "임시데이터가 삭제됐어요"
+                : isMobileViewport
+                  ? "임시데이터 삭제 실패"
+                  : "임시데이터를 삭제하지 못했어요",
+            );
+            setToastVersion((version) => version + 1);
           }}
+          onSave={(next) =>
+            void runSave(
+              () =>
+                saveSettings({
+                  ...DEFAULT_SETTINGS,
+                  ...user?.settings,
+                  ...next,
+                }),
+              () => saveLocationEnabled(next.locationServiceAllowed),
+            )
+          }
         />
       );
     }
@@ -927,12 +1047,17 @@ export default function MyPage() {
               </S.PageHeader>
             )}
 
-          {renderContent()}
+          <fieldset
+            disabled={saving}
+            style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+          >
+            {renderContent()}
+          </fieldset>
         </S.MainInner>
       </S.PageMain>
 
       {isLoggedIn && toastVersion > 0 && (
-        <S.SaveToast role="status">저장되었습니다.</S.SaveToast>
+        <S.SaveToast role="status">{toastMessage}</S.SaveToast>
       )}
 
       {isLoggedIn && isWithdrawOpen && (
@@ -952,7 +1077,21 @@ export default function MyPage() {
             </S.WithdrawConfirmDescription>
 
             <S.WithdrawConfirmActions>
-              <S.WithdrawYesButton type="button">네</S.WithdrawYesButton>
+              <S.WithdrawYesButton
+                type="button"
+                disabled={saving}
+                onClick={() =>
+                  void runSave(
+                    () => withdrawAccount(),
+                    () => {
+                      setIsWithdrawOpen(false);
+                      navigate("/");
+                    },
+                  )
+                }
+              >
+                네
+              </S.WithdrawYesButton>
               <S.WithdrawNoButton
                 type="button"
                 onClick={() => setIsWithdrawOpen(false)}
