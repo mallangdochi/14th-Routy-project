@@ -128,9 +128,7 @@ export default function Settings({
       setPermissionMessage(
         current === "denied"
           ? "브라우저의 사이트 설정에서 알림 권한을 변경해 주세요."
-          : current === "granted"
-            ? "이미 알림이 허용되어 있어요."
-            : "이 환경에서는 알림 권한을 요청할 수 없어요.",
+          : "이 환경에서는 알림 권한을 요청할 수 없어요.",
       );
       return;
     }
@@ -286,7 +284,11 @@ export default function Settings({
                 notificationPermission === "insecure"
               }
             >
-              {requestingPermission ? "확인 중" : notificationPermission === "granted" ? "알림 연결하기" : "알림 허용하기"}
+              {requestingPermission
+                ? "확인 중"
+                : notificationPermission === "granted"
+                  ? "알림 연결하기"
+                  : "알림 허용하기"}
             </S.PermissionButton>
           </S.PermissionPanel>
           {permissionMessage && (
