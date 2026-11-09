@@ -8,9 +8,9 @@ export interface MyPageSettings {
 }
 
 export interface AccountSaveData {
-  name: string;
-  phone: string;
-  email: string;
+  name?: string;
+  phone?: string;
+  email?: string;
 }
 
 export interface MyPageSaveResult {
@@ -20,9 +20,9 @@ export interface MyPageSaveResult {
 }
 
 export const DEFAULT_SETTINGS: MyPageSettings = {
-  inviteNotifications: false,
-  itineraryNotifications: false,
-  tripStartNotifications: false,
+  inviteNotifications: true,
+  itineraryNotifications: true,
+  tripStartNotifications: true,
   locationServiceAllowed: false,
   marketingAllowed: false,
   defaultItineraryView: "schedule",
@@ -81,9 +81,9 @@ export function saveAccount(
 ): Promise<MyPageSaveResult> {
   return requestSave({
     action: "account",
-    name: account.name.trim(),
-    phone: account.phone.replace(/\D/g, ""),
-    email: account.email.trim(),
+    ...(account.name !== undefined ? { name: account.name.trim() } : {}),
+    ...(account.phone !== undefined ? { phone: account.phone.replace(/\D/g, "") } : {}),
+    ...(account.email !== undefined ? { email: account.email.trim() } : {}),
   });
 }
 
@@ -98,6 +98,9 @@ export function saveSettings(
     locationServiceAllowed: settings.locationServiceAllowed,
     marketingAllowed: settings.marketingAllowed,
     defaultItineraryView: settings.defaultItineraryView,
+  }).then((result) => {
+    window.dispatchEvent(new Event("routy:notification-settings-changed"));
+    return result;
   });
 }
 
@@ -159,4 +162,36 @@ export async function withdrawAccount(): Promise<void> {
       typeof data?.code === "string" ? data.code : undefined,
     );
   }
+}
+
+/** 계정·설정·여행 원본은 제외하고 명시된 임시 저장소만 정리합니다. */
+export async function clearRoutyTemporaryData(): Promise<number> {
+  // HTTP 캐시 삭제를 먼저 요청합니다. 실패하면 성공으로 표시하지 않습니다.
+  const response = await fetch("/api/clear-cache", {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  if (!response.ok) throw new MyPageApiError("캐시 삭제를 요청하지 못했습니다.");
+
+  let count = 0;
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index));
+    for (const key of keys) {
+      if (key?.startsWith("routy:temp:")) {
+        storage.removeItem(key);
+        count += 1;
+      }
+    }
+  }
+  // CacheStorage 전체를 비우면 오프라인 기능 등 다른 데이터가 지워질 수 있습니다.
+  if ("caches" in window) {
+    for (const key of await window.caches.keys()) {
+      if (key.startsWith("routy:temp:")) {
+        if (await window.caches.delete(key)) count += 1;
+      }
+    }
+  }
+  window.dispatchEvent(new Event("routy:temporary-data-cleared"));
+  return count;
 }

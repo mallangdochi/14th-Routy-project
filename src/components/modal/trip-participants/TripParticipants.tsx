@@ -63,11 +63,11 @@ type Props = {
   loadParticipants?: TripParticipantsSource;
   resolveAvatar?: (value: string | null | undefined) => string | undefined;
 };
-function Avatar({ src }: { src?: string }) {
+function Avatar({ src, initial }: { src?: string; initial?: string }) {
   const [failed, setFailed] = useState(false);
   return (
-    <S.Avatar>
-      {src && !failed ? (
+    <S.Avatar data-initial={Boolean(initial)} aria-hidden="true">
+      {initial ? initial : src && !failed ? (
         <img src={src} alt="" onError={() => setFailed(true)} />
       ) : (
         <UserRound size={24} aria-hidden="true" />
@@ -243,9 +243,10 @@ function ParticipantsContent({
   const participants = ready
     ? current!.participants.filter((member) => member.participating)
     : [];
-  const editingCount = participants.filter(
+  const editingParticipants = participants.filter(
     (member) => member.permission !== "viewer",
-  ).length;
+  );
+  const editingCount = editingParticipants.length;
   const absent = Math.max(0, totalPeople - editingCount);
   const avatar = (member: TripParticipant) =>
     resolveAvatar
@@ -276,7 +277,7 @@ function ParticipantsContent({
         {ready ? (
           <>
             <span className="avatars">
-              {participants.map((member) => (
+              {editingParticipants.map((member) => (
                 <Avatar
                   key={`${member.userId}:${avatar(member)}`}
                   src={avatar(member)}
@@ -284,7 +285,7 @@ function ParticipantsContent({
               ))}
             </span>
             {absent > 0 && <span className="remaining">외 {absent}명</span>}
-            {participants.length === 0 && absent === 0 && (
+            {editingParticipants.length === 0 && absent === 0 && (
               <span>참여자 보기</span>
             )}
           </>
@@ -357,7 +358,13 @@ function ParticipantsContent({
                   <>
                     {participants.map((member) => (
                       <div className="row" key={member.userId}>
-                        <Avatar key={avatar(member)} src={avatar(member)} />
+                        <Avatar
+                          key={`${member.userId}:${avatar(member)}`}
+                          src={member.permission === "viewer" ? undefined : avatar(member)}
+                          initial={member.permission === "viewer"
+                            ? Array.from(member.nickname.trim() || "참여자")[0]
+                            : undefined}
+                        />
                         <span className="name">
                           {member.nickname || "참여자"}
                           {member.userId === currentUserId && (
