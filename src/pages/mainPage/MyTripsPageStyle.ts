@@ -309,7 +309,8 @@ export const MyTripsPageStyle = styled.div({
     },
 
     "& .trips-header p": {
-      fontSize: "17px",
+      fontSize: "16px",
+      fontWeight: 400,
     },
 
     "& .schedule-button": {
@@ -402,6 +403,7 @@ export const MyTripsPageStyle = styled.div({
     },
   },
 
+  // 모바일 //
   "@media (max-width: 767px)": {
     "--page-font-size": "14px",
     flexDirection: "column",
@@ -420,20 +422,22 @@ export const MyTripsPageStyle = styled.div({
     },
     "& .view-switch": { display: "none" },
     "& .trips-page-inner": {
-      padding: "80px 14px calc(84px + env(safe-area-inset-bottom))",
+      padding: "80px 24px calc(84px + env(safe-area-inset-bottom))",
     },
 
     "& .trips-header": {
-      gap: "10px",
-      marginBottom: "22px",
+      gap: "8px",
+      marginBottom: "16px",
     },
 
     "& .trips-header-top": {
       gap: "10px",
+      minHeight: "40px",
     },
 
     "& .trips-header h1": {
-      fontSize: "22px",
+      fontSize: "24px",
+      fontWeight: 700,
       whiteSpace: "nowrap",
     },
 
@@ -441,12 +445,14 @@ export const MyTripsPageStyle = styled.div({
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-
       minWidth: "40px",
+      width: "40px",
       height: "40px",
       padding: 0,
       flexShrink: 0,
+      borderRadius: "10px",
     },
+
     "& .schedule-button-label": {
       display: "none",
     },
@@ -487,6 +493,33 @@ export const MyTripsPageStyle = styled.div({
 
     "& .view-list .create-trip-card": {
       flexWrap: "wrap",
+    },
+
+    "& .trips-toolbar": {
+      gap: "8px",
+    },
+
+    "& .trips-tabs": {
+      "& button": {
+        minHeight: "48px",
+        padding: "0",
+      },
+    },
+
+    "& .trips-controls": {
+      padding: 0,
+      minHeight: "32px",
+      justifyContent: "flex-end",
+
+      "& button": {
+        fontSize: "12px",
+        fontWeight: 400,
+      },
+
+      "& button svg": {
+        width: "16px",
+        height: "16px",
+      },
     },
   },
 });

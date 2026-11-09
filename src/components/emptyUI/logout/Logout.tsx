@@ -10,55 +10,51 @@ export default function Logout() {
     navigate("/login");
   };
 
-  // const handleSignup = () => {
-  //   navigate("/signup");
-  // };
-
   return (
     <S.Layout>
       <S.PageWrapper>
         {/* 페이지 상단 */}
         <S.PageHeader>
           <h1>내 여행 일정</h1>
-          <p>여행을 계획하고, 추억을 만들어보세요.</p>
+
+          <S.PageSubtitle>여행을 계획하고, 추억을 만들어보세요.</S.PageSubtitle>
         </S.PageHeader>
 
-        {/* 로그아웃 상태 메인 배너 */}
+        {/* 로그아웃 메인 배너 */}
         <S.EmptyBanner>
-          {/* 마스코트 이미지 */}
-          <S.BannerImageArea>
-            <S.MascotImage
-              src={mascot}
-              alt="지도를 들고 여행지를 찾는 Routy 마스코트"
-            />
-          </S.BannerImageArea>
-
-          {/* 로그인 안내 */}
           <S.BannerContent>
-            <S.BannerTitle>
-              어디로 <span>떠나볼까요?</span>
-              <Plane aria-hidden="true" />
-            </S.BannerTitle>
+            {/* 제목 + 설명 */}
+            <S.BannerTextGroup>
+              <S.BannerTitle>
+                어디로 떠나볼까요?
+                <Plane aria-hidden="true" />
+              </S.BannerTitle>
 
-            <S.BannerDescription className="basic">
-              로그인하고 나만의 여행을 계획해보세요.
-            </S.BannerDescription>
-            <S.BannerDescription className="non-mobile">
-              Routy가 특별한 여정을 함께 만들어드릴게요.
-            </S.BannerDescription>
+              <S.BannerDescription className="basic">
+                로그인하고 나만의 여행을
+                <br />
+                계획해보세요.
+              </S.BannerDescription>
 
-            <S.BannerLoginButton type="button" onClick={handleLogin}>
-              로그인하기
-            </S.BannerLoginButton>
+              <S.BannerDescription className="non-mobile">
+                Routy가 특별한 여정을 함께 만들어드릴게요.
+              </S.BannerDescription>
+            </S.BannerTextGroup>
 
-            {/* <S.SignupRow>
-              <span>아직 계정이 없으신가요?</span>
+            {/* 마스코트 */}
+            <S.BannerImageArea>
+              <S.MascotImage
+                src={mascot}
+                alt="지도를 들고 여행지를 찾는 Routy 마스코트"
+              />
+            </S.BannerImageArea>
 
-              <S.SignupButton type="button" onClick={handleSignup}>
-                회원가입하기
-                <ChevronRight size={17} />
-              </S.SignupButton>
-            </S.SignupRow> */}
+            {/* 로그인 버튼 */}
+            <S.BannerButtonArea>
+              <S.BannerLoginButton type="button" onClick={handleLogin}>
+                로그인하기
+              </S.BannerLoginButton>
+            </S.BannerButtonArea>
           </S.BannerContent>
         </S.EmptyBanner>
       </S.PageWrapper>
