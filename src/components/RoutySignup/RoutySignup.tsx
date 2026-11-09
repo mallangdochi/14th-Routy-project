@@ -1,5 +1,5 @@
-import { useState, type ReactNode, type FormEvent } from "react";
-
+import { useEffect, useState, type ReactNode, type SubmitEvent } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -12,6 +12,7 @@ import routyLogo from "../../assets/루티1.svg";
 import DatePicker from "../pickers/DatePicker";
 import { checkUsername, signupWithEmail } from "../../api/auth";
 import { markProfilePendingAfterSignup } from "../../utils/firstLoginProfile";
+
 import {
   SignupForm,
   LeftContent,
@@ -34,9 +35,10 @@ import {
   CheckRow,
   SubmitButton,
   BackButton,
-  Message,
   PageFooter,
+  SignupToastBox,
 } from "./RoutySignupStyle";
+
 import { SignupContext, useSignup } from "./SignupContext";
 
 export interface SignupData {
@@ -55,17 +57,20 @@ export interface SignupData {
 
 export interface SignupApiProps {
   onCheckUsername?: (username: string) => Promise<boolean>;
-
   onSendVerification?: (phone: string) => Promise<void>;
-
   onConfirmVerification?: (phone: string, code: string) => Promise<boolean>;
-
   onSignup?: (data: SignupData) => Promise<void>;
 }
 
 interface ProviderProps extends SignupApiProps {
   children: ReactNode;
   onCompleted: () => void;
+}
+
+interface RoutySignupProps {
+  side: "left" | "right";
+  active: boolean;
+  onBack?: () => void;
 }
 
 const FORM_ID = "routy-signup-form";
@@ -88,13 +93,42 @@ function formatPhone(value: string): string {
   ].join("-");
 }
 
-// UTC가 아닌 사용자의 현지 날짜를 최대 선택 날짜로 사용합니다.
 function getLocalToday(): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
+
   return `${year}-${month}-${day}`;
+}
+
+// 컴포넌트는 Provider 바깥에 선언합니다.
+function SignupErrorToast({ message }: { message: string }) {
+  const [dismissedMessage, setDismissedMessage] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDismissedMessage(message);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
+  if (
+    !message ||
+    dismissedMessage === message ||
+    typeof document === "undefined"
+  ) {
+    return null;
+  }
+
+  return createPortal(
+    <SignupToastBox role="alert" aria-atomic="true">
+      <CircleAlert size={20} aria-hidden="true" />
+      <span>{message}</span>
+    </SignupToastBox>,
+    document.body,
+  );
 }
 
 function useSignupState({
@@ -119,28 +153,20 @@ function useSignupState({
   });
 
   const [verificationCode, setVerificationCode] = useState("");
-
   const [confirmPassword, setConfirmPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
-
   const [showConfirm, setShowConfirm] = useState(false);
-
   const [usernameChecked, setUsernameChecked] = useState(false);
-
   const [phoneVerified, setPhoneVerified] = useState(false);
-
   const [codeSent, setCodeSent] = useState(false);
-
   const [usernameMessage, setUsernameMessage] = useState("");
-
   const [phoneMessage, setPhoneMessage] = useState("");
-
   const [formMessage, setFormMessage] = useState("");
-
   const [busy, setBusy] = useState(false);
 
-  // 입력값 변경
+  // 같은 오류로 다시 제출해도 토스트를 새로 표시합니다.
+  const [toastVersion, setToastVersion] = useState(0);
+
   const updateField = <K extends keyof SignupData>(
     key: K,
     value: SignupData[K],
@@ -165,7 +191,6 @@ function useSignupState({
     setFormMessage("");
   };
 
-  // 비밀번호 검사
   const passwordValid =
     form.password.length >= 8 &&
     /[A-Za-z]/.test(form.password) &&
@@ -175,7 +200,6 @@ function useSignupState({
   const passwordMatched =
     confirmPassword.length > 0 && form.password === confirmPassword;
 
-  // 아이디 중복 확인
   const checkUsername = async () => {
     const username = form.username.trim();
 
@@ -196,7 +220,6 @@ function useSignupState({
       const available = await onCheckUsername(username);
 
       setUsernameChecked(available);
-
       setUsernameMessage(
         available
           ? "사용 가능한 아이디입니다."
@@ -210,7 +233,6 @@ function useSignupState({
     }
   };
 
-  // 휴대폰 인증번호 발송
   const sendCode = async () => {
     const phone = form.phone.replace(/\D/g, "");
 
@@ -240,7 +262,6 @@ function useSignupState({
     }
   };
 
-  // 인증번호 확인
   const verifyCode = async () => {
     if (!codeSent || !verificationCode.trim()) {
       setPhoneMessage("인증번호를 확인해주세요.");
@@ -261,7 +282,6 @@ function useSignupState({
       );
 
       setPhoneVerified(verified);
-
       setPhoneMessage(
         verified
           ? "본인 인증이 완료되었습니다."
@@ -275,7 +295,6 @@ function useSignupState({
     }
   };
 
-  // 약관 전체 동의
   const allAgreed =
     form.agreeTerms &&
     form.agreePrivacy &&
@@ -292,15 +311,14 @@ function useSignupState({
     }));
   };
 
-  // 회원가입 완료
-  const submitSignup = async (event: FormEvent<HTMLFormElement>) => {
+  const submitSignup = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (busy) return;
 
     setFormMessage("");
+    setToastVersion((prev) => prev + 1);
 
-    // 커스텀 날짜 선택기의 값은 상태를 기준으로 검증합니다.
     if (!form.birth) {
       setFormMessage("생년월일을 선택해주세요.");
       return;
@@ -320,6 +338,7 @@ function useSignupState({
       setFormMessage("올바른 휴대폰 번호를 입력해주세요.");
       return;
     }
+
     if (!passwordValid || !passwordMatched) {
       setFormMessage("비밀번호 조건과 일치 여부를 확인해주세요.");
       return;
@@ -346,6 +365,7 @@ function useSignupState({
         email: form.email.trim(),
         username: form.username.trim(),
       };
+
       await onSignup(data);
       markProfilePendingAfterSignup(data.email);
       onCompleted();
@@ -374,6 +394,7 @@ function useSignupState({
     usernameMessage,
     phoneMessage,
     formMessage,
+    toastVersion,
     busy,
     passwordValid,
     passwordMatched,
@@ -386,21 +407,8 @@ function useSignupState({
     submitSignup,
   };
 }
+
 export type SignupState = ReturnType<typeof useSignupState>;
-
-// 왼쪽과 오른쪽 페이지가 공유할 상태
-// export function RoutySignupProvider({ children, ...props }: ProviderProps) {
-//   const value = useSignupState(props);
-
-//   return (
-//     <SignupContext.Provider value={value}>
-//       <SignupForm id={FORM_ID} onSubmit={value.submitSignup}>
-//         <input type="hidden" name="birth" value={value.form.birth} />
-//         {children}
-//       </SignupForm>
-//     </SignupContext.Provider>
-//   );
-// }
 
 export function RoutySignupProvider({ children, ...props }: ProviderProps) {
   const value = useSignupState(props);
@@ -412,14 +420,15 @@ export function RoutySignupProvider({ children, ...props }: ProviderProps) {
       </SignupForm>
 
       {children}
+
+      {value.formMessage && (
+        <SignupErrorToast
+          key={value.toastVersion}
+          message={value.formMessage}
+        />
+      )}
     </SignupContext.Provider>
   );
-}
-
-interface RoutySignupProps {
-  side: "left" | "right";
-  active: boolean;
-  onBack?: () => void;
 }
 
 export default function RoutySignup({
@@ -432,10 +441,6 @@ export default function RoutySignup({
   const [confirmTouched, setConfirmTouched] = useState(false);
 
   const disabled = !active || s.busy;
-
-  // ==================================
-  // 왼쪽 회원가입 페이지
-  // ==================================
 
   if (side === "left") {
     return (
@@ -542,7 +547,6 @@ export default function RoutySignup({
               id="signup-email"
               name="email"
               form={FORM_ID}
-              // form={FORM_ID}
               type="email"
               placeholder="이메일을 입력해주세요."
               autoComplete="email"
@@ -567,10 +571,6 @@ export default function RoutySignup({
       </LeftContent>
     );
   }
-
-  // ==================================
-  // 오른쪽 회원가입 페이지
-  // ==================================
 
   return (
     <RightContent>
@@ -764,8 +764,6 @@ export default function RoutySignup({
             [선택] 위치 기반 서비스 이용
           </CheckRow>
         </TermsSection>
-
-        {s.formMessage && <Message role="alert">{s.formMessage}</Message>}
 
         <SubmitButton type="submit" form={FORM_ID} disabled={disabled}>
           {s.busy ? "회원가입 처리 중..." : "회원가입"}

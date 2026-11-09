@@ -8,6 +8,40 @@ const muted = "#778D90";
 const success = "#36AA83";
 const error = "#D85A5A";
 
+export const SignupToastBox = styled.div({
+  position: "fixed",
+  left: "50%",
+  bottom: "32px",
+  transform: "translateX(-50%)",
+  zIndex: 10000,
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  width: "max-content",
+  maxWidth: "min(480px, calc(100vw - 32px))",
+  boxSizing: "border-box",
+  padding: "14px 18px",
+  borderRadius: "14px",
+  border: "1px solid #E2E6E9",
+  backgroundColor: "#FFF",
+  color: "#0D3E41",
+  boxShadow: "0 8px 28px rgba(13, 62, 65, 0.14)",
+  fontSize: "14px",
+  fontWeight: 500,
+  lineHeight: 1.5,
+  overflowWrap: "anywhere",
+
+  "& > svg": {
+    flexShrink: 0,
+  },
+
+  "@media (max-width: 767px)": {
+    bottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
+    padding: "12px 16px",
+    fontSize: "13px",
+  },
+});
+
 // 레이아웃 박스를 추가하지 않고 양쪽 페이지를 하나의 폼으로 묶습니다.
 export const SignupForm = styled.form({
   display: "contents",
