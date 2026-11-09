@@ -10,7 +10,12 @@ import {
   MapPin,
   Megaphone,
 } from "lucide-react";
-import { enableBrowserPush } from "../../api/browserPush";
+import {
+  browserPushChangedEvent,
+  disableBrowserPush,
+  enableBrowserPush,
+  isBrowserPushConnected,
+} from "../../api/browserPush";
 import { clearRoutyTemporaryData } from "../../api/mypage";
 import * as S from "./settingsStyle";
 import { requestCurrentLocation } from "../../utils/locationService";
@@ -42,14 +47,6 @@ function getBrowserNotificationPermission(): BrowserNotificationPermission {
   return Notification.permission;
 }
 
-const permissionText: Record<BrowserNotificationPermission, string> = {
-  granted: "허용됨",
-  denied: "허용되지 않음",
-  default: "아직 요청하지 않음",
-  unsupported: "지원하지 않는 브라우저",
-  insecure: "보안 연결 필요",
-};
-
 export default function Settings({
   savedSettings,
   onSave,
@@ -77,12 +74,60 @@ export default function Settings({
   const [notificationPermission, setNotificationPermission] =
     useState<BrowserNotificationPermission>(getBrowserNotificationPermission);
   const [requestingPermission, setRequestingPermission] = useState(false);
+  const [pushConnected, setPushConnected] = useState(false);
+  const [checkingPush, setCheckingPush] = useState(true);
   const [permissionMessage, setPermissionMessage] = useState("");
   const [locationMessage, setLocationMessage] = useState("");
   const [locating, setLocating] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    let version = 0;
+
+    const refresh = async () => {
+      const current = ++version;
+
+      try {
+        const connected = await isBrowserPushConnected();
+
+        if (active && current === version) {
+          setPushConnected(connected);
+          setNotificationPermission(getBrowserNotificationPermission());
+        }
+      } catch {
+        if (active && current === version) {
+          setPermissionMessage(
+            "알림 연결 상태를 확인하지 못했어요. 다시 시도해주세요.",
+          );
+        }
+      } finally {
+        if (active && current === version) {
+          setCheckingPush(false);
+        }
+      }
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "routy:browser-push-disabled" || event.key === null) {
+        void refresh();
+      }
+    };
+
+    void refresh();
+
+    window.addEventListener("focus", refresh);
+    window.addEventListener(browserPushChangedEvent, refresh);
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener(browserPushChangedEvent, refresh);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
   const hasChanges = (Object.keys(draft) as (keyof SettingsData)[]).some(
     (key) => draft[key] !== savedSettings[key],
   );
@@ -121,6 +166,25 @@ export default function Settings({
   };
 
   const requestBrowserNotifications = async () => {
+    if (requestingPermission || checkingPush) return;
+    if (pushConnected) {
+      setRequestingPermission(true);
+      setPermissionMessage("");
+      try {
+        await disableBrowserPush();
+        setPushConnected(false);
+        setPermissionMessage("이 브라우저의 푸시 알림을 해제했어요.");
+      } catch (reason: unknown) {
+        setPermissionMessage(
+          reason instanceof Error
+            ? reason.message
+            : "알림을 해제하지 못했어요. 다시 시도해주세요.",
+        );
+      } finally {
+        setRequestingPermission(false);
+      }
+      return;
+    }
     const current = getBrowserNotificationPermission();
     setNotificationPermission(current);
 
@@ -139,13 +203,18 @@ export default function Settings({
     try {
       const next = await enableBrowserPush();
       setNotificationPermission(next);
+      setPushConnected(next === "granted");
       setPermissionMessage(
         next === "granted"
           ? "이 브라우저에서 푸시 알림을 받을 수 있어요."
           : "알림을 받으려면 브라우저에서 권한을 허용해 주세요.",
       );
-    } catch {
-      setPermissionMessage("알림 권한 요청 중 문제가 발생했어요.");
+    } catch (reason: unknown) {
+      setPermissionMessage(
+        reason instanceof Error
+          ? reason.message
+          : "알림 연결 중 문제가 발생했어요.",
+      );
     } finally {
       setRequestingPermission(false);
     }
@@ -267,11 +336,16 @@ export default function Settings({
             <S.PermissionInfo>
               <CircleAlert size={25} aria-hidden="true" />
               <S.PermissionText>
-                브라우저 알림 권한:
+                푸쉬 알림 권한:
                 <S.PermissionStatus
-                  $allowed={notificationPermission === "granted"}
+                  $allowed={pushConnected}
+                  style={{ color: pushConnected ? "#00544A" : "#D94343" }}
                 >
-                  {permissionText[notificationPermission]}
+                  {checkingPush
+                    ? "확인 중"
+                    : pushConnected
+                      ? "연결됨"
+                      : "해제됨"}
                 </S.PermissionStatus>
               </S.PermissionText>
             </S.PermissionInfo>
@@ -280,15 +354,20 @@ export default function Settings({
               onClick={requestBrowserNotifications}
               disabled={
                 requestingPermission ||
+                checkingPush ||
                 notificationPermission === "unsupported" ||
                 notificationPermission === "insecure"
               }
             >
-              {requestingPermission
+              {checkingPush
                 ? "확인 중"
-                : notificationPermission === "granted"
-                  ? "알림 연결하기"
-                  : "알림 허용하기"}
+                : requestingPermission
+                  ? "처리 중"
+                  : pushConnected
+                    ? "알림 해제하기"
+                    : notificationPermission === "granted"
+                      ? "알림 연결하기"
+                      : "알림 허용하기"}
             </S.PermissionButton>
           </S.PermissionPanel>
           {permissionMessage && (

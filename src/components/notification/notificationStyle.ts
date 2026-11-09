@@ -112,7 +112,13 @@ export const Count = styled.p({
   strong: { fontWeight: 700, color: "#0D3E41" },
   "@media (max-width: 767px)": { fontSize: 13 },
 });
-export const List = styled.ul({ display: "grid", gap: 12, listStyle: "none", padding: 0, margin: 0 });
+export const List = styled.ul({
+  display: "grid",
+  gap: 12,
+  listStyle: "none",
+  padding: 0,
+  margin: 0,
+});
 export const Card = styled.div({
   position: "relative",
   touchAction: "pan-y",
@@ -233,7 +239,7 @@ export const ActionButton = styled.button({
   fontSize: 14,
   fontWeight: 600,
   border: "1px solid #D5DEE1",
-  color: "#EB654B",
+  color: "#005259",
   backgroundColor: "#FFFFFF",
   '&[data-primary="true"]': {
     color: "#FFFFFF",
@@ -243,7 +249,7 @@ export const ActionButton = styled.button({
   "&:disabled": { opacity: 0.5 },
   "&:focus-visible": { outline: "2px solid #527F79", outlineOffset: 3 },
   "@media (hover: hover) and (pointer: fine)": {
-    "&:hover:not(:disabled)": { backgroundColor: "#FFF4F0" },
+    "&:hover:not(:disabled)": { backgroundColor: "#ECF8F5" },
     '&[data-primary="true"]:hover:not(:disabled)': {
       backgroundColor: "#0D3E41",
     },
@@ -425,26 +431,92 @@ export const ToastClose = styled.button({
   "&:focus-visible": { outline: "2px solid #527F79", outlineOffset: 2 },
 });
 
-export const Toolbar = styled.div({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "20px 0", "@media (max-width: 767px)": { margin: "14px 0" } });
+export const Toolbar = styled.div({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+  margin: "20px 0",
+  "@media (max-width: 767px)": { margin: "14px 0" },
+});
 export const StatusFilter = styled.div({
-  position: "relative", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  padding: 3, borderRadius: 12, backgroundColor: "#EEF0F2", border: "1px solid #E2E6E9", flexShrink: 0,
+  position: "relative",
+  display: "grid",
+  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  padding: 3,
+  borderRadius: 12,
+  backgroundColor: "#EEF0F2",
+  border: "1px solid #E2E6E9",
+  flexShrink: 0,
 });
 export const StatusIndicator = styled.span({
   ...menuAnimation.indicator,
-  position: "absolute", top: 3, bottom: 3, left: 3, width: "calc((100% - 6px) / 3)",
-  borderRadius: 9, backgroundColor: "#FFFFFF", boxShadow: "0 1px 4px #0D3E4120", pointerEvents: "none",
+  position: "absolute",
+  top: 3,
+  bottom: 3,
+  left: 3,
+  width: "calc((100% - 6px) / 3)",
+  borderRadius: 9,
+  backgroundColor: "#FFFFFF",
+  boxShadow: "0 1px 4px #0D3E4120",
+  pointerEvents: "none",
   "@media (prefers-reduced-motion: reduce)": { transition: "none" },
 });
 export const StatusOption = styled.button({
   ...menuAnimation.button,
-  position: "relative", minHeight: 38, padding: "6px 18px", color: "#718596", fontSize: 14,
-  fontWeight: 600, borderRadius: 9, whiteSpace: "nowrap", backgroundColor: "transparent",
+  position: "relative",
+  minHeight: 38,
+  padding: "6px 18px",
+  color: "#718596",
+  fontSize: 14,
+  fontWeight: 600,
+  borderRadius: 9,
+  whiteSpace: "nowrap",
+  backgroundColor: "transparent",
   '&[aria-pressed="true"]': { color: "#0D3E41" },
   "&:focus-visible": { outline: "2px solid #527F79", outlineOffset: 1 },
-  "@media (max-width: 767px)": { fontSize: 12, padding: "6px 10px", minHeight: 38 },
+  "@media (max-width: 767px)": {
+    fontSize: 12,
+    padding: "6px 10px",
+    minHeight: 38,
+  },
 });
-export const EventIcon = styled(Avatar)({ color: "#00565B", backgroundColor: "#E0F6EE", '&[data-start="true"]': { color: "#EB654B", backgroundColor: "#FFE9E2" } });
-export const UnreadDot = styled.span({ display: "inline-block", width: 7, height: 7, borderRadius: "50%", backgroundColor: "#EB654B", marginLeft: 8, verticalAlign: "middle" });
-export const ChangeSummary = styled.div({ gridColumn: "2 / -1", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 16px", padding: "10px 12px", marginTop: 6, borderRadius: 9, backgroundColor: "#EAF6F2", color: "#0D3E41", fontSize: 14, overflowWrap: "anywhere", "& span": { display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }, "& svg": { flexShrink: 0 }, "@media (max-width: 767px)": { fontSize: 12, padding: "8px 10px" } });
-export const EventActions = styled(Actions)({ "@media (max-width: 767px)": { gridTemplateColumns: "minmax(0, 1fr)" } });
+export const EventIcon = styled(Avatar)({
+  color: "#00565B",
+  backgroundColor: "#E0F6EE",
+  '&[data-start="true"]': { color: "#EB654B", backgroundColor: "#FFE9E2" },
+});
+export const UnreadDot = styled.span({
+  display: "inline-block",
+  width: 7,
+  height: 7,
+  borderRadius: "50%",
+  backgroundColor: "#EB654B",
+  marginLeft: 8,
+  verticalAlign: "middle",
+});
+export const ChangeSummary = styled.div({
+  gridColumn: "2 / -1",
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: "8px 16px",
+  padding: "10px 12px",
+  marginTop: 6,
+  borderRadius: 9,
+  backgroundColor: "#EAF6F2",
+  color: "#0D3E41",
+  fontSize: 14,
+  overflowWrap: "anywhere",
+  "& span": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  "& svg": { flexShrink: 0 },
+  "@media (max-width: 767px)": { fontSize: 12, padding: "8px 10px" },
+});
+export const EventActions = styled(Actions)({
+  "@media (max-width: 767px)": { gridTemplateColumns: "minmax(0, 1fr)" },
+});
