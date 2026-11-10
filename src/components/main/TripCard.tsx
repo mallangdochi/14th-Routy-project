@@ -10,6 +10,7 @@ import { TripCardStyle } from "./TripCardStyle";
 interface TripCardProps {
   trip: Trip;
   view: "grid" | "list";
+  permission?: "owner" | "editor" | "viewer";
   onOpen?: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -73,9 +74,10 @@ export default function TripCard({
       .then(async (response) => {
         if (!response.ok) return null;
         const body: unknown = await response.json();
-        const value = body && typeof body === "object"
-          ? (body as { image?: unknown }).image
-          : null;
+        const value =
+          body && typeof body === "object"
+            ? (body as { image?: unknown }).image
+            : null;
         if (typeof value !== "string") return null;
         try {
           return new URL(value).protocol === "https:" ? value : null;
@@ -93,13 +95,11 @@ export default function TripCard({
     return () => controller.abort();
   }, [trip.region, savedImage]);
 
-  const remoteImage = regionPhoto?.region === trip.region.trim()
-    ? regionPhoto.image
-    : null;
+  const remoteImage =
+    regionPhoto?.region === trip.region.trim() ? regionPhoto.image : null;
   const preferredImage = savedImage || remoteImage || defaultTripImage;
-  const imageSource = brokenImage === preferredImage
-    ? defaultTripImage
-    : preferredImage;
+  const imageSource =
+    brokenImage === preferredImage ? defaultTripImage : preferredImage;
 
   return (
     <TripCardStyle
