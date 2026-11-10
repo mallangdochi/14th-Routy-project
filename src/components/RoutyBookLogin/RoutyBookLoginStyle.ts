@@ -716,8 +716,8 @@ export const TextButton = styled.button({
   color: "#243B40",
 
   fontFamily: "inherit",
-  fontSize: "15px",
-  fontWeight: 500,
+  fontSize: "12px",
+  fontWeight: 400,
 
   whiteSpace: "nowrap",
   cursor: "pointer",
@@ -743,7 +743,7 @@ export const SignUpButton = styled(TextButton)({
   gap: "5px",
 
   color: "#00646D",
-  fontWeight: 800,
+  fontWeight: 700,
 });
 
 // ====================================
@@ -943,19 +943,30 @@ export const MobileShell = styled.main({
 export const MobileTopBar = styled.div({
   // 모바일 상단 장식 바 숨김
   display: "none",
+
+  "@media (max-width: 767px)": {
+    display: "block",
+    width: "100%",
+    height: "30px",
+    flexShrink: 0,
+    backgroundColor: teal,
+  },
 });
 
 export const MobileHeader = styled.header({
   display: "flex",
-  justifyContent: "space-between",
+  justifyContent: "flex-start",
   alignItems: "center",
   flexShrink: 0,
   width: "100%",
   height: "86px",
   padding: "10px 23px",
-  "@media (max-width: 359px)": { height: "78px", padding: "8px 18px" },
-});
 
+  "@media (max-width: 359px)": {
+    height: "78px",
+    padding: "8px 18px",
+  },
+});
 export const MobileLogo = styled.img({
   width: "100px",
   height: "60px",
@@ -986,7 +997,6 @@ export const MobileContent = styled.section({
   minWidth: 0,
   width: "100%",
   maxWidth: "100%",
-  boxSizing: "border-box",
   padding: "24px 27px 26px",
   overflowX: "hidden",
   overflowY: "auto",
@@ -998,6 +1008,11 @@ export const MobileContent = styled.section({
     gap: "24px",
     paddingTop: "28px",
     overflowY: "auto",
+  },
+
+  "@media (max-width: 767px)": {
+    paddingLeft: "24px",
+    paddingRight: "24px",
   },
 });
 
@@ -1103,7 +1118,7 @@ export const MobileTitle = styled.h1({
   margin: "0 0 24px",
   color: teal,
   fontSize: "32px",
-  fontWeight: 800,
+  fontWeight: 700,
   lineHeight: 1.4,
   "@media (max-width: 359px)": { fontSize: "28px" },
   "&[data-login='true']": { textAlign: "center", margin: "28px 0 32px" },
@@ -1131,8 +1146,12 @@ export const MobileForm = styled.form({
   width: "100%",
   minWidth: 0,
   maxWidth: "100%",
-  boxSizing: "border-box",
+
   "&[data-signup='true']": { flex: 1, minHeight: 0, gap: 0 },
+
+  "@media (max-width: 767px)": {
+    gap: "0px",
+  },
 });
 
 export const MobileField = styled.div({
@@ -1141,13 +1160,24 @@ export const MobileField = styled.div({
   gap: "13px",
   width: "100%",
   minWidth: 0,
-  boxSizing: "border-box",
+
+  "@media (max-width: 767px)": {
+    gap: "8px",
+
+    "&.email-field": {
+      marginBottom: "16px",
+    },
+
+    "&.password-field": {
+      marginBottom: "32px",
+    },
+  },
 });
 
 export const MobileLabel = styled.label({
   color: teal,
-  fontSize: "20px",
-  fontWeight: 800,
+  fontSize: "24px",
+  fontWeight: 700,
   lineHeight: 1.45,
 });
 
@@ -1157,17 +1187,17 @@ export const MobileInput = styled.input({
   width: "100%",
   minWidth: 0,
   maxWidth: "100%",
-  boxSizing: "border-box",
-  height: "58px",
-  minHeight: "58px",
+  height: "48px",
+  minHeight: "48px",
   padding: "0 14px",
   border: "1px solid #DCE5E6",
-  borderRadius: "6px",
+  borderRadius: "16px",
   outline: "none",
   backgroundColor: "#FFFFFF",
   color: teal,
   fontFamily: "inherit",
-  fontSize: "19px",
+  fontSize: "16px",
+  fontWeight: 400,
   "&::placeholder": { color: "#A1AAAC", fontSize: "17px" },
   "&:focus": { borderColor: teal, boxShadow: "0 0 0 2px rgba(10,65,75,0.08)" },
   "&:disabled": { backgroundColor: "#EFF1F0", cursor: "not-allowed" },
@@ -1207,8 +1237,8 @@ export const MobilePasswordBox = styled.div({
   width: "100%",
   minWidth: 0,
   maxWidth: "100%",
-  boxSizing: "border-box",
-  input: { width: "100%", boxSizing: "border-box", paddingRight: "54px" },
+  fontSize: "16px",
+  input: { width: "100%", paddingRight: "54px" },
 });
 
 export const MobileEyeButton = styled.button({
@@ -1250,7 +1280,8 @@ export const MobileCheck = styled.label({
   alignItems: "flex-start",
   gap: "10px",
   color: teal,
-  fontSize: "18px",
+  fontSize: "16px",
+  fontWeight: 400,
   lineHeight: 1.5,
   cursor: "pointer",
   input: {
@@ -1261,35 +1292,68 @@ export const MobileCheck = styled.label({
     accentColor: teal,
   },
   "&[data-all='true']": { fontWeight: 800, marginBottom: "10px" },
+
+  "@media (max-width: 767px)": {
+    marginBottom: "8px",
+  },
 });
 
 export const MobileAction = styled.div({
   position: "sticky",
   bottom: 0,
   display: "flex",
+  alignItems: "center",
+  gap: "8px",
   flexShrink: 0,
   width: "100%",
-  padding: "16px 27px 21px",
+  padding: "16px 23px 40px",
   backgroundColor: "#FBFAF6",
 });
 
+export const MobilePrevious = styled.button({
+  flex: "1",
+  minWidth: 0,
+  height: "56px",
+  padding: "0 16px",
+  border: `1px solid ${teal}`,
+  borderRadius: "8px",
+  backgroundColor: "transparent",
+  color: teal,
+  fontFamily: "inherit",
+  fontSize: "18px",
+  fontWeight: 700,
+  cursor: "pointer",
+
+  "&:disabled": {
+    opacity: 0.6,
+    cursor: "not-allowed",
+  },
+});
+
 export const MobilePrimary = styled.button({
+  flex: "2",
   width: "100%",
   maxWidth: "100%",
-  boxSizing: "border-box",
-  minHeight: "58px",
+  minWidth: 0,
+  minHeight: "56px",
   padding: "12px 20px",
   border: "none",
-  borderRadius: "6px",
+  borderRadius: "8px",
   backgroundColor: teal,
   color: "#FFFFFF",
   fontFamily: "inherit",
-  fontSize: "19px",
-  fontWeight: 800,
+  fontSize: "18px",
+  fontWeight: 700,
   cursor: "pointer",
-  "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
+
+  "&:disabled": {
+    opacity: 0.6,
+    cursor: "not-allowed",
+  },
+
   "@media (max-width: 767px)": {
-    transform: "translateY(-20px)",
+    transform: "none",
+    marginTop: "0px",
   },
 });
 
@@ -1299,9 +1363,15 @@ export const MobileLinks = styled.nav({
   alignItems: "center",
   flexWrap: "wrap",
   gap: "8px",
-  marginTop: "6px",
+  marginTop: "12px",
   color: "#7A8A8B",
-  fontSize: "16px",
+  fontSize: "12px",
+
+  "@media (max-width: 767px)": {
+    "& .signup-link": {
+      fontWeight: 700,
+    },
+  },
 });
 
 export const MobileTextButton = styled.button({
@@ -1310,7 +1380,7 @@ export const MobileTextButton = styled.button({
   backgroundColor: "transparent",
   color: teal,
   fontFamily: "inherit",
-  fontSize: "16px",
+  fontSize: "12px",
   cursor: "pointer",
   "&:disabled": { opacity: 0.4, cursor: "not-allowed" },
 });
@@ -1318,4 +1388,12 @@ export const MobileTextButton = styled.button({
 export const MobileFooterStripe = styled.div({
   // 모바일 하단 장식 바 숨김
   display: "none",
+
+  "@media (max-width: 767px)": {
+    display: "block",
+    width: "100%",
+    height: "30px",
+    flexShrink: 0,
+    backgroundColor: teal,
+  },
 });
