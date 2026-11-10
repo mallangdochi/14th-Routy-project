@@ -545,7 +545,7 @@ export default function SavedPage() {
                             aria-label={`${place.name} 지도 보기`}
                             onClick={() => handleOpenMap(place)}
                           >
-                            <Map size={17} aria-hidden="true" />
+                            <Map size={24} aria-hidden="true" />
                             지도 보기
                           </C.MapButton>
                           <C.AddButton
@@ -554,7 +554,7 @@ export default function SavedPage() {
                             aria-label={`${place.name} 일정에 추가`}
                             onClick={() => handleOpenAddPlace(place)}
                           >
-                            <Plus size={17} aria-hidden="true" />
+                            <Plus size={24} aria-hidden="true" />
                             일정에 추가
                           </C.AddButton>
                         </C.CardActions>
