@@ -10,7 +10,8 @@ import type {
 } from "react";
 import { createPortal } from "react-dom";
 import * as S from "./MainSidebarStyle";
-import smallRouty from "../../../public/favicon.svg";
+
+const smallRouty = "/favicon.svg";
 
 import ProfileImage from "../../assets/profile.webp";
 import profileAvatar1 from "../../assets/profileAvatars/P1.webp";
