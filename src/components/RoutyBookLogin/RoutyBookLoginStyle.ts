@@ -964,7 +964,7 @@ export const MobileHeader = styled.header({
 
   "@media (max-width: 359px)": {
     height: "78px",
-    padding: "8px 18px",
+    padding: "10px 24px",
   },
 });
 export const MobileLogo = styled.img({
@@ -972,7 +972,7 @@ export const MobileLogo = styled.img({
   height: "60px",
   maxWidth: "calc(100vw - 116px)",
   objectFit: "contain",
-  "@media (max-width: 359px)": { width: "114px", height: "52px" },
+  "@media (max-width: 359px)": { width: "114px", height: "36px" },
   filter: "none",
 });
 
@@ -1000,12 +1000,17 @@ export const MobileContent = styled.section({
   padding: "24px 27px 26px",
   overflowX: "hidden",
   overflowY: "auto",
+  scrollbarWidth: "none",
+
+  "&::-webkit-scrollbar": {
+    display: "none",
+  },
   "&[data-cover='true']": {
     alignItems: "center",
     paddingTop: "44px",
   },
   "&[data-step='true']": {
-    gap: "24px",
+    gap: "8px",
     paddingTop: "28px",
     overflowY: "auto",
   },
@@ -1115,12 +1120,11 @@ export const MobileCoverButton = styled.button({
 });
 
 export const MobileTitle = styled.h1({
-  margin: "0 0 24px",
   color: teal,
   fontSize: "32px",
   fontWeight: 700,
   lineHeight: 1.4,
-  "@media (max-width: 359px)": { fontSize: "28px" },
+  "@media (max-width: 359px)": { fontSize: "24px" },
   "&[data-login='true']": { textAlign: "center", margin: "28px 0 32px" },
 });
 
@@ -1128,7 +1132,7 @@ export const MobileProgress = styled.div({
   display: "flex",
   flexShrink: 0,
   gap: "6px",
-  padding: "4px 27px 0",
+  padding: "4px 24px 0",
 });
 
 export const MobileProgressPart = styled.span({
@@ -1187,11 +1191,11 @@ export const MobileInput = styled.input({
   width: "100%",
   minWidth: 0,
   maxWidth: "100%",
-  height: "48px",
-  minHeight: "48px",
+  height: "52px",
+  minHeight: "52px",
   padding: "0 14px",
   border: "1px solid #DCE5E6",
-  borderRadius: "16px",
+  borderRadius: "8px",
   outline: "none",
   backgroundColor: "#FFFFFF",
   color: teal,
@@ -1219,14 +1223,14 @@ export const MobileInputRow = styled.div({
 export const MobileMiniButton = styled.button({
   flexShrink: 0,
   minWidth: "88px",
-  minHeight: "58px",
+  minHeight: "52px",
   padding: "0 12px",
   border: "none",
-  borderRadius: "6px",
+  borderRadius: "8px",
   backgroundColor: teal,
   color: "white",
   fontFamily: "inherit",
-  fontSize: "17px",
+  fontSize: "16px",
   fontWeight: 700,
   cursor: "pointer",
   "&:disabled": { opacity: 0.55, cursor: "not-allowed" },
@@ -1306,14 +1310,14 @@ export const MobileAction = styled.div({
   gap: "8px",
   flexShrink: 0,
   width: "100%",
-  padding: "16px 23px 40px",
+  padding: "16px 24px 24px",
   backgroundColor: "#FBFAF6",
 });
 
 export const MobilePrevious = styled.button({
   flex: "1",
   minWidth: 0,
-  height: "56px",
+  height: "52px",
   padding: "0 16px",
   border: `1px solid ${teal}`,
   borderRadius: "8px",
@@ -1335,7 +1339,7 @@ export const MobilePrimary = styled.button({
   width: "100%",
   maxWidth: "100%",
   minWidth: 0,
-  minHeight: "56px",
+  minHeight: "52px",
   padding: "12px 20px",
   border: "none",
   borderRadius: "8px",
