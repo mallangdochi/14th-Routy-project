@@ -89,10 +89,10 @@ import { useAuth } from "../../contexts/AuthContext";
 import defaultTripImage from "../../assets/where.webp";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import * as S from "./ScheduleStyle";
-import { RouteMapDetails, buildDisplayRoutes, routeColor, useTouchMap, type RouteSelection, type TravelMode } from "../../components/map/RouteMapInfo";
+import { MapViewport, RouteHoverHint, RouteMapDetails, buildDisplayRoutes, routeColor, setRouteLineHoverStyle, useTouchMap, type RouteSelection, type TravelMode } from "../../components/map/RouteMapInfo";
 import KakaoMap from "../../components/kakaoMap/KakaoMap";
 import { getKakaoMapPointUrl } from "../../api/kakao/kakaoLinks";
-import MapSearchOverlay, { type SearchedMapPlace } from "../../components/map/MapSearchOverlay";
+import type { SearchedMapPlace } from "../../components/map/MapSearchOverlay";
 import { getAllowedCurrentLocation, LOCATION_CHANGE_EVENT } from "../../utils/locationService";
 import TravelRouteSummary, {
   type RouteLine,
@@ -1420,7 +1420,7 @@ function ScheduleContent({
   const [routeMode, setRouteMode] = useState<TravelMode>("walk");
   const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
   const [locatedStops, setLocatedStops] = useState<Record<number, { lat: number; lng: number }>>({});
-  const [mapPlaceSaving, setMapPlaceSaving] = useState(false);
+  const [, setMapPlaceSaving] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -2630,19 +2630,6 @@ function ScheduleContent({
                         zoom={mapZoom}
                       />
                     )}
-                    {(activeTab === "schedule" || activeTab === "map") && (
-                      <MapSearchOverlay
-                        key={activeTab + ":" + activeDayId}
-                        region={tripRegion}
-                        canAdd={canEditTrip && !mapPlaceSaving}
-                        onAddPlace={addPlaceFromKakao}
-                        onFocus={(lat, lng) => {
-                          window.dispatchEvent(new CustomEvent("routy:map:focus", {
-                            detail: { lat, lng },
-                          }));
-                        }}
-                      />
-                    )}
                   </S.MapCanvas>
 
                   {!(activeTab === "schedule") && (
@@ -3374,8 +3361,10 @@ function ScheduleEditRouteMap({
   const [loading, setLoading] = useState(Boolean(KAKAO_KEY));
   // Routy desktop route hover patch v1. Touch devices use the same expandable detail panel.
   const [routeSelection, setRouteSelection] = useState<RouteSelection | null>(null);
+  const [routeHover, setRouteHover] = useState<RouteSelection | null>(null);
   const isTouchMap = useTouchMap();
   const routePinnedRef = useRef(false);
+  const selectedRouteRef = useRef<RouteSelection | null>(null);
 
   useEffect(() => {
     if (!KAKAO_KEY) return;
@@ -3525,15 +3514,22 @@ function ScheduleEditRouteMap({
     layersRef.current = [];
     const coordinatePoints = locatedRef.current;
     const openRouteInfo = (info: RouteSelection, pinned: boolean) => {
+      if (!isTouchMap) {
+        routePinnedRef.current = false;
+        selectedRouteRef.current = null;
+        setRouteSelection(null);
+        setRouteHover(info);
+        return;
+      }
       routePinnedRef.current = pinned;
+      selectedRouteRef.current = info.kind === "route" ? info : null;
+      setRouteHover(null);
       setRouteSelection(info);
     };
     const hoverRouteInfo = (info: RouteSelection) => {
-      if (!isTouchMap && !routePinnedRef.current) setRouteSelection(info);
+      if (!isTouchMap && !routePinnedRef.current) setRouteHover(info);
     };
-    const leaveRouteInfo = () => {
-      if (!isTouchMap && !routePinnedRef.current) setRouteSelection(null);
-    };
+    const leaveRouteInfo = () => { setRouteHover(null); };
     const kakaoEvent = (sdk as KakaoMapsSDK & {
       event?: { addListener(target: object, event: string, listener: () => void): void };
     }).event;
@@ -3558,8 +3554,14 @@ function ScheduleEditRouteMap({
         });
         layersRef.current.push(line);
         const info: RouteSelection = { kind: "route", route: leg, order: leg.order ?? 1 };
-        kakaoEvent?.addListener(line, "mouseover", () => hoverRouteInfo(info));
-        kakaoEvent?.addListener(line, "mouseout", leaveRouteInfo);
+        kakaoEvent?.addListener(line, "mouseover", () => {
+          if (!isTouchMap) setRouteLineHoverStyle(line, leg, true);
+          hoverRouteInfo(info);
+        });
+        kakaoEvent?.addListener(line, "mouseout", () => {
+          if (!isTouchMap) setRouteLineHoverStyle(line, leg, false);
+          leaveRouteInfo();
+        });
         kakaoEvent?.addListener(line, "click", () => openRouteInfo(info, true));
       });
     }
@@ -3589,7 +3591,9 @@ function ScheduleEditRouteMap({
             }, true);
           } else {
             routePinnedRef.current = false;
+            selectedRouteRef.current = null;
             setRouteSelection(null);
+            setRouteHover(null);
           }
         },
         (active) => {
@@ -3621,7 +3625,9 @@ function ScheduleEditRouteMap({
 
   useEffect(() => {
     routePinnedRef.current = false;
+    selectedRouteRef.current = null;
     setRouteSelection(null);
+    setRouteHover(null);
   }, [stops, routePaths, showRoute, routeMode]);
 
   useEffect(() => {
@@ -3640,23 +3646,28 @@ function ScheduleEditRouteMap({
     const map = mapRef.current;
     const element = containerRef.current;
     if (!map || !element || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => map.relayout());
+    const observer = new ResizeObserver(() => {
+      map.relayout();
+      const selected = selectedRouteRef.current;
+      if (selected?.kind === "route" && selected.route.path.length > 1 && sdk) {
+        const bounds = new sdk.LatLngBounds();
+        selected.route.path.forEach(({ lat, lng }) => bounds.extend(new sdk.LatLng(lat, lng)));
+        map.setBounds(bounds, 60);
+      }
+    });
     observer.observe(element);
     return () => observer.disconnect();
   }, [sdk]);
 
   return (
     <S.EditMapRoot data-route-map-root>
+      <MapViewport>
       <div
         ref={containerRef}
         style={{ width: "100%", height: "100%" }}
         aria-label="카카오 지도"
       />
-      <RouteMapDetails
-        selection={routeSelection}
-        isTouch={isTouchMap}
-        onClose={() => { routePinnedRef.current = false; setRouteSelection(null); }}
-      />
+      {!isTouchMap && <RouteHoverHint selection={routeHover} />}
       {!KAKAO_KEY ? (
         <S.EditMapMessage role="status">
           <strong>카카오맵 API 키가 필요해요.</strong>
@@ -3686,6 +3697,13 @@ function ScheduleEditRouteMap({
             : "점선은 방문 순서만 표시하며 실제 도로 경로가 아닙니다."}
         </S.EditMapNote>
       )}
+      </MapViewport>
+      {isTouchMap && <RouteMapDetails
+        key={`${routeSelection?.kind ?? "none"}-${routeSelection?.order ?? ""}-${isTouchMap}`}
+        selection={routeSelection}
+        isTouch={isTouchMap}
+        onClose={() => { routePinnedRef.current = false; selectedRouteRef.current = null; setRouteSelection(null); setRouteHover(null); }}
+      />}
     </S.EditMapRoot>
   );
 }

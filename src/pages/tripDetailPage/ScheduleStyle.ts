@@ -3080,8 +3080,12 @@ export const BatchMoveDropdown = styled.div({
 
 export const EditMapRoot = styled.div({
   position: "relative",
+  display: "flex",
+  flexDirection: "column",
   width: "100%",
   height: "100%",
+  minHeight: 0,
+  overflow: "hidden",
   ".route-map-marker": { position: "relative", width: "44px", height: "54px" },
   ".route-map-pin-number": {
     position: "absolute",

@@ -203,7 +203,7 @@ export default function TravelRouteSummary({
   const missing = results.length - successful.length;
 
   return (
-    <S.Panel aria-label="교통수단별 이동 경로 및 시간">
+    <S.Panel style={{ display: "none" }} aria-hidden="true" aria-label="교통수단별 이동 경로 및 시간">
       <S.Heading>
         <Route size={21} />
         <strong>이동 거리 · 예상 시간</strong>
