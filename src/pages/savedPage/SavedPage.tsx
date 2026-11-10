@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import * as C from "./SavedStyle";
 import { Bookmark, Map, MapPin, Plus } from "lucide-react";
@@ -43,6 +43,102 @@ type ServerSavedPlace = {
   longitude?: number | null;
   createdAt: string;
 };
+
+// 기존 저장 데이터에는 imageUrl이 비어 있을 수 있습니다.
+// 검색 페이지와 동일한 사진 API로 실제 장소 사진을 다시 조회합니다.
+const savedPhotoCache = new globalThis.Map<string, Promise<string | null>>();
+
+function verifiedPhotoUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    return new URL(value).protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveSavedPhoto(place: ServerSavedPlace, preferDaum = false) {
+  const key = JSON.stringify([
+    place.name, place.address, place.latitude, place.longitude, preferDaum,
+  ]);
+  const cached = savedPhotoCache.get(key);
+  if (cached) return cached;
+
+  const params = new URLSearchParams({ name: place.name, address: place.address });
+  if (typeof place.latitude === "number" && Number.isFinite(place.latitude)) {
+    params.set("lat", String(place.latitude));
+  }
+  if (typeof place.longitude === "number" && Number.isFinite(place.longitude)) {
+    params.set("lng", String(place.longitude));
+  }
+  if (preferDaum) params.set("prefer", "daum");
+
+  const pending = fetch(`/api/tour/photos?${params.toString()}`)
+    .then(async (response): Promise<string | null> => {
+      if (!response.ok) return null;
+      const data: unknown = await response.json();
+      return verifiedPhotoUrl(
+        data && typeof data === "object"
+          ? (data as { image?: unknown }).image
+          : null,
+      );
+    })
+    .catch((): null => null);
+
+  if (savedPhotoCache.size >= 200) savedPhotoCache.clear();
+  savedPhotoCache.set(key, pending);
+  return pending;
+}
+
+function SavedPlacePhoto({ place }: { place: ServerSavedPlace }) {
+  const key = JSON.stringify([place.provider, place.placeId, place.imageUrl]);
+  const storedPhoto = verifiedPhotoUrl(place.imageUrl);
+  const [resolved, setResolved] = useState<{ key: string; url: string | null } | null>(null);
+  const [alternate, setAlternate] = useState<{ key: string; url: string | null } | null>(null);
+  const [broken, setBroken] = useState<{ key: string; urls: string[] } | null>(null);
+  const brokenUrls = broken?.key === key ? broken.urls : [];
+  const storedBroken = Boolean(storedPhoto && brokenUrls.includes(storedPhoto));
+
+  useEffect(() => {
+    if (storedPhoto && !storedBroken) return;
+    let active = true;
+    void resolveSavedPhoto(place).then((url) => {
+      if (active) setResolved({ key, url });
+    });
+    return () => { active = false; };
+    // Key covers the saved identity; storedBroken lets a failed stored URL retry TourAPI.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, storedPhoto, storedBroken]);
+
+  const first = resolved?.key === key ? resolved.url : null;
+  const second = alternate?.key === key ? alternate.url : null;
+  const isBroken = (url: string | null) => Boolean(url && brokenUrls.includes(url));
+  const image = storedPhoto && !isBroken(storedPhoto)
+    ? storedPhoto
+    : second && !isBroken(second)
+      ? second
+      : first && !isBroken(first)
+        ? first
+        : SearchMascot;
+
+  return (
+    <C.PlaceImage
+      src={image}
+      alt={place.name}
+      loading="lazy"
+      onError={() => {
+        if (image === SearchMascot) return;
+        setBroken((previous) => ({
+          key,
+          urls: [...new Set([...(previous?.key === key ? previous.urls : []), image])],
+        }));
+        if (first === image && !second) {
+          void resolveSavedPhoto(place, true).then((url) => setAlternate({ key, url }));
+        }
+      }}
+    />
+  );
+}
 
 const categories = ["전체", "관광", "음식점", "카페", "숙소"] as const;
 
@@ -397,19 +493,7 @@ export default function SavedPage() {
                           }
                         }}
                       >
-                        <C.PlaceImage
-                          src={place.imageUrl || SearchMascot}
-                          alt={place.name}
-                          loading="lazy"
-                          onError={(event) => {
-                            if (
-                              event.currentTarget.getAttribute("src") !==
-                              SearchMascot
-                            ) {
-                              event.currentTarget.src = SearchMascot;
-                            }
-                          }}
-                        />
+                        <SavedPlacePhoto place={place} />
                         <C.PlaceContent>
                           <C.PlaceHeading>
                             <C.PlaceName id={pagePlaceId}>
