@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 import * as S from "./RouteMapInfoStyle";
+export { MapDock, MapViewport } from "./RouteMapInfoStyle";
 
 export type TravelMode = "walk" | "bike" | "car" | "transit";
 export type RoutePoint = { lat: number; lng: number };
@@ -118,11 +119,32 @@ export const routeColor = (mode?: TravelMode) => {
   }
 };
 
+/** PC 경로선 호버 강조: 색상과 두께만 변경하고 실제 경로 데이터는 유지합니다. */
+export function setRouteLineHoverStyle(
+  polyline: unknown,
+  route: Pick<RouteLine, "mode" | "isFallback">,
+  active: boolean,
+) {
+  // Kakao Maps Polyline.setOptions() is supported by the Web SDK.
+  const target = polyline as {
+    setOptions(options: {
+      strokeColor: string;
+      strokeWeight: number;
+      strokeOpacity: number;
+    }): void;
+  };
+  target.setOptions({
+    strokeColor: active ? "#8B5CF6" : route.isFallback ? "#778D90" : routeColor(route.mode),
+    strokeWeight: active ? (route.isFallback ? 8 : 12) : route.isFallback ? 5 : 9,
+    strokeOpacity: active ? 1 : route.isFallback ? 0.7 : 0.92,
+  });
+}
+
 /** For mouse use a compact tooltip; for touch use an expandable bottom drawer. */
 export function useTouchMap() {
   const [isTouch, setIsTouch] = useState(false);
   useEffect(() => {
-    const query = window.matchMedia("(hover: none), (pointer: coarse)");
+    const query = window.matchMedia("(hover: none) and (pointer: coarse)");
     const update = () => setIsTouch(query.matches);
     update();
     query.addEventListener?.("change", update);
@@ -164,6 +186,50 @@ function safeKakaoLink(value?: string | null): string | null {
   } catch { return null; }
 }
 
+/** The map itself never loses its interaction area to the desktop tooltip. */
+export function RouteHoverHint({
+  selection,
+}: {
+  selection: RouteSelection | null;
+}) {
+  const hintRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selection) return;
+    const element = hintRef.current;
+    const viewport = element?.parentElement;
+    if (!element || !viewport) return;
+    const onMove = (event: PointerEvent) => {
+      const bounds = viewport.getBoundingClientRect();
+      // The hint follows the pointer, but never extends beyond the map.
+      const width = element.offsetWidth || 230;
+      const height = element.offsetHeight || 72;
+      const x = Math.max(8, Math.min(event.clientX - bounds.left + 18, bounds.width - width - 8));
+      const y = Math.max(8, Math.min(event.clientY - bounds.top + 18, bounds.height - height - 8));
+      element.style.left = `${x}px`;
+      element.style.top = `${y}px`;
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [selection]);
+  if (!selection) return null;
+  if (selection.kind === "stop") {
+    return (
+      <S.HoverHint ref={hintRef} role="status">
+        <strong>{selection.order}. {selection.stop.title}</strong>
+        <span>{selection.stop.time ? `방문 ${selection.stop.time}` : "장소를 클릭하면 상세 설명을 볼 수 있어요"}</span>
+      </S.HoverHint>
+    );
+  }
+  const { route } = selection;
+  return (
+    <S.HoverHint ref={hintRef} role="status">
+      <strong>{selection.order}구간 · {route.fromName || "출발"} → {route.toName || "도착"}</strong>
+      <span>{modeName(route.mode)} · {route.isFallback ? "직선 연결 · 실제 경로 조회 안 됨" : `${distanceLabel(route.distanceMeters)} · ${durationLabel(route.durationSeconds)}`}</span>
+    </S.HoverHint>
+  );
+}
+
+/** Render as a flex sibling BELOW the map viewport, never over its route. */
 export function RouteMapDetails({
   selection,
   isTouch,
@@ -173,61 +239,85 @@ export function RouteMapDetails({
   isTouch: boolean;
   onClose: () => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
-  useEffect(() => setExpanded(true), [selection]);
-  if (!selection) return null;
-  if (selection.kind === "stop") {
-    const { stop, order, total } = selection;
-    const role = total === 1 ? "출발·도착" : order === 1 ? "출발지" : order === total ? "도착지" : "경유지";
-    return (
-      <S.DetailPanel $touch={isTouch} aria-label="선택한 일정 장소 상세">
-        <S.DetailHeader>
-          <S.TitleButton type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
-            <span>{order}번 {role} · {stop.title}</span>
-            {isTouch ? <span aria-hidden="true">{expanded ? "⌄" : "⌃"}</span> : null}
-          </S.TitleButton>
-          <S.CloseButton type="button" onClick={onClose} aria-label="상세 닫기">×</S.CloseButton>
-        </S.DetailHeader>
-        {expanded && <S.DetailBody>
-          {stop.time && <div><strong>방문 예정</strong><span>{stop.time}</span></div>}
-          {stop.category && <div><strong>분류</strong><span>{stop.category}</span></div>}
-          {stop.address && <div><strong>주소</strong><span>{stop.address}</span></div>}
-          <S.Description>{stop.description || "등록된 장소 설명이 없습니다."}</S.Description>
-          {safeKakaoLink(stop.externalUrl) && <S.ExternalLink href={safeKakaoLink(stop.externalUrl)!} target="_blank" rel="noopener noreferrer">카카오맵에서 장소 보기</S.ExternalLink>}
-        </S.DetailBody>}
-      </S.DetailPanel>
-    );
-  }
-  const { route } = selection;
-  const order = route.order ?? selection.order;
-  const link = safeKakaoLink(route.link);
+  const [expanded, setExpanded] = useState(!isTouch);
+  const touchStartY = useRef<number | null>(null);
+  // Desktop intentionally has no expanded details panel; only compact hover hints.
+  if (!selection || !isTouch) return null;
+
+  const onTouchStart = (event: TouchEvent<HTMLElement>) => {
+    touchStartY.current = event.touches[0]?.clientY ?? null;
+  };
+  const onTouchEnd = (event: TouchEvent<HTMLElement>) => {
+    if (touchStartY.current === null) return;
+    const delta = event.changedTouches[0]?.clientY - touchStartY.current;
+    touchStartY.current = null;
+    if (delta === undefined) return;
+    if (delta < -35) setExpanded(true);
+    else if (delta > 35) setExpanded(false);
+  };
+
+  const stop = selection.kind === "stop" ? selection.stop : null;
+  const route = selection.kind === "route" ? selection.route : null;
+  const role = selection.kind === "stop"
+    ? selection.total === 1 ? "출발·도착" : selection.order === 1 ? "출발지" : selection.order === selection.total ? "도착지" : "경유지"
+    : "";
+  const headline = stop
+    ? `${selection.order}번 ${role} · ${stop.title}`
+    : `${selection.order}구간 · ${route?.fromName || "출발"} → ${route?.toName || "도착"}`;
+  const summary = stop
+    ? stop.time ? `방문 예정 ${stop.time}` : "장소 정보"
+    : route?.isFallback ? "실제 경로 조회 안 됨"
+    : `${modeName(route?.mode)} · ${distanceLabel(route?.distanceMeters)} · ${durationLabel(route?.durationSeconds)}`;
+  const link = safeKakaoLink(stop?.externalUrl ?? route?.link);
+
   return (
-    <S.DetailPanel $touch={isTouch} aria-label="선택한 이동 구간 상세">
+    <S.DetailPanel
+      $touch={isTouch}
+      $expanded={expanded}
+      aria-label={stop ? "선택한 일정 장소 상세" : "선택한 이동 구간 상세"}
+      onTouchStart={isTouch ? onTouchStart : undefined}
+      onTouchEnd={isTouch ? onTouchEnd : undefined}
+    >
+      {isTouch && <S.DrawerHandle aria-hidden="true" />}
       <S.DetailHeader>
-        <S.TitleButton type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
-          <span>{order}구간 · {route.fromName || "출발"} → {route.toName || "도착"}</span>
-          {isTouch ? <span aria-hidden="true">{expanded ? "⌄" : "⌃"}</span> : null}
+        <S.TitleButton type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+          <strong>{headline}</strong>
+          <span>{summary}</span>
+          <S.ExpandIndicator aria-hidden="true">{expanded ? "⌄" : "⌃"}</S.ExpandIndicator>
         </S.TitleButton>
         <S.CloseButton type="button" onClick={onClose} aria-label="상세 닫기">×</S.CloseButton>
       </S.DetailHeader>
-      {expanded && <S.DetailBody>
-        <div><strong>이동 방식</strong><span>{modeName(route.mode)}</span></div>
-        {route.isFallback ? (
-          <S.Description>방문 순서만 표시한 직선 연결선입니다. 실제 이동 경로·거리·시간은 조회되지 않았습니다.</S.Description>
-        ) : (
-          <div><strong>거리 · 예상 시간</strong><span>{distanceLabel(route.distanceMeters)} · {durationLabel(route.durationSeconds)}</span></div>
-        )}
-        {route.fromTime && <div><strong>출발 예정</strong><span>{route.fromTime}</span></div>}
-        {route.fromAddress && <div><strong>출발지 주소</strong><span>{route.fromAddress}</span></div>}
-        {route.fromDescription && <S.Description><strong>출발 장소 설명</strong> · {route.fromDescription}</S.Description>}
-        {route.toTime && <div><strong>다음 장소 예정</strong><span>{route.toTime}</span></div>}
-        {route.toAddress && <div><strong>도착지 주소</strong><span>{route.toAddress}</span></div>}
-        {route.toDescription && <S.Description><strong>도착 장소 설명</strong> · {route.toDescription}</S.Description>}
-        {typeof route.transfers === "number" && <div><strong>환승</strong><span>{route.transfers}회</span></div>}
-        {typeof route.fareWon === "number" && <div><strong>요금</strong><span>{route.fareWon.toLocaleString()}원</span></div>}
-        {link && <S.ExternalLink href={link} target="_blank" rel="noopener noreferrer">카카오맵 상세 경로 보기</S.ExternalLink>}
-        {!route.isFallback && <S.Disclaimer>예상 이동 시간은 API 조회값이며 교통 상황에 따라 달라질 수 있습니다.</S.Disclaimer>}
-      </S.DetailBody>}
+      {expanded && (
+        <S.DetailBody>
+          {stop ? (
+            <>
+              {stop.time && <div><strong>방문 예정</strong><span>{stop.time}</span></div>}
+              {stop.category && <div><strong>분류</strong><span>{stop.category}</span></div>}
+              {stop.address && <div><strong>주소</strong><span>{stop.address}</span></div>}
+              <S.Description>{stop.description || "등록된 장소 설명이 없습니다."}</S.Description>
+            </>
+          ) : route ? (
+            <>
+              <div><strong>이동 방식</strong><span>{modeName(route.mode)}</span></div>
+              {route.isFallback ? (
+                <S.Description>방문 순서만 나타낸 직선 연결선입니다. 실제 도로 경로·거리·시간은 조회되지 않았습니다.</S.Description>
+              ) : (
+                <div><strong>거리 · 예상 시간</strong><span>{distanceLabel(route.distanceMeters)} · {durationLabel(route.durationSeconds)}</span></div>
+              )}
+              {route.fromTime && <div><strong>출발 예정</strong><span>{route.fromTime}</span></div>}
+              {route.fromAddress && <div><strong>출발지 주소</strong><span>{route.fromAddress}</span></div>}
+              {route.fromDescription && <S.Description><strong>출발 장소 설명</strong> · {route.fromDescription}</S.Description>}
+              {route.toTime && <div><strong>도착 예정</strong><span>{route.toTime}</span></div>}
+              {route.toAddress && <div><strong>도착지 주소</strong><span>{route.toAddress}</span></div>}
+              {route.toDescription && <S.Description><strong>도착 장소 설명</strong> · {route.toDescription}</S.Description>}
+              {typeof route.transfers === "number" && <div><strong>환승</strong><span>{route.transfers}회</span></div>}
+              {typeof route.fareWon === "number" && <div><strong>요금</strong><span>{route.fareWon.toLocaleString()}원</span></div>}
+              {!route.isFallback && <S.Disclaimer>예상 이동 시간은 API 조회값이며 교통 상황에 따라 달라질 수 있습니다.</S.Disclaimer>}
+            </>
+          ) : null}
+          {link && <S.ExternalLink href={link} target="_blank" rel="noopener noreferrer">카카오맵에서 상세 보기</S.ExternalLink>}
+        </S.DetailBody>
+      )}
     </S.DetailPanel>
   );
 }

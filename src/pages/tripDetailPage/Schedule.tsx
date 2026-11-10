@@ -91,9 +91,20 @@ import { useAuth } from "../../contexts/AuthContext";
 import defaultTripImage from "../../assets/where.webp";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import * as S from "./ScheduleStyle";
-import KakaoMap from "../../components/kakaoMap/KakaoMap";
 import {
-  // TravelRouteSummary,
+  MapViewport,
+  RouteHoverHint,
+  RouteMapDetails,
+  buildDisplayRoutes,
+  routeColor,
+  setRouteLineHoverStyle,
+  useTouchMap,
+  type RouteSelection,
+  type TravelMode,
+} from "../../components/map/RouteMapInfo";
+import KakaoMap from "../../components/kakaoMap/KakaoMap";
+import { getKakaoMapPointUrl } from "../../api/kakao/kakaoLinks";
+import TravelRouteSummary, {
   type RouteLine,
 } from "../../components/Schedule/TravelRouteSummary";
 import KakaoTravelMap, { type KakaoPlace } from "../../map/KakaoTravelMap";
@@ -130,6 +141,10 @@ import TripPeopleModal, {
   type TripMemberChanges,
 } from "../../components/modal/select-trip-people/TripPeopleModal";
 import TripInviteGate from "../../components/modal/trip-invite-gate/TripInviteGate";
+
+const BudgetTabWithPermission = TravelBudgetTab as React.ComponentType<
+  React.ComponentProps<typeof TravelBudgetTab> & { canEdit?: boolean }
+>;
 
 export type PlaceModalSource = Pick<
   PlaceModalProps,
@@ -1425,8 +1440,11 @@ function ScheduleContent({
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const [showRoute, setShowRoute] = useState(true);
-  // const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
-  const [routePaths] = useState<RouteLine[]>([]);
+  const [routeMode, setRouteMode] = useState<TravelMode>("walk");
+  const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
+  const [locatedStops, setLocatedStops] = useState<
+    Record<number, { lat: number; lng: number }>
+  >({});
   const [mapZoom, setMapZoom] = useState(1);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -1438,6 +1456,62 @@ function ScheduleContent({
   const stops = React.useMemo(
     () => stopsByDay[activeDayId] ?? [],
     [stopsByDay, activeDayId],
+  );
+
+  // 저장된 좌표가 없는 장소도 경로 조회에 사용할 수 있도록 화면에서만 보완합니다.
+  useEffect(() => {
+    let cancelled = false;
+    setLocatedStops({});
+    if (
+      !stops.some(
+        (stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng),
+      )
+    ) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    void loadKakaoMaps()
+      .then(async (maps) => {
+        const places = new maps.services.Places();
+        const found = await Promise.all(
+          stops.map((stop) =>
+            resolveKakaoPlace(maps, places, {
+              id: stop.id,
+              title: stop.title,
+              address: stop.address,
+              latitude: stop.lat,
+              longitude: stop.lng,
+            }),
+          ),
+        );
+        if (cancelled) return;
+        const locations: Record<number, { lat: number; lng: number }> = {};
+        found.forEach((point, index) => {
+          if (point)
+            locations[stops[index].id] = {
+              lat: point.latitude,
+              lng: point.longitude,
+            };
+        });
+        setLocatedStops(locations);
+      })
+      .catch(() => {
+        /* 위치 조회 실패 구간은 미조회 상태로 둡니다. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [stops]);
+
+  const routeStops = React.useMemo(
+    () =>
+      stops.map((stop) => ({
+        ...stop,
+        lat: Number.isFinite(stop.lat) ? stop.lat : locatedStops[stop.id]?.lat,
+        lng: Number.isFinite(stop.lng) ? stop.lng : locatedStops[stop.id]?.lng,
+      })),
+    [stops, locatedStops],
   );
 
   const selectedStopCount = stops.filter((stop) =>
@@ -1454,18 +1528,18 @@ function ScheduleContent({
   };
   const showMapPanel = activeTab === "map" || stops.length > 0;
 
-  const visibleMapStops = stops.filter(
+  const visibleMapStops = routeStops.filter(
     (stop) => activeFilter === "전체" || stop.category === activeFilter,
   );
 
   const kakaoMapStops = React.useMemo(
     () =>
-      stops.map((stop) => ({
+      routeStops.map((stop) => ({
         ...stop,
         latitude: stop.lat,
         longitude: stop.lng,
       })),
-    [stops],
+    [routeStops],
   );
 
   const updateStops = (updater: (previous: Stop[]) => Stop[]) => {
@@ -2513,10 +2587,15 @@ function ScheduleContent({
                   ))}
                 </S.StopList>
 
-                {/* <TravelRouteSummary
-                  stops={stops}
-                  onRoutesReady={setRoutePaths}
-                /> */}
+                {/* 경로 계산은 유지하되 삭제 요청한 하단 요약 카드는 표시하지 않습니다. */}
+                <div style={{ display: "none" }} aria-hidden="true">
+                  <TravelRouteSummary
+                    stops={routeStops}
+                    mode={routeMode}
+                    onModeChange={setRouteMode}
+                    onRoutesReady={setRoutePaths}
+                  />
+                </div>
 
                 {isEditMode && stops.length > 0 && (
                   <S.AddPlaceButton type="button" onClick={openPlaceModal}>
@@ -2543,14 +2622,17 @@ function ScheduleContent({
                         category="전체"
                         showRoute={showRoute}
                         routePaths={routePaths}
+                        routeMode={routeMode}
                         zoom={mapZoom}
                       />
                     ) : activeTab === "map" ? (
                       <KakaoTravelMap
                         region={tripRegion}
                         stops={visibleMapStops}
-                        routeStops={stops}
+                        routeStops={routeStops}
                         routePaths={routePaths}
+                        routeMode={routeMode}
+                        onRouteModeChange={setRouteMode}
                         showRoute={showRoute}
                         zoom={mapZoom}
                         onAddPlace={addPlaceFromKakao}
@@ -2561,6 +2643,8 @@ function ScheduleContent({
                         stops={kakaoMapStops}
                         category={activeFilter}
                         routePaths={routePaths}
+                        routeMode={routeMode}
+                        onRouteModeChange={setRouteMode}
                         showRoute={showRoute}
                         zoom={mapZoom}
                       />
@@ -2715,7 +2799,7 @@ function ScheduleContent({
               />
             </S.ChecklistArea>
           ) : activeTab === "budget" ? (
-            <TravelBudgetTab canEdit={canEditTrip} />
+            <BudgetTabWithPermission canEdit={canEditTrip} />
           ) : null}
         </S.Container>
       </S.MainContent>
@@ -3184,6 +3268,7 @@ type EditRouteMapProps = {
   category: string;
   showRoute: boolean;
   routePaths: RouteLine[];
+  routeMode: TravelMode;
   zoom: number;
 };
 
@@ -3192,13 +3277,26 @@ function createMarkerContent(
   order: number,
   total: number,
   onActiveChange: (active: boolean) => void,
+  onSelect: (selected: boolean) => void,
+  onHover: (active: boolean) => void,
 ): HTMLElement {
   const marker = document.createElement("div");
   marker.className = "route-map-marker";
   const button = document.createElement("button");
   button.type = "button";
   button.className = "route-map-pin";
-  button.setAttribute("aria-label", `${order}번 ${stop.title} 일정 정보`);
+  const role =
+    total === 1
+      ? "출발·도착"
+      : order === 1
+        ? "출발지"
+        : order === total
+          ? "도착지"
+          : "경유지";
+  button.setAttribute(
+    "aria-label",
+    `${order}번 ${role} ${stop.title}${stop.time ? ` · ${stop.time}` : ""}`,
+  );
   button.setAttribute("aria-expanded", "false");
   button.innerHTML = renderToStaticMarkup(
     <svg width="44" height="54" viewBox="0 0 44 54" aria-hidden="true">
@@ -3230,7 +3328,17 @@ function createMarkerContent(
     address.textContent = stop.address;
     tooltip.append(address);
   }
-  marker.append(button, tooltip);
+  const description = (stop as KakaoStop & { description?: string })
+    .description;
+  if (description?.trim()) {
+    const info = document.createElement("span");
+    info.textContent = description;
+    tooltip.append(info);
+  }
+  const timeLabel = document.createElement("span");
+  timeLabel.className = "route-map-pin-time";
+  timeLabel.textContent = stop.time || "시간 미정";
+  marker.append(button, timeLabel, tooltip);
   const show = (active: boolean) => {
     tooltip.hidden = !active;
     button.setAttribute("aria-expanded", String(active));
@@ -3243,6 +3351,7 @@ function createMarkerContent(
     marker.dataset.selected = "false";
     button.setAttribute("aria-pressed", "false");
     show(false);
+    onSelect(false);
   };
   marker.addEventListener("route-marker-deselect", deselect);
   button.setAttribute("aria-pressed", "false");
@@ -3260,7 +3369,10 @@ function createMarkerContent(
     marker.dataset.selected = String(tapped);
     button.setAttribute("aria-pressed", String(tapped));
     show(tapped);
+    onSelect(tapped);
   });
+  button.addEventListener("mouseenter", () => onHover(true));
+  button.addEventListener("mouseleave", () => onHover(false));
   button.addEventListener("keydown", (event) => {
     if (event.key === "Escape") deselect();
   });
@@ -3272,6 +3384,7 @@ function ScheduleEditRouteMap({
   category,
   showRoute,
   routePaths,
+  routeMode,
   zoom,
 }: EditRouteMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -3283,6 +3396,14 @@ function ScheduleEditRouteMap({
   const [error, setError] = useState("");
   const [unresolved, setUnresolved] = useState(0);
   const [loading, setLoading] = useState(Boolean(KAKAO_KEY));
+  // Routy desktop route hover patch v1. Touch devices use the same expandable detail panel.
+  const [routeSelection, setRouteSelection] = useState<RouteSelection | null>(
+    null,
+  );
+  const [routeHover, setRouteHover] = useState<RouteSelection | null>(null);
+  const isTouchMap = useTouchMap();
+  const routePinnedRef = useRef(false);
+  const selectedRouteRef = useRef<RouteSelection | null>(null);
 
   useEffect(() => {
     if (!KAKAO_KEY) return;
@@ -3378,36 +3499,79 @@ function ScheduleEditRouteMap({
     layersRef.current.forEach((layer) => layer.setMap(null));
     layersRef.current = [];
     const coordinatePoints = locatedRef.current;
-    if (showRoute) {
-      const actualRoutes = routePaths.filter((leg) => leg.path.length >= 2);
-      if (actualRoutes.length > 0) {
-        for (const leg of actualRoutes) {
-          layersRef.current.push(
-            new sdk.Polyline({
-              map,
-              path: leg.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
-              strokeWeight: 4,
-              strokeColor: "#005259",
-              strokeOpacity: 0.85,
-              strokeStyle: "solid",
-            }),
-          );
-        }
-      } else if (coordinatePoints.length >= 2) {
-        // Fallback is a visit-order line, not a real road route.
-        layersRef.current.push(
-          new sdk.Polyline({
-            map,
-            path: coordinatePoints.map(
-              ({ latitude, longitude }) => new sdk.LatLng(latitude, longitude),
-            ),
-            strokeWeight: 3,
-            strokeColor: "#005259",
-            strokeOpacity: 0.8,
-            strokeStyle: "solid",
-          }),
-        );
+    const openRouteInfo = (info: RouteSelection, pinned: boolean) => {
+      if (!isTouchMap) {
+        routePinnedRef.current = false;
+        selectedRouteRef.current = null;
+        setRouteSelection(null);
+        setRouteHover(info);
+        return;
       }
+      routePinnedRef.current = pinned;
+      selectedRouteRef.current = info.kind === "route" ? info : null;
+      setRouteHover(null);
+      setRouteSelection(info);
+    };
+    const hoverRouteInfo = (info: RouteSelection) => {
+      if (!isTouchMap && !routePinnedRef.current) setRouteHover(info);
+    };
+    const leaveRouteInfo = () => {
+      setRouteHover(null);
+    };
+    const kakaoEvent = (
+      sdk as KakaoMapsSDK & {
+        event?: {
+          addListener(
+            target: object,
+            event: string,
+            listener: () => void,
+          ): void;
+        };
+      }
+    ).event;
+    if (showRoute) {
+      const ordered = stops.map((stop) => {
+        const found = coordinatePoints.find(
+          (point) => String(point.stop.id) === String(stop.id),
+        );
+        return {
+          id: stop.id,
+          title: stop.title,
+          time: stop.time,
+          address: stop.address,
+          description:
+            "description" in stop && typeof stop.description === "string"
+              ? stop.description
+              : undefined,
+          lat: found?.latitude,
+          lng: found?.longitude,
+        };
+      });
+      buildDisplayRoutes(ordered, routePaths, routeMode).forEach((leg) => {
+        const line = new sdk.Polyline({
+          map,
+          path: leg.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
+          strokeWeight: leg.isFallback ? 5 : 9,
+          strokeColor: leg.isFallback ? "#778D90" : routeColor(leg.mode),
+          strokeOpacity: leg.isFallback ? 0.7 : 0.92,
+          strokeStyle: leg.isFallback ? "shortdash" : "solid",
+        });
+        layersRef.current.push(line);
+        const info: RouteSelection = {
+          kind: "route",
+          route: leg,
+          order: leg.order ?? 1,
+        };
+        kakaoEvent?.addListener(line, "mouseover", () => {
+          if (!isTouchMap) setRouteLineHoverStyle(line, leg, true);
+          hoverRouteInfo(info);
+        });
+        kakaoEvent?.addListener(line, "mouseout", () => {
+          if (!isTouchMap) setRouteLineHoverStyle(line, leg, false);
+          leaveRouteInfo();
+        });
+        kakaoEvent?.addListener(line, "click", () => openRouteInfo(info, true));
+      });
     }
     coordinatePoints.forEach(({ stop, latitude, longitude }) => {
       if (category !== "전체" && stop.category !== category) return;
@@ -3421,6 +3585,60 @@ function ScheduleEditRouteMap({
         stops.length,
         (active) => {
           overlay?.setZIndex?.(active ? 20 : 3);
+        },
+        (selected) => {
+          if (selected) {
+            openRouteInfo(
+              {
+                kind: "stop",
+                order,
+                total: stops.length,
+                stop: {
+                  id: stop.id,
+                  title: stop.title,
+                  time: stop.time,
+                  address: stop.address,
+                  category: stop.category,
+                  description:
+                    "description" in stop &&
+                    typeof stop.description === "string"
+                      ? stop.description
+                      : undefined,
+                  externalUrl: getKakaoMapPointUrl(
+                    stop.title,
+                    latitude,
+                    longitude,
+                  ),
+                },
+              },
+              true,
+            );
+          } else {
+            routePinnedRef.current = false;
+            selectedRouteRef.current = null;
+            setRouteSelection(null);
+            setRouteHover(null);
+          }
+        },
+        (active) => {
+          if (!active || isTouchMap) return;
+          hoverRouteInfo({
+            kind: "stop",
+            order,
+            total: stops.length,
+            stop: {
+              id: stop.id,
+              title: stop.title,
+              time: stop.time,
+              address: stop.address,
+              category: stop.category,
+              description:
+                "description" in stop && typeof stop.description === "string"
+                  ? stop.description
+                  : undefined,
+              externalUrl: getKakaoMapPointUrl(stop.title, latitude, longitude),
+            },
+          });
         },
       );
       overlay = new sdk.CustomOverlay({
@@ -3436,7 +3654,23 @@ function ScheduleEditRouteMap({
       layersRef.current.forEach((layer) => layer.setMap(null));
       layersRef.current = [];
     };
-  }, [sdk, stops, category, showRoute, routePaths, loading]);
+  }, [
+    sdk,
+    stops,
+    category,
+    showRoute,
+    routePaths,
+    routeMode,
+    loading,
+    isTouchMap,
+  ]);
+
+  useEffect(() => {
+    routePinnedRef.current = false;
+    selectedRouteRef.current = null;
+    setRouteSelection(null);
+    setRouteHover(null);
+  }, [stops, routePaths, showRoute, routeMode]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -3454,46 +3688,73 @@ function ScheduleEditRouteMap({
     const map = mapRef.current;
     const element = containerRef.current;
     if (!map || !element || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => map.relayout());
+    const observer = new ResizeObserver(() => {
+      map.relayout();
+      const selected = selectedRouteRef.current;
+      if (selected?.kind === "route" && selected.route.path.length > 1 && sdk) {
+        const bounds = new sdk.LatLngBounds();
+        selected.route.path.forEach(({ lat, lng }) =>
+          bounds.extend(new sdk.LatLng(lat, lng)),
+        );
+        map.setBounds(bounds, 60);
+      }
+    });
     observer.observe(element);
     return () => observer.disconnect();
   }, [sdk]);
 
   return (
     <S.EditMapRoot data-route-map-root>
-      <div
-        ref={containerRef}
-        style={{ width: "100%", height: "100%" }}
-        aria-label="카카오 지도"
-      />
-      {!KAKAO_KEY ? (
-        <S.EditMapMessage role="status">
-          <strong>카카오맵 API 키가 필요해요.</strong>
-          <span>
-            프로젝트 루트의 .env.local에 VITE_KAKAO_MAP_JS_KEY를 설정해 주세요.
-          </span>
-        </S.EditMapMessage>
-      ) : error ? (
-        <S.EditMapMessage role="alert">
-          <strong>카카오 지도를 표시할 수 없어요.</strong>
-          <span>{error}</span>
-          <span>
-            카카오맵 사용 설정 및 localhost 도메인 등록을 확인해 주세요.
-          </span>
-        </S.EditMapMessage>
-      ) : loading ? (
-        <S.EditMapMessage role="status">
-          카카오 지도와 장소를 불러오는 중이에요.
-        </S.EditMapMessage>
-      ) : (
-        <S.EditMapNote>
-          {unresolved > 0
-            ? `위치를 확인할 수 없는 장소 ${unresolved}개 · `
-            : ""}
-          {routePaths.some((leg) => leg.path.length >= 2)
-            ? "API에서 조회한 경로를 표시하고 있습니다."
-            : "연결선은 방문 순서이며 실제 도로 경로가 아닙니다."}
-        </S.EditMapNote>
+      <MapViewport>
+        <div
+          ref={containerRef}
+          style={{ width: "100%", height: "100%" }}
+          aria-label="카카오 지도"
+        />
+        {!isTouchMap && <RouteHoverHint selection={routeHover} />}
+        {!KAKAO_KEY ? (
+          <S.EditMapMessage role="status">
+            <strong>카카오맵 API 키가 필요해요.</strong>
+            <span>
+              프로젝트 루트의 .env.local에 VITE_KAKAO_MAP_JS_KEY를 설정해
+              주세요.
+            </span>
+          </S.EditMapMessage>
+        ) : error ? (
+          <S.EditMapMessage role="alert">
+            <strong>카카오 지도를 표시할 수 없어요.</strong>
+            <span>{error}</span>
+            <span>
+              카카오맵 사용 설정 및 localhost 도메인 등록을 확인해 주세요.
+            </span>
+          </S.EditMapMessage>
+        ) : loading ? (
+          <S.EditMapMessage role="status">
+            카카오 지도와 장소를 불러오는 중이에요.
+          </S.EditMapMessage>
+        ) : (
+          <S.EditMapNote>
+            {unresolved > 0
+              ? `위치를 확인할 수 없는 장소 ${unresolved}개 · `
+              : ""}
+            {routePaths.some((leg) => leg.path.length >= 2)
+              ? "API에서 조회한 경로를 표시하고 있습니다."
+              : "연결선은 방문 순서이며 실제 도로 경로가 아닙니다."}
+          </S.EditMapNote>
+        )}
+      </MapViewport>
+      {isTouchMap && (
+        <RouteMapDetails
+          key={`${routeSelection?.kind ?? "none"}-${routeSelection?.order ?? ""}-${isTouchMap}`}
+          selection={routeSelection}
+          isTouch={isTouchMap}
+          onClose={() => {
+            routePinnedRef.current = false;
+            selectedRouteRef.current = null;
+            setRouteSelection(null);
+            setRouteHover(null);
+          }}
+        />
       )}
     </S.EditMapRoot>
   );
