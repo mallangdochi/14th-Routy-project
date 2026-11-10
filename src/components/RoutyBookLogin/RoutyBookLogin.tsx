@@ -1,4 +1,7 @@
-import { readTripInviteReturn, isTripInviteReturn } from "../../utils/tripInviteReturn";
+import {
+  readTripInviteReturn,
+  isTripInviteReturn,
+} from "../../utils/tripInviteReturn";
 import {
   useCallback,
   useEffect,
@@ -82,6 +85,7 @@ import {
   MobileStatus,
   MobileCheck,
   MobileAction,
+  MobilePrevious,
   MobilePrimary,
   MobileLinks,
   MobileTextButton,
@@ -168,8 +172,13 @@ export default function RoutyBookLogin({
       user.profileCompleted,
     );
     const stateReturn: unknown = location.state?.from;
-    const inviteReturn = isTripInviteReturn(stateReturn) ? stateReturn : readTripInviteReturn();
-    navigate(destination === "/" ? (inviteReturn ?? destination) : destination, { replace: true });
+    const inviteReturn = isTripInviteReturn(stateReturn)
+      ? stateReturn
+      : readTripInviteReturn();
+    navigate(
+      destination === "/" ? (inviteReturn ?? destination) : destination,
+      { replace: true },
+    );
   };
 
   // 최초 진입 및 새로고침 시에는 항상 닫힌 여권부터 표시합니다.
@@ -577,9 +586,9 @@ export default function RoutyBookLogin({
                       }
                     >
                       {showPassword ? (
-                        <Eye size={20} />
+                        <Eye size={24} />
                       ) : (
-                        <EyeClosed size={20} />
+                        <EyeClosed size={24} />
                       )}
                     </PasswordToggle>
                   </InputBox>
@@ -969,19 +978,19 @@ function MobileFlow({
       {page !== "cover" && (
         <>
           <MobileHeader>
-            <MobileBack
-              type="button"
-              onClick={handleBack}
-              aria-label="이전 화면"
-            >
-              <ChevronLeft size={26} strokeWidth={2} />
-            </MobileBack>
-            {page === "signup" ? (
-              <MobileLogo src={routyLogoMobile} alt="Routy" draggable={false} />
-            ) : (
-              <span />
+            {page === "login" && (
+              <MobileBack
+                type="button"
+                onClick={handleBack}
+                aria-label="이전 화면"
+              >
+                <ChevronLeft size={24} strokeWidth={2} />
+              </MobileBack>
             )}
-            <span style={{ width: 32 }} />
+
+            {page === "signup" && (
+              <MobileLogo src={routyLogoMobile} alt="Routy" draggable={false} />
+            )}
           </MobileHeader>
 
           {page === "login" ? (
@@ -992,7 +1001,7 @@ function MobileFlow({
                 noValidate
                 data-login="true"
               >
-                <MobileField>
+                <MobileField className="email-field">
                   <MobileLabel htmlFor="mobile-login-email">이메일</MobileLabel>
                   <MobileInput
                     id="mobile-login-email"
@@ -1025,7 +1034,7 @@ function MobileFlow({
                     )}
                   </FieldMessage>
                 </MobileField>
-                <MobileField>
+                <MobileField className="password-field">
                   <MobileLabel htmlFor="mobile-login-password">
                     비밀번호
                   </MobileLabel>
@@ -1059,9 +1068,9 @@ function MobileFlow({
                       onClick={() => setLoginPasswordVisible((value) => !value)}
                     >
                       {loginPasswordVisible ? (
-                        <Eye size={20} />
+                        <Eye size={24} />
                       ) : (
-                        <EyeClosed size={20} />
+                        <EyeClosed size={24} />
                       )}
                     </MobileEyeButton>
                   </MobilePasswordBox>
@@ -1108,6 +1117,7 @@ function MobileFlow({
                 <span>|</span>
                 <MobileTextButton
                   type="button"
+                  className="signup-link"
                   onClick={() => onPageChange("signup")}
                 >
                   회원가입
@@ -1133,7 +1143,6 @@ function MobileFlow({
 
                   {step === 0 && (
                     <MobileField>
-                      <MobileLabel htmlFor="mobile-email">이메일</MobileLabel>
                       <MobileInput
                         id="mobile-email"
                         type="email"
@@ -1144,9 +1153,6 @@ function MobileFlow({
                           signup.updateField("email", event.target.value)
                         }
                       />
-                      <MobileHelp>
-                        이후 로그인과 여행 정보 안내에 사용됩니다.
-                      </MobileHelp>
                     </MobileField>
                   )}
 
@@ -1340,9 +1346,9 @@ function MobileFlow({
                             }
                           >
                             {signup.showPassword ? (
-                              <EyeClosed size={24} />
+                              <EyeClosed size={20} />
                             ) : (
-                              <Eye size={24} />
+                              <Eye size={20} />
                             )}
                           </MobileEyeButton>
                         </MobilePasswordBox>
@@ -1484,6 +1490,14 @@ function MobileFlow({
                   )}
                 </MobileContent>
                 <MobileAction>
+                  <MobilePrevious
+                    type="button"
+                    onClick={handleBack}
+                    disabled={signup.busy}
+                  >
+                    이전
+                  </MobilePrevious>
+
                   <MobilePrimary type="submit" disabled={signup.busy}>
                     {signup.busy
                       ? "처리 중..."
@@ -1526,7 +1540,7 @@ function MobileFlow({
           </MobileCoverScene>
         </MobileCoverOverlay>
       )}
-      <MobileFooterStripe />
+      {page === "signup" && <MobileFooterStripe />}
     </MobileShell>
   );
 }

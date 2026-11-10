@@ -7,7 +7,7 @@ import {
 } from "../../api/kakao/kakaoPlaces";
 import { getKakaoMapPointUrl } from "../../api/kakao/kakaoLinks";
 import {
-  RouteMapDetails, RouteModePicker, buildDisplayRoutes, useTouchMap, routeColor,
+  MapDock, MapViewport, RouteHoverHint, RouteMapDetails, RouteModePicker, buildDisplayRoutes, useTouchMap, routeColor, setRouteLineHoverStyle,
   type RouteLine, type RouteSelection, type TravelMode,
 } from "../map/RouteMapInfo";
 import type {
@@ -66,8 +66,10 @@ export default function KakaoMap({
   const [unresolved, setUnresolved] = useState(0);
   const [loading, setLoading] = useState(Boolean(KAKAO_KEY));
   const [selection, setSelection] = useState<RouteSelection | null>(null);
+  const [hoverSelection, setHoverSelection] = useState<RouteSelection | null>(null);
   const isTouch = useTouchMap();
   const pinnedRef = useRef(false);
+  const selectedRouteRef = useRef<RouteLine | null>(null);
 
   useEffect(() => {
     if (!KAKAO_KEY) return;
@@ -190,15 +192,23 @@ export default function KakaoMap({
     layersRef.current = [];
     const eventApi = (sdk as unknown as KakaoEventAPI).event;
     const openInfo = (next: RouteSelection, pinned: boolean) => {
+      if (!isTouch) {
+        // PC: do not pin a large detail panel or disable subsequent hover events.
+        pinnedRef.current = false;
+        selectedRouteRef.current = null;
+        setSelection(null);
+        setHoverSelection(next);
+        return;
+      }
       pinnedRef.current = pinned;
+      selectedRouteRef.current = next.kind === "route" ? next.route : null;
+      setHoverSelection(null);
       setSelection(next);
     };
     const hoverInfo = (next: RouteSelection) => {
-      if (!isTouch && !pinnedRef.current) setSelection(next);
+      if (!isTouch && !pinnedRef.current) setHoverSelection(next);
     };
-    const endHover = () => {
-      if (!isTouch && !pinnedRef.current) setSelection(null);
-    };
+    const endHover = () => { setHoverSelection(null); };
 
     if (showRoute) {
       const ordered = stops.map((stop) => {
@@ -218,8 +228,14 @@ export default function KakaoMap({
         });
         layersRef.current.push(line);
         const info: RouteSelection = { kind: "route", route, order: route.order ?? 1 };
-        eventApi?.addListener(line, "mouseover", () => hoverInfo(info));
-        eventApi?.addListener(line, "mouseout", endHover);
+        eventApi?.addListener(line, "mouseover", () => {
+          if (!isTouch) setRouteLineHoverStyle(line, route, true);
+          hoverInfo(info);
+        });
+        eventApi?.addListener(line, "mouseout", () => {
+          if (!isTouch) setRouteLineHoverStyle(line, route, false);
+          endHover();
+        });
         eventApi?.addListener(line, "click", () => openInfo(info, true));
       });
     }
@@ -260,7 +276,9 @@ export default function KakaoMap({
 
   useEffect(() => {
     setSelection(null);
+    setHoverSelection(null);
     pinnedRef.current = false;
+    selectedRouteRef.current = null;
   }, [stops, routePaths, routeMode, showRoute]);
 
   useEffect(() => {
@@ -279,24 +297,30 @@ export default function KakaoMap({
     const map = mapRef.current;
     const element = containerRef.current;
     if (!map || !element || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => map.relayout());
+    const observer = new ResizeObserver(() => {
+      map.relayout();
+      const points = selectedRouteRef.current?.path ?? [];
+      if (points.length > 1 && sdk) {
+        const bounds = new sdk.LatLngBounds();
+        points.forEach(({ lat, lng }) => bounds.extend(new sdk.LatLng(lat, lng)));
+        map.setBounds(bounds, 60);
+      }
+    });
     observer.observe(element);
     return () => observer.disconnect();
   }, [sdk]);
 
   return (
-    <MapRoot>
+    <MapDock>
+      <MapViewport>
+        <MapRoot>
       <div
         ref={containerRef}
         style={{ width: "100%", height: "100%" }}
         aria-label="카카오 지도"
       />
       <RouteModePicker mode={routeMode} onChange={onRouteModeChange} />
-      <RouteMapDetails
-        selection={selection}
-        isTouch={isTouch}
-        onClose={() => { pinnedRef.current = false; setSelection(null); }}
-      />
+      {!isTouch && <RouteHoverHint selection={hoverSelection} />}
       {!KAKAO_KEY ? (
         <Message role="status">
           <strong>카카오맵 API 키가 필요해요.</strong>
@@ -322,6 +346,14 @@ export default function KakaoMap({
           {routePaths?.length ? "실선: 실제 API 경로 · 점선: 조회되지 않은 구간" : "점선은 방문 순서이며 실제 경로는 조회되지 않았습니다."}
         </Note>
       )}
-    </MapRoot>
+        </MapRoot>
+      </MapViewport>
+      {isTouch && <RouteMapDetails
+        key={`${selection?.kind ?? "none"}-${selection?.order ?? ""}-${isTouch}`}
+        selection={selection}
+        isTouch={isTouch}
+        onClose={() => { pinnedRef.current = false; selectedRouteRef.current = null; setSelection(null); setHoverSelection(null); }}
+      />}
+    </MapDock>
   );
 }

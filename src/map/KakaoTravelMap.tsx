@@ -3,7 +3,7 @@ import { getKakaoMapKey } from "../api/kakao/kakaoSdk";
 import { getAllowedCurrentLocation } from "../utils/locationService";
 import * as S from "./KakaoTravelMapStyle";
 import {
-  RouteMapDetails, RouteModePicker, buildDisplayRoutes, useTouchMap, routeColor,
+  MapDock, MapViewport, RouteHoverHint, RouteMapDetails, RouteModePicker, buildDisplayRoutes, useTouchMap, routeColor, setRouteLineHoverStyle,
   type RouteLine, type RouteSelection, type TravelMode,
 } from "../components/map/RouteMapInfo";
 import { getKakaoMapPointUrl } from "../api/kakao/kakaoLinks";
@@ -199,8 +199,10 @@ export default function KakaoTravelMap({
   const [searched, setSearched] = useState(false);
   const [searching, setSearching] = useState(false);
   const [selection, setSelection] = useState<RouteSelection | null>(null);
+  const [hoverSelection, setHoverSelection] = useState<RouteSelection | null>(null);
   const isTouch = useTouchMap();
   const pinnedRef = useRef(false);
+  const selectedRouteRef = useRef<RouteLine | null>(null);
 
   const center = getCenter(region);
 
@@ -227,7 +229,15 @@ export default function KakaoTravelMap({
         mapRef.current = map;
         placesRef.current = new sdk.services.Places();
 
-        observer = new ResizeObserver(() => map.relayout());
+        observer = new ResizeObserver(() => {
+          map.relayout();
+          const points = selectedRouteRef.current?.path ?? [];
+          if (points.length > 1) {
+            const bounds = new sdk.LatLngBounds();
+            points.forEach(({ lat, lng }) => bounds.extend(new sdk.LatLng(lat, lng)));
+            map.setBounds(bounds, 60);
+          }
+        });
         observer.observe(mapNode.current);
 
         setReady(true);
@@ -292,15 +302,22 @@ export default function KakaoTravelMap({
     overlaysRef.current = [];
 
     const show = (value: RouteSelection, pinned: boolean) => {
+      if (!isTouch) {
+        pinnedRef.current = false;
+        selectedRouteRef.current = null;
+        setSelection(null);
+        setHoverSelection(value);
+        return;
+      }
       pinnedRef.current = pinned;
+      selectedRouteRef.current = value.kind === "route" ? value.route : null;
+      setHoverSelection(null);
       setSelection(value);
     };
     const hover = (value: RouteSelection) => {
-      if (!isTouch && !pinnedRef.current) setSelection(value);
+      if (!isTouch && !pinnedRef.current) setHoverSelection(value);
     };
-    const leave = () => {
-      if (!isTouch && !pinnedRef.current) setSelection(null);
-    };
+    const leave = () => { setHoverSelection(null); };
 
     const ordered = routeStops.length ? routeStops : stops;
     ordered.forEach((stop, index) => {
@@ -350,8 +367,14 @@ export default function KakaoTravelMap({
         });
         overlaysRef.current.push(polyline);
         const info: RouteSelection = { kind: "route", route, order: route.order ?? 1 };
-        sdk.event?.addListener(polyline, "mouseover", () => hover(info));
-        sdk.event?.addListener(polyline, "mouseout", leave);
+        sdk.event?.addListener(polyline, "mouseover", () => {
+          if (!isTouch) setRouteLineHoverStyle(polyline, route, true);
+          hover(info);
+        });
+        sdk.event?.addListener(polyline, "mouseout", () => {
+          if (!isTouch) setRouteLineHoverStyle(polyline, route, false);
+          leave();
+        });
         sdk.event?.addListener(polyline, "click", () => show(info, true));
       });
     }
@@ -363,7 +386,9 @@ export default function KakaoTravelMap({
 
   useEffect(() => {
     setSelection(null);
+    setHoverSelection(null);
     pinnedRef.current = false;
+    selectedRouteRef.current = null;
   }, [stops, routeStops, routePaths, routeMode, showRoute]);
 
   // 일정 변경 시 해당 장소들이 보이도록 한 번만 지도 범위를 조정합니다.
@@ -435,14 +460,11 @@ export default function KakaoTravelMap({
   };
 
   return (
-    <>
-      <S.MapCanvas ref={mapNode} />
+    <MapDock>
+      <MapViewport>
+        <S.MapCanvas ref={mapNode} />
       <RouteModePicker mode={routeMode} onChange={onRouteModeChange} />
-      <RouteMapDetails
-        selection={selection}
-        isTouch={isTouch}
-        onClose={() => { pinnedRef.current = false; setSelection(null); }}
-      />
+      {!isTouch && <RouteHoverHint selection={hoverSelection} />}
 
       {!key && (
         <S.Status>
@@ -498,6 +520,13 @@ export default function KakaoTravelMap({
           </S.ResultList>
         )}
       </S.SearchArea>}
-    </>
+      </MapViewport>
+      {isTouch && <RouteMapDetails
+        key={`${selection?.kind ?? "none"}-${selection?.order ?? ""}-${isTouch}`}
+        selection={selection}
+        isTouch={isTouch}
+        onClose={() => { pinnedRef.current = false; selectedRouteRef.current = null; setSelection(null); setHoverSelection(null); }}
+      />}
+    </MapDock>
   );
 }
