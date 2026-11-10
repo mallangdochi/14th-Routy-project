@@ -15,7 +15,6 @@ import {
 import { useLocation, useNavigate } from "react-router";
 
 import {
-  ChevronLeft,
   CheckCircle2,
   CircleAlert,
   Eye,
@@ -67,7 +66,6 @@ import {
   MobileTopBar,
   MobileHeader,
   MobileLogo,
-  MobileBack,
   MobileProgress,
   MobileProgressPart,
   MobileContent,
@@ -978,16 +976,6 @@ function MobileFlow({
       {page !== "cover" && (
         <>
           <MobileHeader>
-            {page === "login" && (
-              <MobileBack
-                type="button"
-                onClick={handleBack}
-                aria-label="이전 화면"
-              >
-                <ChevronLeft size={24} strokeWidth={2} />
-              </MobileBack>
-            )}
-
             {page === "signup" && (
               <MobileLogo src={routyLogoMobile} alt="Routy" draggable={false} />
             )}
@@ -1158,9 +1146,6 @@ function MobileFlow({
 
                   {step === 1 && (
                     <MobileField>
-                      <MobileLabel htmlFor="mobile-phone">
-                        휴대전화번호 인증
-                      </MobileLabel>
                       <MobileInputRow>
                         <MobileInput
                           id="mobile-phone"
@@ -1229,7 +1214,6 @@ function MobileFlow({
 
                   {step === 2 && (
                     <MobileField>
-                      <MobileLabel>생년월일</MobileLabel>
                       <DatePicker
                         modal
                         label=""
@@ -1346,9 +1330,9 @@ function MobileFlow({
                             }
                           >
                             {signup.showPassword ? (
-                              <EyeClosed size={20} />
+                              <EyeClosed size={24} />
                             ) : (
-                              <Eye size={20} />
+                              <Eye size={24} />
                             )}
                           </MobileEyeButton>
                         </MobilePasswordBox>

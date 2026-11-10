@@ -10,7 +10,8 @@ import type {
 } from "react";
 import { createPortal } from "react-dom";
 import * as S from "./MainSidebarStyle";
-import smallRouty from "../../../public/favicon.svg";
+
+const smallRouty = "/favicon.svg";
 
 import ProfileImage from "../../assets/profile.webp";
 import profileAvatar1 from "../../assets/profileAvatars/P1.webp";
@@ -82,15 +83,15 @@ const MenuIcon = ({ id, active }: MenuIconProps) => {
 
   const icons: Record<MenuId, ReactNode> = {
     myTrip: (
-      <Briefcase size={23} strokeWidth={strokeWidth} aria-hidden="true" />
+      <Briefcase size={24} strokeWidth={strokeWidth} aria-hidden="true" />
     ),
-    search: <Search size={23} strokeWidth={strokeWidth} aria-hidden="true" />,
-    saved: <Bookmark size={23} strokeWidth={strokeWidth} aria-hidden="true" />,
+    search: <Search size={24} strokeWidth={strokeWidth} aria-hidden="true" />,
+    saved: <Bookmark size={24} strokeWidth={strokeWidth} aria-hidden="true" />,
     notification: (
-      <Bell size={23} strokeWidth={strokeWidth} aria-hidden="true" />
+      <Bell size={24} strokeWidth={strokeWidth} aria-hidden="true" />
     ),
     settings: (
-      <Settings size={23} strokeWidth={strokeWidth} aria-hidden="true" />
+      <Settings size={24} strokeWidth={strokeWidth} aria-hidden="true" />
     ),
   };
 
@@ -149,18 +150,6 @@ const MainSidebar = () => {
       : user
         ? `${user.username?.trim() || "회원"}님`
         : "로그인";
-
-  // const [isCollapsed, setIsCollapsed] = useState(() => {
-  //   if (typeof window === "undefined") return false;
-
-  //   try {
-  //     return (
-  //       window.localStorage.getItem("routy-main-sidebar-collapsed") === "true"
-  //     );
-  //   } catch {
-  //     return false;
-  //   }
-  // });
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -583,7 +572,7 @@ const MainSidebar = () => {
                     }}
                   />
                 ) : (
-                  <UserRound size={23} strokeWidth={1.5} aria-hidden="true" />
+                  <UserRound size={24} strokeWidth={1.5} aria-hidden="true" />
                 )}
 
                 <S.ProfileName data-profile-name="">
@@ -614,7 +603,7 @@ const MainSidebar = () => {
               {...tooltipProps("새 여행 만들기")}
               onClick={handleCreateTrip}
             >
-              <Plus size={20} strokeWidth={2} />
+              <Plus size={24} strokeWidth={2} />
               <span data-create-label="">새 여행 만들기</span>
             </S.CreateTripButton>
           </>
@@ -649,7 +638,7 @@ const MainSidebar = () => {
                 handleNavigate("/login");
               }}
             >
-              <LogIn size={23} strokeWidth={1.8} aria-hidden="true" />
+              <LogIn size={24} strokeWidth={1.8} aria-hidden="true" />
               {!isCollapsed && (
                 <span>
                   {loading ? "확인 중..." : error ? "다시 확인" : "로그인"}

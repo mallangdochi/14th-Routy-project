@@ -10,7 +10,6 @@ export const SidebarShell = styled.div({
   display: "flex",
   flexShrink: 0,
 
-  // zoom: 1.1,
   height: "calc(100dvh / 1.0)",
   minHeight: "calc(100dvh / 1.0)",
 
@@ -31,7 +30,7 @@ export const SidebarContainer = styled.aside({
 
   height: "100%",
 
-  padding: "16px 13px 15px",
+  padding: "16px 8px 15px",
   backgroundColor: "#FFFFFF",
   overflowY: "auto",
   scrollbarWidth: "thin",
@@ -118,7 +117,7 @@ export const HeaderStyle = styled.div({
   width: "100%",
   minWidth: 0,
   gap: "8px",
-  padding: "30px 0 20px",
+  padding: "0px 0 16px",
 });
 
 export const LogoWrapper = styled(Link)({
@@ -127,7 +126,7 @@ export const LogoWrapper = styled(Link)({
   justifyContent: "flex-start",
   flex: "1 1 0",
   minWidth: 0,
-  height: "40px",
+  height: "30px",
   paddingLeft: "9px",
   marginBottom: "12px",
 
@@ -264,7 +263,7 @@ export const MainNavigation = styled.nav({
   display: "flex",
   flexDirection: "column",
   width: "100%",
-  gap: "5px",
+  gap: "4px",
   isolation: "isolate",
 });
 
@@ -383,7 +382,7 @@ export const BottomNavigation = styled.nav({
   display: "flex",
   flexDirection: "column",
   width: "100%",
-  gap: "5px",
+  gap: "4px",
   marginBottom: "20px",
 });
 
