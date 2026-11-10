@@ -10,6 +10,13 @@ import {
   MapPin,
   Megaphone,
 } from "lucide-react";
+import {
+  browserPushChangedEvent,
+  disableBrowserPush,
+  enableBrowserPush,
+  isBrowserPushConnected,
+} from "../../api/browserPush";
+import { clearRoutyTemporaryData } from "../../api/mypage";
 import * as S from "./settingsStyle";
 import { requestCurrentLocation } from "../../utils/locationService";
 
@@ -19,12 +26,13 @@ export type SettingsData = {
   tripStartNotifications: boolean;
   locationServiceAllowed: boolean;
   marketingAllowed: boolean;
-  defaultItineraryView: "schedule" | "map";
 };
 
 type SettingsProps = {
   savedSettings: SettingsData;
   onSave: (settings: SettingsData) => void;
+  saving?: boolean;
+  onTemporaryDataResult: (success: boolean) => void;
 };
 
 type BrowserNotificationPermission =
@@ -39,35 +47,12 @@ function getBrowserNotificationPermission(): BrowserNotificationPermission {
   return Notification.permission;
 }
 
-const permissionText: Record<BrowserNotificationPermission, string> = {
-  granted: "허용됨",
-  denied: "허용되지 않음",
-  default: "허용되지 않음",
-  unsupported: "지원하지 않는 브라우저",
-  insecure: "보안 연결 필요",
-};
-
-function removeTemporaryData() {
-  let removedCount = 0;
-
-  for (const storage of [window.localStorage, window.sessionStorage]) {
-    const keys: string[] = [];
-
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index);
-      if (key?.startsWith("routy:temp:")) keys.push(key);
-    }
-
-    for (const key of keys) {
-      storage.removeItem(key);
-      removedCount += 1;
-    }
-  }
-
-  return removedCount;
-}
-
-export default function Settings({ savedSettings, onSave }: SettingsProps) {
+export default function Settings({
+  savedSettings,
+  onSave,
+  saving = false,
+  onTemporaryDataResult,
+}: SettingsProps) {
   const { hash } = useLocation();
 
   useEffect(() => {
@@ -89,12 +74,60 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
   const [notificationPermission, setNotificationPermission] =
     useState<BrowserNotificationPermission>(getBrowserNotificationPermission);
   const [requestingPermission, setRequestingPermission] = useState(false);
+  const [pushConnected, setPushConnected] = useState(false);
+  const [checkingPush, setCheckingPush] = useState(true);
   const [permissionMessage, setPermissionMessage] = useState("");
   const [locationMessage, setLocationMessage] = useState("");
   const [locating, setLocating] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
-  const [clearMessage, setClearMessage] = useState("");
+  const [clearing, setClearing] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    let version = 0;
+
+    const refresh = async () => {
+      const current = ++version;
+
+      try {
+        const connected = await isBrowserPushConnected();
+
+        if (active && current === version) {
+          setPushConnected(connected);
+          setNotificationPermission(getBrowserNotificationPermission());
+        }
+      } catch {
+        if (active && current === version) {
+          setPermissionMessage(
+            "알림 연결 상태를 확인하지 못했어요. 다시 시도해주세요.",
+          );
+        }
+      } finally {
+        if (active && current === version) {
+          setCheckingPush(false);
+        }
+      }
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "routy:browser-push-disabled" || event.key === null) {
+        void refresh();
+      }
+    };
+
+    void refresh();
+
+    window.addEventListener("focus", refresh);
+    window.addEventListener(browserPushChangedEvent, refresh);
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener(browserPushChangedEvent, refresh);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
   const hasChanges = (Object.keys(draft) as (keyof SettingsData)[]).some(
     (key) => draft[key] !== savedSettings[key],
   );
@@ -123,7 +156,9 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
     } catch (reason: unknown) {
       setBooleanSetting("locationServiceAllowed", false);
       setLocationMessage(
-        reason instanceof Error ? reason.message : "위치를 확인하지 못했습니다.",
+        reason instanceof Error
+          ? reason.message
+          : "위치를 확인하지 못했습니다.",
       );
     } finally {
       setLocating(false);
@@ -131,16 +166,33 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
   };
 
   const requestBrowserNotifications = async () => {
+    if (requestingPermission || checkingPush) return;
+    if (pushConnected) {
+      setRequestingPermission(true);
+      setPermissionMessage("");
+      try {
+        await disableBrowserPush();
+        setPushConnected(false);
+        setPermissionMessage("이 브라우저의 푸시 알림을 해제했어요.");
+      } catch (reason: unknown) {
+        setPermissionMessage(
+          reason instanceof Error
+            ? reason.message
+            : "알림을 해제하지 못했어요. 다시 시도해주세요.",
+        );
+      } finally {
+        setRequestingPermission(false);
+      }
+      return;
+    }
     const current = getBrowserNotificationPermission();
     setNotificationPermission(current);
 
-    if (current !== "default") {
+    if (current !== "default" && current !== "granted") {
       setPermissionMessage(
         current === "denied"
           ? "브라우저의 사이트 설정에서 알림 권한을 변경해 주세요."
-          : current === "granted"
-            ? "이미 알림이 허용되어 있어요."
-            : "이 환경에서는 알림 권한을 요청할 수 없어요.",
+          : "이 환경에서는 알림 권한을 요청할 수 없어요.",
       );
       return;
     }
@@ -149,34 +201,36 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
     setPermissionMessage("");
 
     try {
-      const next = await Notification.requestPermission();
+      const next = await enableBrowserPush();
       setNotificationPermission(next);
+      setPushConnected(next === "granted");
       setPermissionMessage(
         next === "granted"
-          ? "브라우저 알림 권한이 허용되었어요."
+          ? "이 브라우저에서 푸시 알림을 받을 수 있어요."
           : "알림을 받으려면 브라우저에서 권한을 허용해 주세요.",
       );
-    } catch {
-      setPermissionMessage("알림 권한 요청 중 문제가 발생했어요.");
+    } catch (reason: unknown) {
+      setPermissionMessage(
+        reason instanceof Error
+          ? reason.message
+          : "알림 연결 중 문제가 발생했어요.",
+      );
     } finally {
       setRequestingPermission(false);
     }
   };
 
-  const clearTemporaryData = () => {
+  const clearTemporaryData = async () => {
+    if (clearing) return;
+    setClearing(true);
     try {
-      const count = removeTemporaryData();
-      setClearMessage(
-        count > 0
-          ? `라우티 임시데이터 ${count}건을 삭제했어요.`
-          : "삭제할 라우티 임시데이터가 없어요.",
-      );
+      await clearRoutyTemporaryData();
+      onTemporaryDataResult(true);
     } catch {
-      setClearMessage(
-        "임시데이터를 삭제하지 못했어요. 브라우저 설정을 확인해 주세요.",
-      );
+      onTemporaryDataResult(false);
     }
 
+    setClearing(false);
     setIsClearDialogOpen(false);
   };
 
@@ -200,9 +254,13 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
               <Mail />
             </S.RowIcon>
             <S.SettingText>
-              <S.SettingName>여행 초대 알림</S.SettingName>
+              <S.SettingName>
+                {/* 여행 초대 알림 */}
+                여행 참여 요청 알림
+              </S.SettingName>
               <S.SettingDescription>
-                여행 초대가 도착하면 알려드려요.
+                {/* 여행 초대가 도착하면 알려드려요. */}내 여행에 참여 요청이
+                도착하면 알려드려요.
               </S.SettingDescription>
             </S.SettingText>
             <S.ToggleButton
@@ -278,11 +336,16 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
             <S.PermissionInfo>
               <CircleAlert size={25} aria-hidden="true" />
               <S.PermissionText>
-                브라우저 알림 권한:
+                푸쉬 알림 권한:
                 <S.PermissionStatus
-                  $allowed={notificationPermission === "granted"}
+                  $allowed={pushConnected}
+                  style={{ color: pushConnected ? "#00544A" : "#D94343" }}
                 >
-                  {permissionText[notificationPermission]}
+                  {checkingPush
+                    ? "확인 중"
+                    : pushConnected
+                      ? "연결됨"
+                      : "해제됨"}
                 </S.PermissionStatus>
               </S.PermissionText>
             </S.PermissionInfo>
@@ -291,12 +354,20 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
               onClick={requestBrowserNotifications}
               disabled={
                 requestingPermission ||
-                notificationPermission === "granted" ||
+                checkingPush ||
                 notificationPermission === "unsupported" ||
                 notificationPermission === "insecure"
               }
             >
-              {requestingPermission ? "확인 중" : "알림 허용하기"}
+              {checkingPush
+                ? "확인 중"
+                : requestingPermission
+                  ? "처리 중"
+                  : pushConnected
+                    ? "알림 해제하기"
+                    : notificationPermission === "granted"
+                      ? "알림 연결하기"
+                      : "알림 허용하기"}
             </S.PermissionButton>
           </S.PermissionPanel>
           {permissionMessage && (
@@ -333,15 +404,21 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
                 disabled={locating}
                 onClick={() => {
                   setBooleanSetting("locationServiceAllowed", false);
-                  setLocationMessage("위치서비스를 끄려면 설정을 저장해 주세요.");
+                  setLocationMessage(
+                    "위치서비스를 끄려면 설정을 저장해 주세요.",
+                  );
                 }}
               >
                 허용 안 함
               </S.ChoiceButton>
             </S.ChoiceGroup>
           </S.SettingRow>
-          {locating && <S.Feedback role="status">현재 위치 확인 중...</S.Feedback>}
-          {locationMessage && <S.Feedback role="status">{locationMessage}</S.Feedback>}
+          {locating && (
+            <S.Feedback role="status">현재 위치 확인 중...</S.Feedback>
+          )}
+          {locationMessage && (
+            <S.Feedback role="status">{locationMessage}</S.Feedback>
+          )}
 
           <S.SettingDivider />
 
@@ -374,48 +451,6 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
               </S.ChoiceButton>
             </S.ChoiceGroup>
           </S.SettingRow>
-
-          <S.SettingDivider />
-
-          <S.SettingRow>
-            <S.RowIcon aria-hidden="true">
-              <CalendarDays />
-            </S.RowIcon>
-            <S.SettingText>
-              <S.SettingName>여행 일정 기본 보기</S.SettingName>
-              <S.SettingDescription>
-                여행을 열었을 때 먼저 표시할 화면이에요.
-              </S.SettingDescription>
-            </S.SettingText>
-            <S.ChoiceGroup role="group" aria-label="여행 일정 기본 보기">
-              <S.ChoiceButton
-                type="button"
-                $selected={draft.defaultItineraryView === "schedule"}
-                aria-pressed={draft.defaultItineraryView === "schedule"}
-                onClick={() =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    defaultItineraryView: "schedule",
-                  }))
-                }
-              >
-                일정표
-              </S.ChoiceButton>
-              <S.ChoiceButton
-                type="button"
-                $selected={draft.defaultItineraryView === "map"}
-                aria-pressed={draft.defaultItineraryView === "map"}
-                onClick={() =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    defaultItineraryView: "map",
-                  }))
-                }
-              >
-                지도
-              </S.ChoiceButton>
-            </S.ChoiceGroup>
-          </S.SettingRow>
         </S.SettingsCard>
 
         <S.SettingsCard>
@@ -435,16 +470,12 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
             <S.ClearDataButton
               type="button"
               onClick={() => {
-                setClearMessage("");
                 setIsClearDialogOpen(true);
               }}
             >
               임시데이터 삭제
             </S.ClearDataButton>
           </S.TempDataRow>
-          {clearMessage && (
-            <S.Feedback role="status">{clearMessage}</S.Feedback>
-          )}
         </S.SettingsCard>
 
         {createPortal(
@@ -459,7 +490,7 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
               <S.FloatingActionButtons>
                 <S.FloatingResetButton
                   type="button"
-                  disabled={!hasChanges}
+                  disabled={!hasChanges || saving}
                   onClick={() => setDraft({ ...savedSettings })}
                 >
                   초기화
@@ -467,7 +498,7 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
 
                 <S.FloatingSaveButton
                   type="button"
-                  disabled={!hasChanges}
+                  disabled={!hasChanges || saving}
                   onClick={() => onSave({ ...draft })}
                 >
                   설정 저장
@@ -496,13 +527,15 @@ export default function Settings({ savedSettings, onSave }: SettingsProps) {
               <S.DialogActions>
                 <S.DialogCancelButton
                   type="button"
+                  disabled={clearing}
                   onClick={() => setIsClearDialogOpen(false)}
                 >
                   취소
                 </S.DialogCancelButton>
                 <S.DialogConfirmButton
                   type="button"
-                  onClick={clearTemporaryData}
+                  disabled={clearing}
+                  onClick={() => void clearTemporaryData()}
                 >
                   삭제
                 </S.DialogConfirmButton>

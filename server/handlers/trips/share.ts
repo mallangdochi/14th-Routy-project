@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { createGuestSupabase } from "../../guestSupabase.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { config } from "dotenv";
 import { createSupabaseServer } from "../../supabase.js";
@@ -8,7 +10,7 @@ export default async function handler(
   request: VercelRequest,
   response: VercelResponse,
 ) {
-  response.setHeader("X-Routy-Share-Version", "approval-v3");
+  response.setHeader("X-Routy-Share-Version", "guest-viewer-v1");
   response.setHeader("Cache-Control", "private, no-store");
   response.setHeader("Referrer-Policy", "no-referrer");
   if (request.method !== "GET" && request.method !== "POST") {
@@ -62,10 +64,21 @@ export default async function handler(
 
   const actions =
     request.method === "GET"
-      ? ["participants", "detail", "password_get", "requests", "request_status", "preview"]
+      ? [
+          "participants",
+          "detail",
+          "password_get",
+          "requests",
+          "request_status",
+          "preview",
+          "notifications",
+          "guest_status",
+          "guest_read",
+        ]
       : [
           "create",
           "accept",
+          "guest_accept",
           "revoke",
           "update",
           "members_save",
@@ -75,6 +88,8 @@ export default async function handler(
           "password_ensure",
           "request_approve",
           "request_reject",
+          "notification_dismiss",
+          "notification_restore",
         ];
 
   if (typeof action !== "string" || !actions.includes(action)) {
@@ -83,31 +98,60 @@ export default async function handler(
     });
   }
 
-  if (action !== "preview" && (typeof tripId !== "string" || !uuid.test(tripId))) {
+  if (
+    ![
+      "preview",
+      "notifications",
+      "notification_dismiss",
+      "notification_restore",
+    ].includes(action) &&
+    (typeof tripId !== "string" || !uuid.test(tripId))
+  ) {
     return response.status(400).json({
       message: "여행 ID가 올바른 UUID 형식이 아닙니다.",
     });
   }
 
   if (
-    (action === "accept" || action === "preview") &&
+    ["accept", "preview", "guest_accept"].includes(action) &&
     (typeof input.token !== "string" || !/^[a-f0-9]{64}$/.test(input.token))
   ) {
     return response
       .status(400)
       .json({ message: "유효하지 않은 초대 링크입니다." });
   }
-  if (action === "accept" && input.password !== undefined &&
-      (typeof input.password !== "string" || input.password.length > 128)) {
-    return response.status(400).json({ message: "방 비밀번호를 확인해주세요." });
+  if (
+    action === "accept" &&
+    input.password !== undefined &&
+    (typeof input.password !== "string" || input.password.length > 128)
+  ) {
+    return response
+      .status(400)
+      .json({ message: "방 비밀번호를 확인해주세요." });
   }
-  if (["request_approve", "request_reject"].includes(action) &&
-      (typeof input.requestId !== "string" || !uuid.test(input.requestId))) {
-    return response.status(400).json({ message: "승인 요청 ID를 확인해주세요." });
+  if (
+    ["request_approve", "request_reject"].includes(action) &&
+    (typeof input.requestId !== "string" || !uuid.test(input.requestId))
+  ) {
+    return response
+      .status(400)
+      .json({ message: "승인 요청 ID를 확인해주세요." });
   }
-  if (["create", "revoke"].includes(action) &&
-      !["editor", "viewer"].includes(String(input.permission))) {
+  if (
+    ["create", "revoke"].includes(action) &&
+    !["editor", "viewer"].includes(String(input.permission))
+  ) {
     return response.status(400).json({ message: "공유 권한을 확인해주세요." });
+  }
+  if (
+    action === "guest_accept" &&
+    (typeof input.displayName !== "string" ||
+      input.displayName.trim().length < 1 ||
+      input.displayName.trim().length > 30)
+  ) {
+    return response
+      .status(400)
+      .json({ message: "이름을 1~30자로 입력해주세요." });
   }
   const patch = Object.fromEntries(
     ["name", "region", "people"]
@@ -170,10 +214,97 @@ export default async function handler(
       const { data, error } = await supabase.rpc("routy_trip_invite_preview", {
         p_token: String(input.token),
       });
-      if (error) return response.status(error.code === "22023" ? 400 : 500).json({
-        message: error.code === "22023" ? error.message : "초대 링크를 확인하지 못했습니다.",
-      });
+      if (error)
+        return response.status(error.code === "22023" ? 400 : 500).json({
+          message:
+            error.code === "22023"
+              ? error.message
+              : "초대 링크를 확인하지 못했습니다.",
+        });
       return response.status(200).json(data);
+    }
+    if (["guest_accept", "guest_status", "guest_read"].includes(action)) {
+      const guest = createGuestSupabase(request, response);
+      // 비로그인 방문자는 보기 전용 링크로만 요청할 수 있습니다.
+      if (action === "guest_accept") {
+        const preview = await supabase.rpc("routy_trip_invite_preview", {
+          p_token: String(input.token),
+        });
+        if (
+          preview.error ||
+          preview.data?.tripId !== tripId ||
+          preview.data?.permission !== "viewer" ||
+          preview.data?.status !== "ready"
+        ) {
+          return response
+            .status(400)
+            .json({ message: "유효한 보기 전용 초대 링크가 필요합니다." });
+        }
+      }
+      const existing = await guest.auth.getUser();
+      let visitor = existing.data.user;
+      if (!visitor && action === "guest_accept") {
+        const created = await guest.auth.signInAnonymously({
+          options: {
+            data: {
+              username: `guest_${randomUUID().replaceAll("-", "").slice(0, 12)}`,
+            },
+          },
+        });
+        if (created.error || !created.data.user) {
+          console.error("[guest_accept] 익명 세션 생성 실패", {
+            code: created.error?.code,
+            status: created.error?.status,
+            message: created.error?.message,
+            hasUser: Boolean(created.data.user),
+          });
+
+          return response.status(503).json({
+            message:
+              "방문자 세션을 만들지 못했습니다. 서버 오류 로그를 확인해주세요.",
+          });
+        }
+        visitor = created.data.user;
+      }
+      if (!visitor) {
+        if (action === "guest_status")
+          return response.status(200).json({ tripId, status: "none" });
+        return response
+          .status(401)
+          .json({ message: "초대 링크에서 방장 승인을 먼저 요청해주세요." });
+      }
+      if (visitor.is_anonymous !== true)
+        return response
+          .status(403)
+          .json({ message: "방문자 세션을 확인해주세요." });
+      const result =
+        action === "guest_read"
+          ? await guest.rpc("routy_guest_schedule", { p_trip_id: tripId })
+          : await guest.rpc("routy_trip_share", {
+              p_action: action === "guest_accept" ? "accept" : "request_status",
+              p_trip_id: tripId,
+              p_permission: "viewer",
+              p_token: action === "guest_accept" ? String(input.token) : null,
+              p_patch:
+                action === "guest_accept"
+                  ? { displayName: String(input.displayName).trim() }
+                  : {},
+            });
+      if (result.error)
+        return response
+          .status(
+            result.error.code === "42501"
+              ? 403
+              : result.error.code === "22023"
+                ? 400
+                : 500,
+          )
+          .json({
+            message: ["42501", "22023"].includes(result.error.code)
+              ? result.error.message
+              : "방문자 초대를 처리하지 못했습니다. 방문자 SQL 적용 여부를 확인해주세요.",
+          });
+      return response.status(200).json(result.data);
     }
     const {
       data: { user },
@@ -183,6 +314,46 @@ export default async function handler(
       return response
         .status(401)
         .json({ message: "로그인 후 다시 시도해주세요." });
+    if (
+      [
+        "notifications",
+        "notification_dismiss",
+        "notification_restore",
+      ].includes(action)
+    ) {
+      const mutation = action !== "notifications";
+      if (
+        mutation &&
+        (!Array.isArray(input.ids) ||
+          input.ids.length < 1 ||
+          input.ids.length > 100 ||
+          input.ids.some((id) => typeof id !== "string" || !uuid.test(id)))
+      ) {
+        return response
+          .status(400)
+          .json({ message: "알림 ID를 확인해주세요." });
+      }
+      const { data, error } = await supabase.rpc("routy_notifications", {
+        p_action:
+          action === "notifications"
+            ? "list"
+            : action === "notification_dismiss"
+              ? "dismiss"
+              : "restore",
+        p_ids: mutation ? input.ids : [],
+      });
+      if (error)
+        return response
+          .status(
+            error.code === "42501" ? 403 : error.code === "22023" ? 400 : 500,
+          )
+          .json({
+            message: ["42501", "22023"].includes(error.code)
+              ? error.message
+              : "알림을 처리하지 못했습니다. 알림 SQL 적용 여부를 확인해주세요.",
+          });
+      return response.status(200).json(data);
+    }
     const { data, error } = await supabase.rpc("routy_trip_share", {
       p_action: action,
       p_trip_id: tripId,
@@ -198,16 +369,16 @@ export default async function handler(
           : action === "request_approve" || action === "request_reject"
             ? { requestId: input.requestId }
             : action === "update"
-          ? patch
-          : action === "members_save"
-            ? {
-                editorLimit: input.editorLimit,
-                permissions: input.permissions,
-                removedUserIds: input.removedUserIds ?? [],
-              }
-            : action === "member_remove"
-              ? { userId: input.userId }
-              : {},
+              ? patch
+              : action === "members_save"
+                ? {
+                    editorLimit: input.editorLimit,
+                    permissions: input.permissions,
+                    removedUserIds: input.removedUserIds ?? [],
+                  }
+                : action === "member_remove"
+                  ? { userId: input.userId }
+                  : {},
     });
     if (error) {
       const status =

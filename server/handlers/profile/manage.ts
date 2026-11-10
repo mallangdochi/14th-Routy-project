@@ -311,116 +311,88 @@ export default async function handler(
     // ─────────────────────────────
     // 회원정보 수정
     // ─────────────────────────────
+    const hasName = Object.prototype.hasOwnProperty.call(body, "name");
+    const hasPhone = Object.prototype.hasOwnProperty.call(body, "phone");
+    const hasEmail = Object.prototype.hasOwnProperty.call(body, "email");
     const name = typeof body.name === "string" ? body.name.trim() : "";
+    const phone = typeof body.phone === "string" ? body.phone.replace(/\D/g, "") : "";
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
 
-    const phone =
-      typeof body.phone === "string" ? body.phone.replace(/\D/g, "") : "";
-
-    const email = typeof body.email === "string" ? body.email.trim() : "";
-
-    if (!name || name.length > 100) {
-      return response.status(400).json({
-        code: "INVALID_NAME",
-        message: "이름은 1~100자로 입력해주세요.",
-      });
+    if (hasName && (!name || name.length > 100)) {
+      return response.status(400).json({ code: "INVALID_NAME", message: "이름은 1~100자로 입력해주세요." });
     }
-
-    if (!/^01[016789]\d{7,8}$/.test(phone)) {
-      return response.status(400).json({
-        code: "INVALID_PHONE",
-        message: "핸드폰번호를 확인해주세요.",
-      });
+    if (hasPhone && !/^01[016789]\d{7,8}$/.test(phone)) {
+      return response.status(400).json({ code: "INVALID_PHONE", message: "핸드폰번호를 확인해주세요." });
     }
-
-    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return response.status(400).json({
-        code: "INVALID_EMAIL",
-        message: "이메일 형식을 확인해주세요.",
-      });
+    if (hasEmail && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+      return response.status(400).json({ code: "INVALID_EMAIL", message: "이메일 형식을 확인해주세요." });
     }
+    const emailChanged = hasEmail && email !== (user.email ?? "").toLowerCase();
+    const profileUpdate: { full_name?: string; phone?: string } = {};
+    if (hasName) profileUpdate.full_name = name;
+    if (hasPhone) profileUpdate.phone = phone;
 
-    const emailChanged =
-      email.toLowerCase() !== (user.email ?? "").toLowerCase();
-
-    let admin: ReturnType<typeof createClient> | null = null;
-
+    // 관리자 키는 서버에서만 사용하며, 대상은 검증된 세션의 본인 ID로 고정합니다.
     if (emailChanged) {
-      const supabaseUrl = process.env.SUPABASE_URL;
-      const secretKey = process.env.SUPABASE_SECRET_KEY;
-
-      if (!supabaseUrl || !secretKey) {
+      const url = process.env.SUPABASE_URL;
+      const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+      if (!url || !adminKey) {
         return response.status(500).json({
-          code: "MISSING_ADMIN_CONFIG",
-          message: "이메일 변경에 필요한 서버 환경변수를 확인해주세요.",
+          code: "EMAIL_SERVER_CONFIG_MISSING",
+          message: "서버의 이메일 변경 환경설정을 확인해주세요.",
         });
       }
-
-      admin = createClient(supabaseUrl, secretKey, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
-        },
+      const admin = createClient(url, adminKey, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       });
-    }
-
-    const { data: saved, error: saveError } = await supabase
-      .from("profiles")
-      .update({
-        full_name: name,
-        phone,
-      })
-      .eq("id", user.id)
-      .select("id")
-      .maybeSingle();
-
-    if (saveError) {
-      console.error("Account update error:", {
-        code: saveError.code,
-        message: saveError.message,
+      const { data, error } = await admin.auth.admin.updateUserById(user.id, {
+        email,
+        email_confirm: true,
       });
-
-      return response.status(500).json({
-        code: "ACCOUNT_SAVE_FAILED",
-        message: "이름과 핸드폰번호를 저장하지 못했습니다.",
-      });
-    }
-
-    if (!saved) {
-      return response.status(409).json({
-        code: "PROFILE_NOT_UPDATED",
-        message:
-          "수정할 회원 정보가 없습니다. 회원 데이터와 수정 권한을 확인해주세요.",
-      });
-    }
-
-    if (admin) {
-      // 로그인 쿠키로 확인한 본인 계정만 수정합니다.
-      const { data: updated, error: emailError } =
-        await admin.auth.admin.updateUserById(user.id, {
-          email,
-          email_confirm: true,
+      if (error) {
+        const providerCode = error.code ?? "unknown";
+        const providerStatus = error.status ?? 0;
+        const duplicate = providerCode === "email_exists" || providerCode === "user_already_exists";
+        const denied = providerStatus === 401 || providerStatus === 403
+          || providerCode === "not_admin" || providerCode === "bad_jwt";
+        const databaseError = providerCode === "unexpected_failure";
+        // 개인 정보와 키를 제외한 진단 정보만 기록합니다.
+        console.error("Account email update failed", { providerCode, providerStatus });
+        const explanation = duplicate
+          ? "이미 사용 중인 이메일입니다. 다른 이메일을 입력해주세요."
+          : denied
+            ? "API 서버의 Supabase 관리자 키가 유효하지 않거나 권한이 없습니다. SUPABASE_URL과 같은 프로젝트의 service_role 키인지 확인해주세요."
+            : databaseError
+              ? "Supabase에서 사용자 정보를 저장하지 못했습니다. Auth 로그와 auth.users 관련 DB 트리거를 확인해주세요."
+              : "Supabase에서 이메일 변경을 거부했습니다.";
+        return response.status(duplicate ? 409 : denied ? 500 : 502).json({
+          code: duplicate ? "EMAIL_EXISTS" : denied ? "EMAIL_ADMIN_AUTH_FAILED" : "EMAIL_UPDATE_FAILED",
+          providerCode,
+          providerStatus,
+          message: `${explanation} [${providerCode} / ${providerStatus}]`,
         });
-
-      if (
-        emailError ||
-        updated.user?.email?.toLowerCase() !== email.toLowerCase()
-      ) {
-        const duplicateEmail = emailError?.code === "email_exists";
-
-        return response.status(duplicateEmail ? 409 : 400).json({
-          code: duplicateEmail ? "EMAIL_EXISTS" : "EMAIL_UPDATE_FAILED",
-          message: duplicateEmail
-            ? "이름과 핸드폰번호는 저장되었습니다. 이메일은 이미 사용 중이므로 다른 이메일을 입력해주세요."
-            : "이름과 핸드폰번호는 저장되었습니다. 이메일 변경은 실패했으니 다시 시도해주세요.",
-        });
+      }
+      if (data.user?.id !== user.id || data.user.email?.toLowerCase() !== email) {
+        return response.status(502).json({ code: "EMAIL_UPDATE_FAILED", message: "이메일 변경 결과를 확인하지 못했습니다. 다시 확인해주세요." });
       }
     }
 
+    if (Object.keys(profileUpdate).length > 0) {
+      const { data: saved, error } = await supabase.from("profiles")
+        .update(profileUpdate).eq("id", user.id).select("id").maybeSingle();
+      if (error || !saved) {
+        return response.status(error ? 500 : 409).json({
+          code: "ACCOUNT_SAVE_FAILED",
+          message: emailChanged
+            ? "이메일은 변경되었습니다. 이름 또는 핸드폰번호를 저장하지 못했습니다. 다시 저장해주세요."
+            : "회원 정보를 저장하지 못했습니다. 다시 시도해주세요.",
+        });
+      }
+    }
     return response.status(200).json({
       success: true,
       emailPending: false,
-      message: "회원 정보가 저장되었습니다.",
+      message: !hasName && !hasPhone && !hasEmail ? "변경된 내용이 없습니다." : "회원 정보가 저장되었습니다.",
     });
   } catch {
     // 비밀번호와 요청 본문은 로그에 남기지 않습니다.

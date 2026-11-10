@@ -1,3 +1,4 @@
+// import TripRoleBadge from "../../components/main/TripRoleBadge";
 import { Global } from "@emotion/react";
 import Dropdown from "../../components/dropdown/Dropdown";
 import TimePicker from "../../components/pickers/TimePicker";
@@ -34,6 +35,7 @@ import {
 } from "../../api/kakao/searchPlaceModal";
 import React, { useEffect, useId, useRef, useState } from "react";
 import {
+  LogOut,
   TriangleAlert,
   CircleX,
   Check,
@@ -89,11 +91,19 @@ import { useAuth } from "../../contexts/AuthContext";
 import defaultTripImage from "../../assets/where.webp";
 import MainSidebar from "../../components/MainSidebar/MainSidebar";
 import * as S from "./ScheduleStyle";
-import { MapViewport, RouteHoverHint, RouteMapDetails, buildDisplayRoutes, routeColor, setRouteLineHoverStyle, useTouchMap, type RouteSelection, type TravelMode } from "../../components/map/RouteMapInfo";
+import {
+  MapViewport,
+  RouteHoverHint,
+  RouteMapDetails,
+  buildDisplayRoutes,
+  routeColor,
+  setRouteLineHoverStyle,
+  useTouchMap,
+  type RouteSelection,
+  type TravelMode,
+} from "../../components/map/RouteMapInfo";
 import KakaoMap from "../../components/kakaoMap/KakaoMap";
 import { getKakaoMapPointUrl } from "../../api/kakao/kakaoLinks";
-import type { SearchedMapPlace } from "../../components/map/MapSearchOverlay";
-import { getAllowedCurrentLocation, LOCATION_CHANGE_EVENT } from "../../utils/locationService";
 import TravelRouteSummary, {
   type RouteLine,
 } from "../../components/Schedule/TravelRouteSummary";
@@ -131,6 +141,10 @@ import TripPeopleModal, {
   type TripMemberChanges,
 } from "../../components/modal/select-trip-people/TripPeopleModal";
 import TripInviteGate from "../../components/modal/trip-invite-gate/TripInviteGate";
+
+const BudgetTabWithPermission = TravelBudgetTab as React.ComponentType<
+  React.ComponentProps<typeof TravelBudgetTab> & { canEdit?: boolean }
+>;
 
 export type PlaceModalSource = Pick<
   PlaceModalProps,
@@ -901,6 +915,11 @@ function ScheduleContent({
   const navigate = useNavigate();
   const routerLocation = useLocation();
 
+  const isHost = selectedTrip.permission === "owner";
+  const canLeaveTrip =
+    selectedTrip.permission === "editor" ||
+    selectedTrip.permission === "viewer";
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const canEditTrip =
     selectedTrip.permission === "owner" || selectedTrip.permission === "editor";
 
@@ -1087,6 +1106,7 @@ function ScheduleContent({
   }, [isTripNameMenuOpen]);
 
   const startEditingTripName = () => {
+    if (!isHost) return;
     setIsTripNameMenuOpen(false);
     setDraftTripName(tripName);
     setTripNameError("");
@@ -1110,7 +1130,7 @@ function ScheduleContent({
   };
 
   const handleSaveTripName = async () => {
-    if (tripNameSavingRef.current) return;
+    if (!isHost || tripNameSavingRef.current) return;
 
     const name = draftTripName.trim();
 
@@ -1200,6 +1220,7 @@ function ScheduleContent({
     setMembersRevision((n) => n + 1);
   };
   const handleSaveMembers = async (changes: TripMemberChanges) => {
+    if (!isHost) throw new Error("호스트만 멤버를 관리할 수 있습니다.");
     const tripId = String(selectedTrip.id);
     const result = await saveTripMembers(tripId, changes);
     if (result.tripId !== tripId || result.editorLimit !== changes.editorLimit)
@@ -1208,6 +1229,7 @@ function ScheduleContent({
     return true;
   };
   const handleLeaveTrip = async () => {
+    if (!canLeaveTrip) throw new Error("참여한 여행에서만 나갈 수 있습니다.");
     const tripId = String(selectedTrip.id);
     const result = await leaveTrip(tripId);
     if (result.tripId !== tripId || !result.left)
@@ -1231,7 +1253,7 @@ function ScheduleContent({
       React.ComponentProps<typeof RegionSelectModal>["value"]
     >,
   ): Promise<void> => {
-    if (tripRegionSavingRef.current) return;
+    if (!isHost || tripRegionSavingRef.current) return;
 
     const nextRegion = region.name.trim();
 
@@ -1335,7 +1357,8 @@ function ScheduleContent({
   const scheduleSaveLock = useRef(false);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleError, setScheduleError] = useState("");
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [editModeRequested, setIsEditMode] = useState(false);
+  const isEditMode = canEditTrip && editModeRequested;
   const [expandedStopId, setExpandedStopId] = useState<number | null>(null);
   const [selectedStopIds, setSelectedStopIds] = useState<number[]>([]);
   const [stopDeleteIds, setStopDeleteIds] = useState<number[] | null>(null);
@@ -1419,8 +1442,9 @@ function ScheduleContent({
   const [showRoute, setShowRoute] = useState(true);
   const [routeMode, setRouteMode] = useState<TravelMode>("walk");
   const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
-  const [locatedStops, setLocatedStops] = useState<Record<number, { lat: number; lng: number }>>({});
-  const [, setMapPlaceSaving] = useState(false);
+  const [locatedStops, setLocatedStops] = useState<
+    Record<number, { lat: number; lng: number }>
+  >({});
   const [mapZoom, setMapZoom] = useState(1);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -1434,34 +1458,61 @@ function ScheduleContent({
     [stopsByDay, activeDayId],
   );
 
-  // 경로 API와 두 지도 탭이 동일한 좌표를 사용하도록 저장되지 않은 장소 좌표를 보완합니다.
-  // 좌표는 화면의 메모리에서만 유지하며 DB에는 임의로 기록하지 않습니다.
+  // 저장된 좌표가 없는 장소도 경로 조회에 사용할 수 있도록 화면에서만 보완합니다.
   useEffect(() => {
     let cancelled = false;
     setLocatedStops({});
-    if (!stops.some((stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng)))
-      return () => { cancelled = true; };
-    void loadKakaoMaps().then(async (sdk) => {
-      const places = new sdk.services.Places();
-      const resolved = await Promise.all(stops.map((stop) => resolveKakaoPlace(sdk, places, {
-        id: stop.id, title: stop.title, address: stop.address,
-        latitude: stop.lat, longitude: stop.lng,
-      })));
-      if (cancelled) return;
-      const positions: Record<number, { lat: number; lng: number }> = {};
-      resolved.forEach((point, index) => {
-        if (point) positions[stops[index].id] = { lat: point.latitude, lng: point.longitude };
+    if (
+      !stops.some(
+        (stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng),
+      )
+    ) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    void loadKakaoMaps()
+      .then(async (maps) => {
+        const places = new maps.services.Places();
+        const found = await Promise.all(
+          stops.map((stop) =>
+            resolveKakaoPlace(maps, places, {
+              id: stop.id,
+              title: stop.title,
+              address: stop.address,
+              latitude: stop.lat,
+              longitude: stop.lng,
+            }),
+          ),
+        );
+        if (cancelled) return;
+        const locations: Record<number, { lat: number; lng: number }> = {};
+        found.forEach((point, index) => {
+          if (point)
+            locations[stops[index].id] = {
+              lat: point.latitude,
+              lng: point.longitude,
+            };
+        });
+        setLocatedStops(locations);
+      })
+      .catch(() => {
+        /* 위치 조회 실패 구간은 미조회 상태로 둡니다. */
       });
-      setLocatedStops(positions);
-    }).catch(() => { /* 좌표가 조회되지 않은 구간은 경로 추정 없이 미조회로 표시 */ });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [stops]);
 
-  const routeStops = React.useMemo(() => stops.map((stop) => ({
-    ...stop,
-    lat: Number.isFinite(stop.lat) ? stop.lat : locatedStops[stop.id]?.lat,
-    lng: Number.isFinite(stop.lng) ? stop.lng : locatedStops[stop.id]?.lng,
-  })), [stops, locatedStops]);
+  const routeStops = React.useMemo(
+    () =>
+      stops.map((stop) => ({
+        ...stop,
+        lat: Number.isFinite(stop.lat) ? stop.lat : locatedStops[stop.id]?.lat,
+        lng: Number.isFinite(stop.lng) ? stop.lng : locatedStops[stop.id]?.lng,
+      })),
+    [stops, locatedStops],
+  );
 
   const selectedStopCount = stops.filter((stop) =>
     selectedStopIds.includes(stop.id),
@@ -1988,82 +2039,28 @@ function ScheduleContent({
     }
   };
 
-  // 지도 검색 결과의 장소를 DB에 저장합니다. 화면 상태만 바꾸지 않습니다.
-  const addPlaceFromKakao = async (place: SearchedMapPlace | KakaoPlace): Promise<void> => {
-    if (!canEditTrip) throw new Error("일정을 편집할 권한이 없습니다.");
-    if (scheduleSaveLock.current) throw new Error("다른 일정 저장이 진행 중입니다.");
-
-    const added: Stop = {
-      id: Date.now(),
-      placeId: "id" in place && place.id ? place.id : "map-" + place.lat + "-" + place.lng,
-      title: place.name,
-      time: selectedTrip.startTime,
-      description: "description" in place && place.description ? place.description : "카카오 지도에서 선택한 장소",
-      address: place.address,
-      category: "category" in place ? place.category : "관광지",
-      image: defaultTripImage,
-      x: 50,
-      y: 50,
-      stayDurationMinutes: 60,
-      transport: modalDefaultTransport,
-      lat: place.lat,
-      lng: place.lng,
-    };
-    scheduleSaveLock.current = true;
-    setMapPlaceSaving(true);
-    try {
-      const saved = await appendTripPlaces(String(selectedTrip.id), activeDay.isoDate, [added]);
-      const previousVersion = scheduleVersionRef.current;
-      if (!isEditMode || saved.version === previousVersion + 1) {
-        scheduleVersionRef.current = saved.version;
-      }
-      const persisted = createStoredStopsByDay(saved, days.map((day) => day.isoDate));
-      const mergeAdded = (previous: Record<number, Stop[]>) => {
-        const oldDay = previous[activeDay.id] ?? [];
-        const persistedDay = persisted[activeDay.id] ?? [];
-        const newStops = persistedDay.filter((stop) =>
-          stop.placeId === added.placeId &&
-          !oldDay.some((entry) => entry.id === stop.id),
-        );
-        return { ...previous, [activeDay.id]: [...oldDay, ...newStops] };
-      };
-      if (isEditMode) {
-        setStopsByDay(mergeAdded);
-        if (editAllSnapshotRef.current) {
-          editAllSnapshotRef.current = mergeAdded(editAllSnapshotRef.current);
-        }
-      } else {
-        setStopsByDay(persisted);
-      }
-      setShowSaveStatus(true);
-    } finally {
-      scheduleSaveLock.current = false;
-      setMapPlaceSaving(false);
-    }
+  // 카카오 지도에서 선택한 장소 추가
+  const addPlaceFromKakao = (place: KakaoPlace) => {
+    updateStops((previous) => [
+      ...previous,
+      {
+        id: Date.now(),
+        title: place.name,
+        time: selectedTrip.startTime,
+        description: "카카오 지도에서 추가한 장소",
+        address: place.address,
+        category: "관광지",
+        image: defaultTripImage,
+        x: 50,
+        y: 50,
+        lat: place.lat,
+        lng: place.lng,
+      },
+    ]);
   };
 
-  // const addDay = () => {
-  //   const lastDay = days[days.length - 1];
-  //   if (!lastDay) return;
-  //   const nextId = lastDay.id + 1;
-  //   const nextDate = new Date(`${lastDay.isoDate}T00:00:00Z`);
-  //   nextDate.setUTCDate(nextDate.getUTCDate() + 1);
-  //   const nextDay = createDay(nextDate.toISOString().slice(0, 10), nextId);
-
-  //   setDays((previous) => [...previous, nextDay]);
-
-  //   setStopsByDay((previous) => ({
-  //     ...previous,
-  //     [nextId]: [],
-  //   }));
-
-  //   setActiveDayId(nextId);
-  //   setIsEditMode(false);
-  //   setMenuId(null);
-  //   setShowSaveStatus(false);
-  //   resetDrag();
-  // };
   const handleApplyDates = async (dates: string[]) => {
+    if (!isHost) return;
     const nextDates = normalizeTripDates(dates);
 
     if (!nextDates.length) {
@@ -2156,103 +2153,112 @@ function ScheduleContent({
               <S.TripThumbnail src={defaultTripImage} alt="" />
 
               <S.TripDescription>
-                {/* <S.TripTitleRow>
-                  <S.TripTitle>{selectedTrip.name}</S.TripTitle>
-
-                  <S.IconButton type="button" aria-label="여행 제목 편집">
-                    <Pencil size={17} />
-                  </S.IconButton>
-                </S.TripTitleRow> */}
                 <S.TripTitleRow>
                   <>
                     <S.TripTitle>{tripName}</S.TripTitle>
+                    {/* <TripRoleBadge permission={selectedTrip.permission} /> */}
 
-                    <S.TripNameMenuAnchor ref={tripNameMenuRef}>
-                      <S.TripEditButton
-                        ref={tripNameEditButtonRef}
-                        type="button"
-                        aria-label="여행 편집"
-                        title="여행 편집"
-                        aria-expanded={isTripNameMenuOpen}
-                        onClick={() => {
-                          setIsTripNameMenuMounted(true);
-                          setIsTripNameMenuOpen(
-                            (previous) => canEditTrip && !previous,
-                          );
-                        }}
-                      >
-                        <Pencil size={20} />
-                      </S.TripEditButton>
-                      {isTripNameMenuMounted && (
-                        <S.TripNamePopoverPosition>
-                          <S.TripNamePopover
-                            aria-label="여행 관리"
-                            aria-hidden={!isTripNameMenuOpen}
-                            inert={!isTripNameMenuOpen}
-                            data-open={isTripNameMenuOpen}
-                            onAnimationEnd={(event) => {
-                              if (
-                                event.target === event.currentTarget &&
-                                !isTripNameMenuOpen
-                              ) {
-                                setIsTripNameMenuMounted(false);
-                              }
-                            }}
-                          >
-                            <S.TripNameMenuItem
-                              type="button"
-                              disabled={!canEditTrip}
-                              onClick={startEditingTripName}
-                            >
-                              <Pencil size={18} />
-                              <span>여행 제목 수정</span>
-                            </S.TripNameMenuItem>
-                            <S.TripNameMenuItem
-                              type="button"
-                              onClick={() => {
-                                setIsTripNameMenuOpen(false);
-                                setShowRegionModal(true);
+                    {(isHost || canLeaveTrip) && (
+                      <S.TripNameMenuAnchor ref={tripNameMenuRef}>
+                        <S.TripEditButton
+                          ref={tripNameEditButtonRef}
+                          type="button"
+                          aria-label={isHost ? "여행 관리" : "여행 나가기 메뉴"}
+                          title={isHost ? "여행 관리" : "여행 나가기 메뉴"}
+                          aria-expanded={isTripNameMenuOpen}
+                          onClick={() => {
+                            setIsTripNameMenuMounted(true);
+                            setIsTripNameMenuOpen((previous) => !previous);
+                          }}
+                        >
+                          <Pencil size={20} />
+                        </S.TripEditButton>
+                        {isTripNameMenuMounted && (
+                          <S.TripNamePopoverPosition>
+                            <S.TripNamePopover
+                              aria-label="여행 관리"
+                              aria-hidden={!isTripNameMenuOpen}
+                              inert={!isTripNameMenuOpen}
+                              data-open={isTripNameMenuOpen}
+                              onAnimationEnd={(event) => {
+                                if (
+                                  event.target === event.currentTarget &&
+                                  !isTripNameMenuOpen
+                                ) {
+                                  setIsTripNameMenuMounted(false);
+                                }
                               }}
                             >
-                              <MapPin size={18} />
-                              <span>여행 지역 수정</span>
-                            </S.TripNameMenuItem>
-                            <S.TripNameMenuItem
-                              type="button"
-                              onClick={() => {
-                                setIsTripNameMenuOpen(false);
-                                setShowDateModal(true);
-                              }}
-                            >
-                              <CalendarDays size={18} />
-                              <span>여행 날짜 수정</span>
-                            </S.TripNameMenuItem>
-                            <S.TripNameMenuItem
-                              type="button"
-                              onClick={() => {
-                                setIsTripNameMenuOpen(false);
-                                openMembersModal();
-                              }}
-                            >
-                              <Users size={18} />
-                              <span>여행 멤버 수정</span>
-                            </S.TripNameMenuItem>
-                            <S.TripNameMenuItem
-                              className="trip-menu-delete"
-                              type="button"
-                              disabled={
-                                selectedTrip.permission !== "owner" ||
-                                isDeletingTrip
-                              }
-                              onClick={openTripDeleteDialog}
-                            >
-                              <Trash2 size={18} />
-                              <span>여행 삭제</span>
-                            </S.TripNameMenuItem>
-                          </S.TripNamePopover>
-                        </S.TripNamePopoverPosition>
-                      )}
-                    </S.TripNameMenuAnchor>
+                              {isHost ? (
+                                <>
+                                  <S.TripNameMenuItem
+                                    type="button"
+                                    onClick={startEditingTripName}
+                                  >
+                                    <Pencil size={18} />
+                                    <span>여행 제목 수정</span>
+                                  </S.TripNameMenuItem>
+                                  <S.TripNameMenuItem
+                                    type="button"
+                                    onClick={() => {
+                                      setIsTripNameMenuOpen(false);
+                                      setShowRegionModal(true);
+                                    }}
+                                  >
+                                    <MapPin size={18} />
+                                    <span>여행 지역 수정</span>
+                                  </S.TripNameMenuItem>
+                                  <S.TripNameMenuItem
+                                    type="button"
+                                    onClick={() => {
+                                      setIsTripNameMenuOpen(false);
+                                      setShowDateModal(true);
+                                    }}
+                                  >
+                                    <CalendarDays size={18} />
+                                    <span>여행 날짜 수정</span>
+                                  </S.TripNameMenuItem>
+                                  <S.TripNameMenuItem
+                                    type="button"
+                                    onClick={() => {
+                                      setIsTripNameMenuOpen(false);
+                                      openMembersModal();
+                                    }}
+                                  >
+                                    <Users size={18} />
+                                    <span>여행 멤버 수정</span>
+                                  </S.TripNameMenuItem>
+                                  <S.TripNameMenuItem
+                                    className="trip-menu-delete"
+                                    type="button"
+                                    disabled={
+                                      selectedTrip.permission !== "owner" ||
+                                      isDeletingTrip
+                                    }
+                                    onClick={openTripDeleteDialog}
+                                  >
+                                    <Trash2 size={18} />
+                                    <span>여행 삭제</span>
+                                  </S.TripNameMenuItem>
+                                </>
+                              ) : (
+                                <S.TripNameMenuItem
+                                  className="trip-menu-delete"
+                                  type="button"
+                                  onClick={() => {
+                                    setIsTripNameMenuOpen(false);
+                                    setLeaveDialogOpen(true);
+                                  }}
+                                >
+                                  <LogOut size={18} />
+                                  <span>여행 나가기</span>
+                                </S.TripNameMenuItem>
+                              )}
+                            </S.TripNamePopover>
+                          </S.TripNamePopoverPosition>
+                        )}
+                      </S.TripNameMenuAnchor>
+                    )}
                   </>
                 </S.TripTitleRow>
                 <S.TripDate>{tripDateText}</S.TripDate>
@@ -2273,14 +2279,16 @@ function ScheduleContent({
                     }}
                   />
 
-                  <S.MemberAdd
-                    type="button"
-                    disabled={selectedTrip.permission !== "owner"}
-                    aria-label="여행 참여자 초대"
-                    onClick={() => setShowShareModal(true)}
-                  >
-                    <Plus size={17} />
-                  </S.MemberAdd>
+                  {isHost && (
+                    <S.MemberAdd
+                      type="button"
+                      disabled={selectedTrip.permission !== "owner"}
+                      aria-label="여행 참여자 초대"
+                      onClick={() => setShowShareModal(true)}
+                    >
+                      <Plus size={17} />
+                    </S.MemberAdd>
+                  )}
                 </S.MemberList>
               </S.TripDescription>
 
@@ -2371,7 +2379,7 @@ function ScheduleContent({
                     <S.Weather locationName={tripRegion} />
                   </S.ScheduleHeadingLeft>
 
-                  {(stops.length > 0 || isEditMode) && (
+                  {canEditTrip && (stops.length > 0 || isEditMode) && (
                     <S.DesktopEditAction>
                       {isEditMode ? (
                         <S.BatchActions>
@@ -2436,7 +2444,7 @@ function ScheduleContent({
                     </S.DesktopEditAction>
                   )}
 
-                  {(stops.length > 0 || isEditMode) && (
+                  {canEditTrip && (stops.length > 0 || isEditMode) && (
                     <S.MobileEditAction>
                       {isEditMode ? (
                         <S.BatchActions>
@@ -2524,14 +2532,22 @@ function ScheduleContent({
                   {stops.length === 0 && (
                     <S.EmptyState>
                       <S.Illustration src={emptyScheduleImage} alt="" />
-                      <S.Title>첫 장소를 추가해 볼까요?</S.Title>
+                      <S.Title>
+                        {canEditTrip
+                          ? "첫 장소를 추가해 볼까요?"
+                          : "아직 등록된 일정이 없어요."}
+                      </S.Title>
                       <S.Description>
-                        가고 싶은 곳을 담아 오늘의 여행을 시작해요.
+                        {canEditTrip
+                          ? "가고 싶은 곳을 담아 오늘의 여행을 시작해요."
+                          : "여행 멤버가 일정을 추가하면 여기에서 확인할 수 있어요."}
                       </S.Description>
-                      <S.AddButton type="button" onClick={openPlaceModal}>
-                        <Plus size={22} aria-hidden="true" />
-                        장소 추가
-                      </S.AddButton>
+                      {canEditTrip && (
+                        <S.AddButton type="button" onClick={openPlaceModal}>
+                          <Plus size={22} aria-hidden="true" />
+                          장소 추가
+                        </S.AddButton>
+                      )}
                     </S.EmptyState>
                   )}
                   {stops.map((stop, index) => (
@@ -2571,12 +2587,15 @@ function ScheduleContent({
                   ))}
                 </S.StopList>
 
-                <TravelRouteSummary
-                  stops={routeStops}
-                  mode={routeMode}
-                  onModeChange={setRouteMode}
-                  onRoutesReady={setRoutePaths}
-                />
+                {/* 경로 계산은 유지하되 삭제 요청한 하단 요약 카드는 표시하지 않습니다. */}
+                <div style={{ display: "none" }} aria-hidden="true">
+                  <TravelRouteSummary
+                    stops={routeStops}
+                    mode={routeMode}
+                    onModeChange={setRouteMode}
+                    onRoutesReady={setRoutePaths}
+                  />
+                </div>
 
                 {isEditMode && stops.length > 0 && (
                   <S.AddPlaceButton type="button" onClick={openPlaceModal}>
@@ -2780,7 +2799,7 @@ function ScheduleContent({
               />
             </S.ChecklistArea>
           ) : activeTab === "budget" ? (
-            <TravelBudgetTab />
+            <BudgetTabWithPermission canEdit={canEditTrip} />
           ) : null}
         </S.Container>
       </S.MainContent>
@@ -2798,7 +2817,7 @@ function ScheduleContent({
         <MobileNav />
       </S.MobileNavArea>
 
-      {editingStop && (
+      {canEditTrip && editingStop && (
         <S.EditOverlay onClick={() => setEditingStop(null)}>
           <S.EditModal
             role="dialog"
@@ -3000,8 +3019,16 @@ function ScheduleContent({
           document.body,
         )}
 
+      {canLeaveTrip && leaveDialogOpen && (
+        <TripLeaveDialog
+          tripName={tripName}
+          onClose={() => setLeaveDialogOpen(false)}
+          onConfirm={handleLeaveTrip}
+        />
+      )}
+
       <ShareModal
-        isOpen={showShareModal}
+        isOpen={isHost && showShareModal}
         onClose={() => setShowShareModal(false)}
         tripId={selectedTrip.id}
         tripName={selectedTrip.name}
@@ -3035,7 +3062,7 @@ function ScheduleContent({
         onLeave={handleLeaveTrip}
       />
       <RegionSelectModal
-        isOpen={showRegionModal}
+        isOpen={isHost && showRegionModal}
         value={selectedRegion}
         searchRegions={searchTravelRegions}
         onClose={() => setShowRegionModal(false)}
@@ -3044,7 +3071,7 @@ function ScheduleContent({
         }}
       />
       <MobileTripNameSheet
-        open={isEditingTripName}
+        open={isHost && isEditingTripName}
         value={draftTripName}
         busy={isSavingTripName}
         error={tripNameError}
@@ -3056,7 +3083,7 @@ function ScheduleContent({
         onClose={cancelEditingTripName}
       />
       <TripDateModal
-        open={showDateModal}
+        open={isHost && showDateModal}
         dates={days.map((day) => day.isoDate)}
         scheduleCounts={Object.fromEntries(
           days.map((day) => [day.isoDate, stopsByDay[day.id]?.length ?? 0]),
@@ -3068,7 +3095,7 @@ function ScheduleContent({
         {...placeModalSource}
         defaultTransport={modalDefaultTransport}
         defaultTransportLabel={modalDefaultTransportLabel}
-        open={isPlaceModalOpen}
+        open={canEditTrip && isPlaceModalOpen}
         onClose={() => setIsPlaceModalOpen(false)}
         dayLabel={`Day ${placeModalDay?.id ?? activeDay.id}`}
         dateLabel={`${(placeModalDay ?? activeDay).date} (${(placeModalDay ?? activeDay).weekday})`}
@@ -3258,8 +3285,18 @@ function createMarkerContent(
   const button = document.createElement("button");
   button.type = "button";
   button.className = "route-map-pin";
-  const role = total === 1 ? "출발·도착" : order === 1 ? "출발지" : order === total ? "도착지" : "경유지";
-  button.setAttribute("aria-label", `${order}번 ${role} ${stop.title}${stop.time ? ` · ${stop.time}` : ""}`);
+  const role =
+    total === 1
+      ? "출발·도착"
+      : order === 1
+        ? "출발지"
+        : order === total
+          ? "도착지"
+          : "경유지";
+  button.setAttribute(
+    "aria-label",
+    `${order}번 ${role} ${stop.title}${stop.time ? ` · ${stop.time}` : ""}`,
+  );
   button.setAttribute("aria-expanded", "false");
   button.innerHTML = renderToStaticMarkup(
     <svg width="44" height="54" viewBox="0 0 44 54" aria-hidden="true">
@@ -3291,7 +3328,8 @@ function createMarkerContent(
     address.textContent = stop.address;
     tooltip.append(address);
   }
-  const description = (stop as KakaoStop & { description?: string }).description;
+  const description = (stop as KakaoStop & { description?: string })
+    .description;
   if (description?.trim()) {
     const info = document.createElement("span");
     info.textContent = description;
@@ -3352,7 +3390,6 @@ function ScheduleEditRouteMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const layersRef = useRef<OverlayInstance[]>([]);
-  const userLocationOverlayRef = useRef<OverlayInstance | null>(null);
   const locatedRef = useRef<LocatedStop[]>([]);
   const initialLevelRef = useRef(9);
   const [sdk, setSdk] = useState<KakaoMapsSDK | null>(null);
@@ -3360,7 +3397,9 @@ function ScheduleEditRouteMap({
   const [unresolved, setUnresolved] = useState(0);
   const [loading, setLoading] = useState(Boolean(KAKAO_KEY));
   // Routy desktop route hover patch v1. Touch devices use the same expandable detail panel.
-  const [routeSelection, setRouteSelection] = useState<RouteSelection | null>(null);
+  const [routeSelection, setRouteSelection] = useState<RouteSelection | null>(
+    null,
+  );
   const [routeHover, setRouteHover] = useState<RouteSelection | null>(null);
   const isTouchMap = useTouchMap();
   const routePinnedRef = useRef(false);
@@ -3399,59 +3438,6 @@ function ScheduleEditRouteMap({
       mapRef.current = null;
     };
   }, []);
-
-  // 지도 검색 결과를 선택하거나 현재 위치 버튼을 누르면 지도 중심으로 이동합니다.
-  useEffect(() => {
-    if (!sdk) return;
-    const focus = (event: Event) => {
-      const point = (event as CustomEvent<{ lat: number; lng: number }>).detail;
-      if (!point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return;
-      const map = mapRef.current;
-      if (!map) return;
-      map.setCenter(new sdk.LatLng(point.lat, point.lng));
-      map.setLevel(4);
-    };
-    window.addEventListener("routy:map:focus", focus);
-    return () => window.removeEventListener("routy:map:focus", focus);
-  }, [sdk]);
-
-  // 사용자 위치 좌표는 메모리에서만 사용하며 DB/로컬 저장소에 기록하지 않습니다.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!sdk || !map) return;
-    let cancelled = false;
-    const refresh = () => {
-      userLocationOverlayRef.current?.setMap(null);
-      userLocationOverlayRef.current = null;
-      void getAllowedCurrentLocation().then((location) => {
-        if (cancelled || !location) return;
-        const bubble = document.createElement("div");
-        bubble.textContent = "● 현재 위치";
-        bubble.setAttribute("aria-label", "내 현재 위치");
-        bubble.style.cssText = "background:#0B626A;color:white;padding:6px 10px;border:2px solid white;border-radius:16px;font-size:15px;font-weight:700;box-shadow:0 2px 10px #0004;white-space:nowrap;";
-        const overlay = new sdk.CustomOverlay({
-          map,
-          position: new sdk.LatLng(location.lat, location.lng),
-          content: bubble,
-          yAnchor: 1,
-          zIndex: 15,
-        });
-        userLocationOverlayRef.current = overlay;
-        if (stops.length === 0) {
-          map.setCenter(new sdk.LatLng(location.lat, location.lng));
-          map.setLevel(5);
-        }
-      }).catch(() => { /* GPS 거부/실패 시 기존 일정 지도 유지 */ });
-    };
-    refresh();
-    window.addEventListener(LOCATION_CHANGE_EVENT, refresh);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(LOCATION_CHANGE_EVENT, refresh);
-      userLocationOverlayRef.current?.setMap(null);
-      userLocationOverlayRef.current = null;
-    };
-  }, [sdk, stops.length]);
 
   // 일정/날짜 변경 시 위치를 다시 찾되, API 응답이 늦게 오면 기존 결과를 표시하지 않습니다.
   useEffect(() => {
@@ -3529,18 +3515,36 @@ function ScheduleEditRouteMap({
     const hoverRouteInfo = (info: RouteSelection) => {
       if (!isTouchMap && !routePinnedRef.current) setRouteHover(info);
     };
-    const leaveRouteInfo = () => { setRouteHover(null); };
-    const kakaoEvent = (sdk as KakaoMapsSDK & {
-      event?: { addListener(target: object, event: string, listener: () => void): void };
-    }).event;
+    const leaveRouteInfo = () => {
+      setRouteHover(null);
+    };
+    const kakaoEvent = (
+      sdk as KakaoMapsSDK & {
+        event?: {
+          addListener(
+            target: object,
+            event: string,
+            listener: () => void,
+          ): void;
+        };
+      }
+    ).event;
     if (showRoute) {
       const ordered = stops.map((stop) => {
-        const found = coordinatePoints.find((point) => String(point.stop.id) === String(stop.id));
+        const found = coordinatePoints.find(
+          (point) => String(point.stop.id) === String(stop.id),
+        );
         return {
-          id: stop.id, title: stop.title, time: stop.time,
+          id: stop.id,
+          title: stop.title,
+          time: stop.time,
           address: stop.address,
-          description: "description" in stop && typeof stop.description === "string" ? stop.description : undefined,
-          lat: found?.latitude, lng: found?.longitude,
+          description:
+            "description" in stop && typeof stop.description === "string"
+              ? stop.description
+              : undefined,
+          lat: found?.latitude,
+          lng: found?.longitude,
         };
       });
       buildDisplayRoutes(ordered, routePaths, routeMode).forEach((leg) => {
@@ -3553,7 +3557,11 @@ function ScheduleEditRouteMap({
           strokeStyle: leg.isFallback ? "shortdash" : "solid",
         });
         layersRef.current.push(line);
-        const info: RouteSelection = { kind: "route", route: leg, order: leg.order ?? 1 };
+        const info: RouteSelection = {
+          kind: "route",
+          route: leg,
+          order: leg.order ?? 1,
+        };
         kakaoEvent?.addListener(line, "mouseover", () => {
           if (!isTouchMap) setRouteLineHoverStyle(line, leg, true);
           hoverRouteInfo(info);
@@ -3580,15 +3588,31 @@ function ScheduleEditRouteMap({
         },
         (selected) => {
           if (selected) {
-            openRouteInfo({
-              kind: "stop", order, total: stops.length,
-              stop: {
-                id: stop.id, title: stop.title, time: stop.time,
-                address: stop.address, category: stop.category,
-                description: "description" in stop && typeof stop.description === "string" ? stop.description : undefined,
-                externalUrl: getKakaoMapPointUrl(stop.title, latitude, longitude),
+            openRouteInfo(
+              {
+                kind: "stop",
+                order,
+                total: stops.length,
+                stop: {
+                  id: stop.id,
+                  title: stop.title,
+                  time: stop.time,
+                  address: stop.address,
+                  category: stop.category,
+                  description:
+                    "description" in stop &&
+                    typeof stop.description === "string"
+                      ? stop.description
+                      : undefined,
+                  externalUrl: getKakaoMapPointUrl(
+                    stop.title,
+                    latitude,
+                    longitude,
+                  ),
+                },
               },
-            }, true);
+              true,
+            );
           } else {
             routePinnedRef.current = false;
             selectedRouteRef.current = null;
@@ -3599,10 +3623,19 @@ function ScheduleEditRouteMap({
         (active) => {
           if (!active || isTouchMap) return;
           hoverRouteInfo({
-            kind: "stop", order, total: stops.length,
-            stop: { id: stop.id, title: stop.title, time: stop.time,
-              address: stop.address, category: stop.category,
-              description: "description" in stop && typeof stop.description === "string" ? stop.description : undefined,
+            kind: "stop",
+            order,
+            total: stops.length,
+            stop: {
+              id: stop.id,
+              title: stop.title,
+              time: stop.time,
+              address: stop.address,
+              category: stop.category,
+              description:
+                "description" in stop && typeof stop.description === "string"
+                  ? stop.description
+                  : undefined,
               externalUrl: getKakaoMapPointUrl(stop.title, latitude, longitude),
             },
           });
@@ -3621,7 +3654,16 @@ function ScheduleEditRouteMap({
       layersRef.current.forEach((layer) => layer.setMap(null));
       layersRef.current = [];
     };
-  }, [sdk, stops, category, showRoute, routePaths, routeMode, loading, isTouchMap]);
+  }, [
+    sdk,
+    stops,
+    category,
+    showRoute,
+    routePaths,
+    routeMode,
+    loading,
+    isTouchMap,
+  ]);
 
   useEffect(() => {
     routePinnedRef.current = false;
@@ -3651,7 +3693,9 @@ function ScheduleEditRouteMap({
       const selected = selectedRouteRef.current;
       if (selected?.kind === "route" && selected.route.path.length > 1 && sdk) {
         const bounds = new sdk.LatLngBounds();
-        selected.route.path.forEach(({ lat, lng }) => bounds.extend(new sdk.LatLng(lat, lng)));
+        selected.route.path.forEach(({ lat, lng }) =>
+          bounds.extend(new sdk.LatLng(lat, lng)),
+        );
         map.setBounds(bounds, 60);
       }
     });
@@ -3662,48 +3706,56 @@ function ScheduleEditRouteMap({
   return (
     <S.EditMapRoot data-route-map-root>
       <MapViewport>
-      <div
-        ref={containerRef}
-        style={{ width: "100%", height: "100%" }}
-        aria-label="카카오 지도"
-      />
-      {!isTouchMap && <RouteHoverHint selection={routeHover} />}
-      {!KAKAO_KEY ? (
-        <S.EditMapMessage role="status">
-          <strong>카카오맵 API 키가 필요해요.</strong>
-          <span>
-            프로젝트 루트의 .env.local에 VITE_KAKAO_MAP_JS_KEY를 설정해 주세요.
-          </span>
-        </S.EditMapMessage>
-      ) : error ? (
-        <S.EditMapMessage role="alert">
-          <strong>카카오 지도를 표시할 수 없어요.</strong>
-          <span>{error}</span>
-          <span>
-            카카오맵 사용 설정 및 localhost 도메인 등록을 확인해 주세요.
-          </span>
-        </S.EditMapMessage>
-      ) : loading ? (
-        <S.EditMapMessage role="status">
-          카카오 지도와 장소를 불러오는 중이에요.
-        </S.EditMapMessage>
-      ) : (
-        <S.EditMapNote>
-          {unresolved > 0
-            ? `위치를 확인할 수 없는 장소 ${unresolved}개 · `
-            : ""}
-          {routePaths.some((leg) => leg.path.length >= 2)
-            ? "실선은 API 경로, 점선은 조회되지 않은 방문 구간입니다."
-            : "점선은 방문 순서만 표시하며 실제 도로 경로가 아닙니다."}
-        </S.EditMapNote>
-      )}
+        <div
+          ref={containerRef}
+          style={{ width: "100%", height: "100%" }}
+          aria-label="카카오 지도"
+        />
+        {!isTouchMap && <RouteHoverHint selection={routeHover} />}
+        {!KAKAO_KEY ? (
+          <S.EditMapMessage role="status">
+            <strong>카카오맵 API 키가 필요해요.</strong>
+            <span>
+              프로젝트 루트의 .env.local에 VITE_KAKAO_MAP_JS_KEY를 설정해
+              주세요.
+            </span>
+          </S.EditMapMessage>
+        ) : error ? (
+          <S.EditMapMessage role="alert">
+            <strong>카카오 지도를 표시할 수 없어요.</strong>
+            <span>{error}</span>
+            <span>
+              카카오맵 사용 설정 및 localhost 도메인 등록을 확인해 주세요.
+            </span>
+          </S.EditMapMessage>
+        ) : loading ? (
+          <S.EditMapMessage role="status">
+            카카오 지도와 장소를 불러오는 중이에요.
+          </S.EditMapMessage>
+        ) : (
+          <S.EditMapNote>
+            {unresolved > 0
+              ? `위치를 확인할 수 없는 장소 ${unresolved}개 · `
+              : ""}
+            {routePaths.some((leg) => leg.path.length >= 2)
+              ? "API에서 조회한 경로를 표시하고 있습니다."
+              : "연결선은 방문 순서이며 실제 도로 경로가 아닙니다."}
+          </S.EditMapNote>
+        )}
       </MapViewport>
-      {isTouchMap && <RouteMapDetails
-        key={`${routeSelection?.kind ?? "none"}-${routeSelection?.order ?? ""}-${isTouchMap}`}
-        selection={routeSelection}
-        isTouch={isTouchMap}
-        onClose={() => { routePinnedRef.current = false; selectedRouteRef.current = null; setRouteSelection(null); setRouteHover(null); }}
-      />}
+      {isTouchMap && (
+        <RouteMapDetails
+          key={`${routeSelection?.kind ?? "none"}-${routeSelection?.order ?? ""}-${isTouchMap}`}
+          selection={routeSelection}
+          isTouch={isTouchMap}
+          onClose={() => {
+            routePinnedRef.current = false;
+            selectedRouteRef.current = null;
+            setRouteSelection(null);
+            setRouteHover(null);
+          }}
+        />
+      )}
     </S.EditMapRoot>
   );
 }
@@ -3786,6 +3838,106 @@ function SelectedStopsDeleteDialog({
         </button>
       </div>
     </S.SelectedStopDeleteDialog>,
+    document.body,
+  );
+}
+
+function TripLeaveDialog({
+  tripName,
+  onClose,
+  onConfirm,
+}: {
+  tripName: string;
+  onClose: () => void;
+  onConfirm: () => Promise<boolean>;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const lock = useRef(false);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    return () => {
+      if (dialog?.open) dialog.close();
+    };
+  }, []);
+  const confirm = async () => {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await onConfirm();
+    } catch (cause: unknown) {
+      setError(
+        cause instanceof Error ? cause.message : "여행에서 나가지 못했습니다.",
+      );
+      lock.current = false;
+      setBusy(false);
+    }
+  };
+  return createPortal(
+    <S.TripDeleteDialog
+      ref={dialogRef}
+      data-open={true}
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      aria-busy={busy}
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!busy) onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !busy) onClose();
+      }}
+    >
+      <div className="trip-delete-content">
+        <div className="trip-delete-handle" aria-hidden="true" />
+        <button
+          className="trip-delete-close"
+          type="button"
+          aria-label="여행 나가기 창 닫기"
+          disabled={busy}
+          onClick={onClose}
+        >
+          <X size={20} />
+        </button>
+        <div className="trip-delete-heading">
+          <LogOut className="trip-delete-icon" size={28} aria-hidden="true" />
+          <h2 id={titleId}>여행에서 나갈까요?</h2>
+        </div>
+        <p className="trip-delete-name">{tripName}</p>
+        <p id={descriptionId} className="trip-delete-description">
+          이 여행의 참여를 종료합니다. 다시 참여하려면 초대와 승인이 필요해요.
+        </p>
+        {error && (
+          <p className="trip-delete-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="trip-delete-actions">
+          <button
+            className="trip-delete-cancel"
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+          >
+            취소
+          </button>
+          <button
+            className="trip-delete-confirm"
+            type="button"
+            disabled={busy}
+            onClick={() => void confirm()}
+          >
+            {busy ? "나가는 중…" : "여행 나가기"}
+          </button>
+        </div>
+      </div>
+    </S.TripDeleteDialog>,
     document.body,
   );
 }

@@ -3,12 +3,16 @@ import { useNavigate, useParams } from "react-router";
 import type { FormEvent } from "react";
 import {
   BarChart3,
+  // CheckCheck,
   CheckCircle,
   ChevronRight,
+  Pencil,
   Plus,
   Trash2,
+  Wallet,
   X,
 } from "lucide-react";
+import budgetMascot from "../../assets/budgetMascot.png";
 import Dropdown from "../dropdown/Dropdown";
 import DatePicker from "../pickers/DatePicker";
 import { TravelBudgetTabStyle } from "./TravelBudgetTabStyle";
@@ -27,7 +31,6 @@ import {
   type Expense,
   calendarTripDays,
 } from "./budgetData";
-import Loader from "../loader/Loader";
 type DayKey = string;
 type ExpenseForm = Omit<Expense, "id">;
 type Group = {
@@ -88,15 +91,27 @@ const EMPTY_EXPENSES: Expense[] = [];
 export default function TravelBudgetTab(
   _props: {
     onRequestBudgetEdit?: () => void;
+    canEdit?: boolean;
   } = {},
 ) {
-  void _props;
   const params = useParams<{ tripId?: string; id?: string }>();
   const tripId = params.tripId ?? params.id ?? "";
-  return <BudgetContents key={tripId} tripId={tripId} />;
+  return (
+    <BudgetContents
+      key={tripId}
+      tripId={tripId}
+      allowEdit={_props.canEdit ?? true}
+    />
+  );
 }
 
-function BudgetContents({ tripId }: { tripId: string }) {
+function BudgetContents({
+  tripId,
+  allowEdit,
+}: {
+  tripId: string;
+  allowEdit: boolean;
+}) {
   const navigate = useNavigate();
   const {
     snapshot,
@@ -112,7 +127,9 @@ function BudgetContents({ tripId }: { tripId: string }) {
   const endDate = trip?.endDate ?? startDate;
   const expenses = snapshot?.expenses ?? EMPTY_EXPENSES;
   const budget = trip?.budget ?? null;
-  const canEdit = !!snapshot && snapshot.permission !== "viewer";
+  const canEdit =
+    allowEdit &&
+    (snapshot?.permission === "owner" || snapshot?.permission === "editor");
   const [saving, setSaving] = useState(false);
   const [dialogError, setDialogError] = useState("");
   const busyRef = useRef(false);
@@ -207,14 +224,16 @@ function BudgetContents({ tripId }: { tripId: string }) {
     <section className="budget-status" aria-label="설정 예산 현황">
       <header>
         <strong>예산 현황</strong>
-        <button
-          ref={budgetTriggerRef}
-          type="button"
-          onClick={openBudgetDialog}
-          disabled={!canEdit || saving}
-        >
-          {budget === null ? "예산 설정" : "예산 변경"}
-        </button>
+        {canEdit && (
+          <button
+            ref={budgetTriggerRef}
+            type="button"
+            onClick={openBudgetDialog}
+            disabled={!canEdit || saving}
+          >
+            {budget === null ? "예산 설정" : "예산 변경"}
+          </button>
+        )}
       </header>
       {budget === null ? (
         <p>설정된 예산이 없어요.</p>
@@ -302,7 +321,7 @@ function BudgetContents({ tripId }: { tripId: string }) {
     id: string,
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
-    if (event.pointerType === "mouse" || !event.isPrimary) return;
+    if (!canEdit || event.pointerType === "mouse" || !event.isPrimary) return;
     pointerStart.current = {
       x: event.clientX,
       y: event.clientY,
@@ -360,9 +379,7 @@ function BudgetContents({ tripId }: { tripId: string }) {
   }, [deleteToast]);
 
   const visibleGroups = groups.filter(
-    (group) =>
-      (filter === "all" || filter === group.key) &&
-      expenses.some((expense) => groupForDate(expense.date) === group.key),
+    (group) => filter === "all" || filter === group.key,
   );
 
   useEffect(() => {
@@ -375,6 +392,7 @@ function BudgetContents({ tripId }: { tripId: string }) {
   }, [modalOpen]);
 
   const openNew = () => {
+    if (!canEdit) return;
     setDialogError("");
     setForm({
       title: "",
@@ -389,6 +407,7 @@ function BudgetContents({ tripId }: { tripId: string }) {
     setModalOpen(true);
   };
   const openEdit = (expense: Expense) => {
+    if (!canEdit) return;
     setDialogError("");
     setEditingId(expense.id);
     setModalMounted(true);
@@ -492,8 +511,7 @@ function BudgetContents({ tripId }: { tripId: string }) {
   if (loading)
     return (
       <TravelBudgetTabStyle>
-        {/* <p role="status">가계부 정보를 불러오고 있습니다.</p> */}
-        <Loader />
+        <p role="status">가계부 정보를 불러오고 있습니다.</p>
       </TravelBudgetTabStyle>
     );
   if (error || !snapshot)
@@ -583,18 +601,29 @@ function BudgetContents({ tripId }: { tripId: string }) {
                   onChange={setFilter}
                 />
               )}
-              {/*  */}
-              <button
-                type="button"
-                className="button-primary add-button"
-                onClick={() => openNew()}
-                disabled={!canEdit || saving || members.length === 0}
-              >
-                <Plus size={20} />{" "}
-                <span>
-                  {expenses.length === 0 ? "가계부 추가" : "비용 추가"}
-                </span>
-              </button>
+              {canEdit && expenses.length === 0 && (
+                <button
+                  type="button"
+                  className="button-outline edit-button"
+                  onClick={() => openNew()}
+                  disabled={!canEdit || saving || members.length === 0}
+                >
+                  <Pencil size={17} /> 편집
+                </button>
+              )}
+              {canEdit && (
+                <button
+                  type="button"
+                  className="button-primary add-button"
+                  onClick={() => openNew()}
+                  disabled={!canEdit || saving || members.length === 0}
+                >
+                  <Plus size={20} />{" "}
+                  <span>
+                    {expenses.length === 0 ? "가계부 추가" : "비용 추가"}
+                  </span>
+                </button>
+              )}
             </div>
           </header>
           {expenses.length > 0 ? (
@@ -657,15 +686,17 @@ function BudgetContents({ tripId }: { tripId: string }) {
                                 className="expense-swipe-shell"
                                 key={expense.id}
                               >
-                                <button
-                                  type="button"
-                                  className="swipe-delete"
-                                  onClick={() => deleteExpense(expense.id)}
-                                  disabled={!canEdit || saving}
-                                  aria-label={`${expense.title} 삭제`}
-                                >
-                                  <Trash2 size={18} /> <span>삭제</span>
-                                </button>
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    className="swipe-delete"
+                                    onClick={() => deleteExpense(expense.id)}
+                                    disabled={!canEdit || saving}
+                                    aria-label={`${expense.title} 삭제`}
+                                  >
+                                    <Trash2 size={18} /> <span>삭제</span>
+                                  </button>
+                                )}
                                 <div
                                   className={`expense-entry${swipedId === expense.id ? " is-swiped" : ""}${drag?.id === expense.id ? " is-dragging" : ""}`}
                                   style={
@@ -703,15 +734,21 @@ function BudgetContents({ tripId }: { tripId: string }) {
                                   >
                                     {expense.category}
                                   </span>
-                                  <button
-                                    type="button"
-                                    className="expense-name"
-                                    onClick={() => openEdit(expense)}
-                                    disabled={!canEdit || saving}
-                                    title="지출 수정"
-                                  >
-                                    {expense.title}
-                                  </button>
+                                  {canEdit ? (
+                                    <button
+                                      type="button"
+                                      className="expense-name"
+                                      onClick={() => openEdit(expense)}
+                                      disabled={!canEdit || saving}
+                                      title="지출 수정"
+                                    >
+                                      {expense.title}
+                                    </button>
+                                  ) : (
+                                    <span className="expense-name">
+                                      {expense.title}
+                                    </span>
+                                  )}
                                   <span className="expense-payer">
                                     {member?.image && (
                                       <img src={member.image} alt="" />
@@ -721,17 +758,21 @@ function BudgetContents({ tripId }: { tripId: string }) {
                                   <strong className="expense-money">
                                     {formatWon(expense.amount)}
                                   </strong>
-                                  <div className="entry-actions">
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteExpense(expense.id)}
-                                      disabled={!canEdit || saving}
-                                      title="삭제"
-                                      aria-label={`${expense.title} 삭제`}
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  </div>
+                                  {canEdit && (
+                                    <div className="entry-actions">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          deleteExpense(expense.id)
+                                        }
+                                        disabled={!canEdit || saving}
+                                        title="삭제"
+                                        aria-label={`${expense.title} 삭제`}
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -744,51 +785,70 @@ function BudgetContents({ tripId }: { tripId: string }) {
               })}
             </div>
           ) : (
-            <div className="budget-blank-slate" role="status">
-              <h3>아직 지출 내역이 없습니다</h3>
-              <p>지출을 추가하면 여행 날짜별로 가계부가 정리됩니다.</p>
-              <button
-                type="button"
-                className="button-primary"
-                onClick={() => openNew()}
-              >
-                <Plus size={18} aria-hidden="true" /> 첫 지출 추가
-              </button>
+            <div className="empty-ledger">
+              <img src={budgetMascot} alt="계산기를 들고 있는 라우티 캐릭터" />
+              <h3>아직 등록된 지출이 없어요</h3>
+              <p>
+                여행 중 사용한 비용을 기록하고
+                <br />
+                함께 예산을 관리해보세요.
+              </p>
             </div>
           )}
         </section>
 
-        {expenses.length > 0 && (
-          <aside className="summary-panel" aria-label="예산 현황">
-            <div className="summary-card">
+        <aside className="summary-panel" aria-label="예산 현황">
+          <div className="summary-card">
+            {expenses.length > 0 ? (
               <div className="total-display">
                 <span className="summary-label">◆ 총 지출</span>
                 <strong>{formatWon(total)}</strong>
                 <p>여행 전체 누적 지출</p>
               </div>
-              {expenses.length > 0 && (
-                <button
-                  className="stats-button"
-                  type="button"
-                  onClick={goToStats}
-                >
-                  <BarChart3 size={20} /> 지출 통계 및 정산 보기{" "}
-                  <ChevronRight size={20} />
-                </button>
-              )}
-              {renderBudgetStatus()}
-              <div className="summary-tip">
-                <strong>지출 내역을 한눈에 관리하세요</strong>
+            ) : (
+              <div className="empty-total">
+                <h2>예산 현황</h2>
                 <p>
-                  상세 그래프, 카테고리별 지출, 멤버별 결제 내역을 확인할 수
-                  있어요.
+                  총 지출 <strong>0</strong> 원
                 </p>
+                <div className="empty-progress" aria-hidden="true" />
               </div>
+            )}
+            {expenses.length > 0 && (
+              <button
+                className="stats-button"
+                type="button"
+                onClick={goToStats}
+              >
+                <BarChart3 size={20} /> 지출 통계 및 정산 보기{" "}
+                <ChevronRight size={20} />
+              </button>
+            )}
+            {renderBudgetStatus()}
+            <div className="summary-tip">
+              {expenses.length === 0 ? (
+                <>
+                  <Wallet size={49} strokeWidth={1.9} aria-hidden="true" />
+                  <p>
+                    지출을 추가하면
+                    <br />
+                    예산 현황을 확인할 수 있어요.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <strong>지출 내역을 한눈에 관리하세요</strong>
+                  <p>
+                    상세 그래프, 카테고리별 지출, 멤버별 결제 내역을 확인할 수
+                    있어요.
+                  </p>
+                </>
+              )}
             </div>
-          </aside>
-        )}
+          </div>
+        </aside>
       </div>
-      {budgetDialogMounted && (
+      {canEdit && budgetDialogMounted && (
         <div
           className="budget-dialog-overlay"
           data-open={budgetDialogOpen}
@@ -897,7 +957,7 @@ function BudgetContents({ tripId }: { tripId: string }) {
           </section>
         </div>
       )}
-      {modalMounted && (
+      {canEdit && modalMounted && (
         <div
           className="budget-dialog-overlay"
           data-open={modalOpen}

@@ -1,5 +1,15 @@
 import styled from "@emotion/styled";
+import { keyframes } from "@emotion/react";
 import { modalAnimation } from "../../../styles/animation";
+
+const sheetEnter = keyframes({
+  from: { transform: "translateY(100%)" },
+  to: { transform: "translateY(0)" },
+});
+const sheetExit = keyframes({
+  from: { transform: "translateY(0)" },
+  to: { transform: "translateY(100%)" },
+});
 
 const CENTERED_FLEX = {
   display: "flex",
@@ -18,8 +28,8 @@ export const ShareOverlay = styled.div({
   backgroundColor: "rgba(0,0,0,0.38)",
 
   "@media (max-width: 767px)": {
-    padding: "12px",
-    alignItems: "center",
+    padding: 0,
+    alignItems: "flex-end",
   },
 });
 
@@ -38,11 +48,19 @@ export const ShareModal = styled.div(modalAnimation, {
 
   "@media (max-width: 767px)": {
     width: "100%",
-    maxWidth: "380px",
+    maxWidth: "none",
     minWidth: 0,
     minHeight: 0,
-    maxHeight: "calc(100dvh - 24px)",
-    borderRadius: "14px",
+    maxHeight: "calc(100dvh - 16px)",
+    borderRadius: "20px 20px 0 0",
+    animation: `${sheetEnter} 320ms ease-out both`,
+    '&[data-open="false"]': {
+      animation: `${sheetExit} 320ms ease-in both`,
+    },
+    "@media (prefers-reduced-motion: reduce)": {
+      animation: "none",
+      '&[data-open="false"]': { animation: "none" },
+    },
   },
 });
 
@@ -186,7 +204,8 @@ export const ShareModalBody = styled.div({
   "@media (max-width: 767px)": {
     minHeight: 0,
     gap: "14px",
-    padding: "14px 14px 24px",
+    padding: "14px 14px calc(24px + env(safe-area-inset-bottom, 0px))",
+    overscrollBehaviorY: "contain",
     overflowY: "auto",
     overscrollBehavior: "contain",
   },

@@ -456,5 +456,5 @@ export async function signupWithEmail(form: SignupRequest): Promise<void> {
     throw new Error("회원가입 응답이 올바르지 않습니다.");
   }
 
-  window.alert(message);
+  // window.alert(message);
 }
