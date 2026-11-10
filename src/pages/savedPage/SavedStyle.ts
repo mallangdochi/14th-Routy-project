@@ -422,7 +422,8 @@ export const PageInner = styled.div({
 
       "& h1": {
         paddingTop: 20,
-        fontSize: 28,
+        fontSize: 24,
+        fontWeight: 700,
       },
     },
     "& .saved-filters button": {
@@ -844,8 +845,8 @@ export const MapButton = styled.button({
     borderRadius: "9px",
     backgroundColor: "#FFFFFF",
     color: "#005259",
-    fontSize: "13px",
-    fontWeight: 600,
+    fontSize: 16,
+    fontWeight: 500,
     gap: "6px",
     whiteSpace: "nowrap",
   },
@@ -901,8 +902,8 @@ export const AddButton = styled.button<{
     borderRadius: "9px",
     backgroundColor: "#005259",
     color: "#FFFFFF",
-    fontSize: "13px",
-    fontWeight: 600,
+    fontSize: 16,
+    fontWeight: 50,
     gap: "6px",
     whiteSpace: "nowrap",
   },
@@ -924,11 +925,9 @@ export const PlaceHeading = styled.div({
 
   "@media (max-width: 767px)": {
     display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
+    justifyContent: "space-between",
     gap: "5px",
     minWidth: 0,
     width: "100%",
   },
 });
-

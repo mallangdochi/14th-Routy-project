@@ -7,14 +7,14 @@ export const TripCardStyle = styled.article({
   minWidth: 0,
   backgroundColor: "#fff",
   border: "1px solid #e5e9ec",
-  borderRadius: "12px",
+  borderRadius: "16px",
   boxShadow: "0 3px 12px rgba(20, 45, 55, 0.045)",
 
   "& .trip-image-button": {
     display: "block",
     width: "100%",
 
-    borderRadius: "12px 12px 0 0",
+    borderRadius: "16px 16px 0 0",
 
     overflow: "hidden",
   },
@@ -511,23 +511,22 @@ export const TripCardStyle = styled.article({
     },
 
     "& .trip-content h2": {
-      fontSize: "var(--trip-font-size)",
+      fontSize: 18,
+      fontWeight: 700,
     },
 
-    "& .trip-date, & .trip-stats": {
+    "& .trip-date": { fontSize: 16 },
+    "& .trip-stats": {
       fontSize: "var(--trip-font-size)",
+      flexWrap: "wrap",
+      gap: "5px 10px",
     },
 
     "& .trip-badge": {
       top: "7px",
       left: "7px",
-      padding: "4px 9px",
+      padding: "4px 8px",
       fontSize: "var(--trip-font-size)",
-    },
-
-    "& .trip-stats": {
-      flexWrap: "wrap",
-      gap: "5px 10px",
     },
 
     "& .trip-stats svg": {
@@ -538,5 +537,125 @@ export const TripCardStyle = styled.article({
     "& .trip-image-wrapper": {
       aspectRatio: "4 / 3",
     },
+  },
+  // 상태별 하단 데이터에만 적용
+  "& .trip-stats.trip-status-summary": {
+    justifyContent: "flex-start",
+    color: "#596D75",
+  },
+
+  "& .trip-status-summary .trip-status-line": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    whiteSpace: "nowrap",
+  },
+
+  "& .trip-status-summary .trip-status-line svg": {
+    color: "#438B80",
+  },
+
+  "& .trip-status-summary .trip-countdown": {
+    marginLeft: "2px",
+    color: "#438B80",
+    fontSize: "1.2em",
+    fontWeight: 700,
+    lineHeight: 1.2,
+  },
+
+  "& .trip-status-summary .trip-completed-summary": {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "4px 12px",
+    minWidth: 0,
+  },
+
+  "& .trip-status-summary .trip-amount": {
+    display: "inline-flex",
+    alignItems: "baseline",
+    gap: "6px",
+    whiteSpace: "nowrap",
+  },
+
+  "& .trip-status-summary .trip-amount-label": {
+    color: "#687F97",
+  },
+
+  "& .trip-status-summary .trip-summary-dot": {
+    color: "#687F97",
+  },
+
+  // 기존 목록형 하단 구분선이 내부 span에 적용되지 않도록 처리
+  "&.view-list .trip-status-summary span + span": {
+    borderLeft: 0,
+    paddingLeft: 0,
+  },
+  "& .trip-members-row": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "8px",
+    minWidth: 0,
+    margin: "6px 0 4px",
+  },
+  "& .trip-members": {
+    display: "flex",
+    alignItems: "center",
+    minWidth: 0,
+  },
+  "& .trip-member-avatars": {
+    display: "flex",
+    alignItems: "center",
+    flexShrink: 0,
+    paddingRight: 0,
+  },
+  "& .trip-member-avatar": {
+    position: "relative",
+    display: "grid",
+    placeItems: "center",
+    width: "30px",
+    height: "30px",
+    border: 0,
+    borderRadius: "50%",
+    overflow: "hidden",
+    backgroundColor: "#E3F3ED",
+    color: "#0D3E41",
+    fontSize: "12px",
+    fontWeight: 600,
+    flexShrink: 0,
+    "& + .trip-member-avatar": { marginLeft: "-8px" },
+    "&:nth-of-type(2)": { backgroundColor: "#F8E7EE" },
+    "&:nth-of-type(3)": { backgroundColor: "#FFF1CC" },
+    "& img": {
+      position: "absolute",
+      inset: 0,
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+    },
+    "& svg": { width: "15px", height: "15px" },
+  },
+  "& .trip-member-avatars + .trip-member-count": {
+    // marginLeft: "-8px",
+    marginLeft: 5,
+    position: "relative",
+    zIndex: 1,
+    minHeight: "30px",
+    boxSizing: "border-box",
+  },
+  "& .trip-member-count": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "5px",
+    padding: "4px 9px",
+    borderRadius: "999px",
+    backgroundColor: "#E3F3ED",
+    color: "#0D3E41",
+    fontSize: "12px",
+    fontWeight: 600,
+    lineHeight: 1.4,
+    whiteSpace: "nowrap",
+    "& svg": { width: "14px", height: "14px", flexShrink: 0 },
   },
 });
