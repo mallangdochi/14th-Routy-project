@@ -19,6 +19,8 @@ export type RouteLine = {
   fromTime?: string;
   toTime?: string;
   mode?: TravelMode;
+  transportLabel?: string;
+  error?: string;
   distanceMeters?: number;
   durationSeconds?: number;
   transfers?: number;
@@ -63,7 +65,7 @@ export function buildDisplayRoutes(
       { lat: to.lat!, lng: to.lng! },
     ];
     return [{
-      ...(actual ? matched : {}),
+      ...matched,
       path,
       order,
       fromId: from.id,
@@ -76,7 +78,7 @@ export function buildDisplayRoutes(
       toAddress: to.address,
       fromDescription: from.description,
       toDescription: to.description,
-      mode: actual ? matched.mode ?? mode : mode,
+      mode: matched?.mode ?? mode,
       isFallback: !actual,
     }];
   });
@@ -224,7 +226,7 @@ export function RouteHoverHint({
   return (
     <S.HoverHint ref={hintRef} role="status">
       <strong>{selection.order}구간 · {route.fromName || "출발"} → {route.toName || "도착"}</strong>
-      <span>{modeName(route.mode)} · {route.isFallback ? "직선 연결 · 실제 경로 조회 안 됨" : `${distanceLabel(route.distanceMeters)} · ${durationLabel(route.durationSeconds)}`}</span>
+      <span>{(route.transportLabel || modeName(route.mode))} · {route.isFallback ? `직선 연결 · ${route.error || "실제 경로 조회 안 됨"}` : `${distanceLabel(route.distanceMeters)} · ${durationLabel(route.durationSeconds)}`}</span>
     </S.HoverHint>
   );
 }
@@ -267,7 +269,7 @@ export function RouteMapDetails({
   const summary = stop
     ? stop.time ? `방문 예정 ${stop.time}` : "장소 정보"
     : route?.isFallback ? "실제 경로 조회 안 됨"
-    : `${modeName(route?.mode)} · ${distanceLabel(route?.distanceMeters)} · ${durationLabel(route?.durationSeconds)}`;
+    : `${(route?.transportLabel || modeName(route?.mode))} · ${distanceLabel(route?.distanceMeters)} · ${durationLabel(route?.durationSeconds)}`;
   const link = safeKakaoLink(stop?.externalUrl ?? route?.link);
 
   return (
@@ -298,7 +300,7 @@ export function RouteMapDetails({
             </>
           ) : route ? (
             <>
-              <div><strong>이동 방식</strong><span>{modeName(route.mode)}</span></div>
+              <div><strong>이동 방식</strong><span>{(route.transportLabel || modeName(route.mode))}</span></div>
               {route.isFallback ? (
                 <S.Description>방문 순서만 나타낸 직선 연결선입니다. 실제 도로 경로·거리·시간은 조회되지 않았습니다.</S.Description>
               ) : (
