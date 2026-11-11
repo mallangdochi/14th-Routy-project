@@ -13,6 +13,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const get = (name: string) =>
     typeof query[name] === "string" ? (query[name] as string) : "";
   const mode = get("mode");
+  const transitType = get("transitType") || "all";
+  if (transitType !== "all" && transitType !== "bus" && transitType !== "subway") {
+    return res.status(400).json({ message: "대중교통 조건을 확인해주세요." });
+  }
+  if (mode !== "transit" && transitType !== "all") {
+    return res.status(400).json({ message: "대중교통에서만 전용 조건을 사용할 수 있습니다." });
+  }
   const from = { lat: Number(get("fromLat")), lng: Number(get("fromLng")) };
   const to = { lat: Number(get("toLat")), lng: Number(get("toLng")) };
   if (!validMode(mode) || !validPoint(from) || !validPoint(to)) {
@@ -26,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .json({ message: "서버에 KAKAO_REST_API_KEY를 설정해 주세요." });
   }
   try {
-    const result = await lookupTravelRoute(mode, from, to);
+    const result = await lookupTravelRoute(mode, from, to, transitType);
     res.setHeader("Cache-Control", "private, max-age=120");
     return res.status(200).json(result);
   } catch (error) {

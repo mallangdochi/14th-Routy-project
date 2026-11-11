@@ -50,7 +50,7 @@ import {
   TrainFront,
   TramFront,
   BusFront,
-  CarTaxiFront,
+  // CarTaxiFront,
   Footprints,
   Plane,
   type LucideIcon,
@@ -102,11 +102,10 @@ import {
   type RouteSelection,
   type TravelMode,
 } from "../../components/map/RouteMapInfo";
-import KakaoMap from "../../components/kakaoMap/KakaoMap";
 import { getKakaoMapPointUrl } from "../../api/kakao/kakaoLinks";
-import TravelRouteSummary, {
-  type RouteLine,
-} from "../../components/Schedule/TravelRouteSummary";
+import type { RouteLine } from "../../components/map/RouteMapInfo";
+import { useScheduleRoutes, type ScheduleLeg } from "../../hooks/useScheduleRoutes";
+import { resolveScheduleTransport, formatLegDistance, formatLegDuration } from "../../utils/scheduleTransport";
 import KakaoTravelMap, { type KakaoPlace } from "../../map/KakaoTravelMap";
 import ShareModal from "../../components/modal/share/ShareModal";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
@@ -195,8 +194,6 @@ type Stop = {
   placeId?: string;
   stayDurationMinutes?: number;
   transport?: string;
-  // 다음 장소까지의 경로 API 결과(분). 교통수단별로 보관해 선택 변경 시 잘못된 시간을 표시하지 않습니다.
-  travelMinutesByTransport?: Record<string, number>;
   lat?: number;
   lng?: number;
   externalId?: string;
@@ -328,11 +325,11 @@ const moveStop = (
 };
 
 const TRANSPORT_ICONS: Record<string, LucideIcon> = {
-  자동차: CarFront,
+  "자동차·택시": CarFront,
   기차: TrainFront,
   지하철: TramFront,
   버스: BusFront,
-  택시: CarTaxiFront,
+  "대중교통(혼합)": BusFront,
   도보: Footprints,
   비행기: Plane,
 };
@@ -401,6 +398,7 @@ function StopTransportDropdown({
             "[data-transport-option]",
           ),
         );
+        if (buttons.length === 0) return;
         const current = buttons.indexOf(
           document.activeElement as HTMLButtonElement,
         );
@@ -431,7 +429,14 @@ function StopTransportDropdown({
           }
         }}
       >
-        {value && <TriggerIcon size={20} aria-hidden="true" />}
+        {value && (
+          value === "대중교통(혼합)" ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 2, flex: "0 0 auto" }}>
+              <BusFront size={20} aria-hidden="true" />
+              <TramFront size={20} aria-hidden="true" />
+            </span>
+          ) : <TriggerIcon size={20} aria-hidden="true" />
+        )}
         <span>{value || "여행 기본 교통 사용"}</span>
         <ChevronDown
           size={18}
@@ -464,7 +469,14 @@ function StopTransportDropdown({
                   triggerRef.current?.focus();
                 }}
               >
-                {option && <Icon size={20} aria-hidden="true" />}
+                {option && (
+                  option === "대중교통(혼합)" ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 2, flex: "0 0 auto" }}>
+                      <BusFront size={20} aria-hidden="true" />
+                      <TramFront size={20} aria-hidden="true" />
+                    </span>
+                  ) : <Icon size={20} aria-hidden="true" />
+                )}
                 <span>{option || "여행 기본 교통 사용"}</span>
                 {value === option && <Check size={17} aria-hidden="true" />}
               </button>
@@ -483,6 +495,8 @@ type StopCardProps = {
   selected: boolean;
   previewOffset: number;
   defaultTransport: string;
+  leg?: ScheduleLeg;
+  onRetryRoute: () => void;
   expanded: boolean;
   onToggleExpanded: () => void;
   onUpdate: (patch: Partial<Stop>) => void;
@@ -509,6 +523,8 @@ function ScheduleStopCard({
   selected,
   previewOffset,
   defaultTransport,
+  leg,
+  onRetryRoute,
   expanded,
   onToggleExpanded,
   onUpdate,
@@ -535,24 +551,22 @@ function ScheduleStopCard({
     const timer = window.setTimeout(() => setEditorPresent(false), 240);
     return () => window.clearTimeout(timer);
   }, [expanded, editorPresent]);
-  const transport = stop.transport || defaultTransport;
-  const TransportIcon = TRANSPORT_ICONS[transport] ?? MapPin;
-  const travelMinutes = stop.travelMinutesByTransport?.[transport];
-  const roundedMinutes =
-    typeof travelMinutes === "number" &&
-    Number.isFinite(travelMinutes) &&
-    travelMinutes >= 0
-      ? Math.ceil(travelMinutes)
-      : null;
-  const travelTimeLabel =
-    roundedMinutes === null
-      ? "예상 시간 정보 없음"
-      : `약 ${roundedMinutes >= 60 ? `${Math.floor(roundedMinutes / 60)}시간${roundedMinutes % 60 ? ` ${roundedMinutes % 60}분` : ""}` : `${roundedMinutes}분`}`;
+  const transport = resolveScheduleTransport(stop.transport, defaultTransport).label;
+  const TransportIcon = TRANSPORT_ICONS[transport] ?? (resolveScheduleTransport(stop.transport, defaultTransport).mode === "car" ? CarFront : MapPin);
+  const travelTimeLabel = !leg ? "다음 이동 없음" :
+    leg.status === "ready" && leg.route
+      ? `${formatLegDistance(leg.route.distanceMeters!)} · 약 ${formatLegDuration(leg.route.durationSeconds!)}` +
+        (leg.route.transfers !== undefined ? ` · 환승 ${leg.route.transfers}회` : "") +
+        (leg.route.path.length < 2 ? " · 지도 경로 없음" : "")
+      : leg.status === "loading" ? "경로 계산 중…"
+      : leg.status === "unsupported" ? "경로 조회 미지원" :
+        leg.error === "장소 좌표 확인 필요" ? leg.error : "경로 조회 실패";
   return (
     <S.StopRow
       data-stop-row
+      data-has-next={Boolean(leg)}
       data-preview-offset={previewOffset}
-      style={{ transform: `translateY(${previewOffset}px)` }}
+      style={{ transform: `translateY(${previewOffset}px)`, paddingBottom: leg ? 40 : undefined }}
       data-editor-present={isEditMode && editorPresent}
       data-stop-id={stop.id}
       data-edit-mode={isEditMode}
@@ -735,17 +749,31 @@ function ScheduleStopCard({
                     onUpdate({ transport: value || undefined })
                   }
                 />
-                <S.StopTransportNotice role="status" aria-live="polite">
-                  <TransportIcon size={18} aria-hidden="true" />
+                {leg && <S.StopTransportNotice role="status" aria-live="polite">
+                  {transport === "대중교통(혼합)" ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 2, flex: "0 0 auto" }}>
+                      <BusFront size={18} aria-hidden="true" />
+                      <TramFront size={18} aria-hidden="true" />
+                    </span>
+                  ) : <TransportIcon size={18} aria-hidden="true" />}
                   <span>
                     {transport || "여행 기본 교통"} · {travelTimeLabel}
                   </span>
-                </S.StopTransportNotice>
+                </S.StopTransportNotice>}
               </S.StopTransportField>
             </S.StopEditorRow>
           </S.StopEditor>
         )}
       </S.StopCard>
+      {leg && (
+        <S.StopLegInfo title={leg.error} aria-label={`${stop.title}에서 ${leg.to.title}까지 이동`}>
+          {transport === "대중교통(혼합)" ? (
+            <span className="leg-icons"><BusFront size={14} aria-hidden="true" /><TramFront size={14} aria-hidden="true" /></span>
+          ) : <TransportIcon size={14} aria-hidden="true" />}
+          <span>{transport} · {travelTimeLabel}</span>
+          {leg.status === "error" && <button type="button" onClick={onRetryRoute}>재시도</button>}
+        </S.StopLegInfo>
+      )}
     </S.StopRow>
   );
 }
@@ -928,27 +956,9 @@ function ScheduleContent({
       state: routerLocation.state,
     });
 
-  // 여행 생성 시 선택한 이동수단을 우선 사용합니다.
-  // DB 응답에 필드가 없으면 모달이 일정 추가를 차단하지 않도록 자동차를 기본값으로 사용합니다.
-  const tripTransportFields = selectedTrip as ScheduleTrip & {
-    transport?: string | null;
-    defaultTransport?: string | null;
-    transportation?: string | null;
-  };
-  const storedTransport =
-    tripTransportFields.transport ||
-    tripTransportFields.defaultTransport ||
-    tripTransportFields.transportation;
-  const modalDefaultTransport =
-    (typeof storedTransport === "string" && storedTransport.trim()) ||
-    (typeof placeModalSource.defaultTransport === "string" &&
-      placeModalSource.defaultTransport.trim()) ||
-    "자동차";
-  const modalDefaultTransportLabel =
-    (typeof storedTransport === "string" && storedTransport.trim()) ||
-    (typeof placeModalSource.defaultTransportLabel === "string" &&
-      placeModalSource.defaultTransportLabel.trim()) ||
-    modalDefaultTransport;
+  // The saved trip is authoritative. Empty means unset; do not silently route by car.
+  const modalDefaultTransport = selectedTrip.transport?.trim() || "";
+  const modalDefaultTransportLabel = modalDefaultTransport || "교통수단 미설정";
 
   const [tripName, setTripName] = useState(selectedTrip.name);
   const [draftTripName, setDraftTripName] = useState(selectedTrip.name);
@@ -1440,11 +1450,11 @@ function ScheduleContent({
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   const [showRoute, setShowRoute] = useState(true);
-  const [routeMode, setRouteMode] = useState<TravelMode>("walk");
-  const [routePaths, setRoutePaths] = useState<RouteLine[]>([]);
-  const [locatedStops, setLocatedStops] = useState<
-    Record<number, { lat: number; lng: number }>
-  >({});
+  const routeMode = resolveScheduleTransport(null, modalDefaultTransport).mode;
+  const [locatedResult, setLocatedResult] = useState<{
+    source: Stop[] | null;
+    points: Record<number, { lat: number; lng: number }>;
+  }>({ source: null, points: {} });
   const [mapZoom, setMapZoom] = useState(1);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -1461,7 +1471,6 @@ function ScheduleContent({
   // 저장된 좌표가 없는 장소도 경로 조회에 사용할 수 있도록 화면에서만 보완합니다.
   useEffect(() => {
     let cancelled = false;
-    setLocatedStops({});
     if (
       !stops.some(
         (stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng),
@@ -1494,7 +1503,7 @@ function ScheduleContent({
               lng: point.longitude,
             };
         });
-        setLocatedStops(locations);
+        setLocatedResult({ source: stops, points: locations });
       })
       .catch(() => {
         /* 위치 조회 실패 구간은 미조회 상태로 둡니다. */
@@ -1504,14 +1513,19 @@ function ScheduleContent({
     };
   }, [stops]);
 
-  const routeStops = React.useMemo(
-    () =>
-      stops.map((stop) => ({
-        ...stop,
-        lat: Number.isFinite(stop.lat) ? stop.lat : locatedStops[stop.id]?.lat,
-        lng: Number.isFinite(stop.lng) ? stop.lng : locatedStops[stop.id]?.lng,
-      })),
-    [stops, locatedStops],
+  const routeStops = React.useMemo(() => {
+    const locatedStops = locatedResult.source === stops ? locatedResult.points : {};
+    return stops.map((stop) => ({
+      ...stop,
+      lat: Number.isFinite(stop.lat) ? stop.lat : locatedStops[stop.id]?.lat,
+      lng: Number.isFinite(stop.lng) ? stop.lng : locatedStops[stop.id]?.lng,
+    }));
+  }, [stops, locatedResult]);
+
+  const { legs: routeLegs, routes: routePaths, retry: retryRoutes } = useScheduleRoutes(
+    routeStops,
+    modalDefaultTransport,
+    `${selectedTrip.id}:${activeDay.isoDate}`,
   );
 
   const selectedStopCount = stops.filter((stop) =>
@@ -1698,11 +1712,15 @@ function ScheduleContent({
         const preview = card.cloneNode(true) as HTMLElement;
         preview
           .querySelectorAll("[id]")
-          .forEach((node) => node.removeAttribute("id"));
+          .forEach((node) => {
+            node.removeAttribute("id");
+          });
         preview.removeAttribute("id");
         preview
           .querySelectorAll("button, input, [role='region']")
-          .forEach((node) => node.remove());
+          .forEach((node) => {
+            node.remove();
+          });
         const rect = card.getBoundingClientRect();
         previewOriginRef.current = { x: rect.left, y: rect.top };
         Object.assign(preview.style, {
@@ -1988,7 +2006,7 @@ function ScheduleContent({
         x: 50,
         y: 50,
         stayDurationMinutes: place.stayDurationMinutes || 60,
-        transport: place.transport || modalDefaultTransport || undefined,
+        transport: place.transport?.trim() || undefined,
         lat:
           typeof placeWithCoords.lat === "number"
             ? placeWithCoords.lat
@@ -2558,6 +2576,8 @@ function ScheduleContent({
                       isEditMode={isEditMode}
                       previewOffset={getDragPreviewOffset(index)}
                       defaultTransport={modalDefaultTransport}
+                      leg={routeLegs[index]}
+                      onRetryRoute={retryRoutes}
                       expanded={expandedStopId === stop.id}
                       onToggleExpanded={() =>
                         setExpandedStopId((previous) =>
@@ -2587,15 +2607,6 @@ function ScheduleContent({
                   ))}
                 </S.StopList>
 
-                {/* 경로 계산은 유지하되 삭제 요청한 하단 요약 카드는 표시하지 않습니다. */}
-                <div style={{ display: "none" }} aria-hidden="true">
-                  <TravelRouteSummary
-                    stops={routeStops}
-                    mode={routeMode}
-                    onModeChange={setRouteMode}
-                    onRoutesReady={setRoutePaths}
-                  />
-                </div>
 
                 {isEditMode && stops.length > 0 && (
                   <S.AddPlaceButton type="button" onClick={openPlaceModal}>
@@ -2625,29 +2636,19 @@ function ScheduleContent({
                         routeMode={routeMode}
                         zoom={mapZoom}
                       />
-                    ) : activeTab === "map" ? (
+                    ) : (
                       <KakaoTravelMap
                         region={tripRegion}
                         stops={visibleMapStops}
                         routeStops={routeStops}
                         routePaths={routePaths}
                         routeMode={routeMode}
-                        onRouteModeChange={setRouteMode}
                         showRoute={showRoute}
                         zoom={mapZoom}
                         onAddPlace={addPlaceFromKakao}
                         hideSearch
                       />
-                    ) : (
-                      <KakaoMap
-                        stops={kakaoMapStops}
-                        category={activeFilter}
-                        routePaths={routePaths}
-                        routeMode={routeMode}
-                        onRouteModeChange={setRouteMode}
-                        showRoute={showRoute}
-                        zoom={mapZoom}
-                      />
+
                     )}
                   </S.MapCanvas>
 
@@ -3268,7 +3269,7 @@ type EditRouteMapProps = {
   category: string;
   showRoute: boolean;
   routePaths: RouteLine[];
-  routeMode: TravelMode;
+  routeMode?: TravelMode;
   zoom: number;
 };
 
@@ -3433,7 +3434,9 @@ function ScheduleEditRouteMap({
       });
     return () => {
       cancelled = true;
-      layersRef.current.forEach((layer) => layer.setMap(null));
+      layersRef.current.forEach((layer) => {
+        layer.setMap(null);
+      });
       layersRef.current = [];
       mapRef.current = null;
     };
@@ -3463,9 +3466,9 @@ function ScheduleEditRouteMap({
             map.setLevel(4);
           } else {
             const bounds = new sdk.LatLngBounds();
-            coordinates.forEach(({ latitude, longitude }) =>
-              bounds.extend(new sdk.LatLng(latitude, longitude)),
-            );
+            coordinates.forEach(({ latitude, longitude }) => {
+              bounds.extend(new sdk.LatLng(latitude, longitude));
+            });
             map.setBounds(bounds, 70);
           }
           initialLevelRef.current = map.getLevel();
@@ -3496,7 +3499,9 @@ function ScheduleEditRouteMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!sdk || !map || loading) return;
-    layersRef.current.forEach((layer) => layer.setMap(null));
+    layersRef.current.forEach((layer) => {
+        layer.setMap(null);
+      });
     layersRef.current = [];
     const coordinatePoints = locatedRef.current;
     const openRouteInfo = (info: RouteSelection, pinned: boolean) => {
@@ -3651,7 +3656,9 @@ function ScheduleEditRouteMap({
       layersRef.current.push(overlay);
     });
     return () => {
-      layersRef.current.forEach((layer) => layer.setMap(null));
+      layersRef.current.forEach((layer) => {
+        layer.setMap(null);
+      });
       layersRef.current = [];
     };
   }, [
@@ -3668,8 +3675,11 @@ function ScheduleEditRouteMap({
   useEffect(() => {
     routePinnedRef.current = false;
     selectedRouteRef.current = null;
-    setRouteSelection(null);
-    setRouteHover(null);
+    const frame = window.requestAnimationFrame(() => {
+      setRouteSelection(null);
+      setRouteHover(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [stops, routePaths, showRoute, routeMode]);
 
   useEffect(() => {
@@ -3693,9 +3703,9 @@ function ScheduleEditRouteMap({
       const selected = selectedRouteRef.current;
       if (selected?.kind === "route" && selected.route.path.length > 1 && sdk) {
         const bounds = new sdk.LatLngBounds();
-        selected.route.path.forEach(({ lat, lng }) =>
-          bounds.extend(new sdk.LatLng(lat, lng)),
-        );
+        selected.route.path.forEach(({ lat, lng }) => {
+          bounds.extend(new sdk.LatLng(lat, lng));
+        });
         map.setBounds(bounds, 60);
       }
     });

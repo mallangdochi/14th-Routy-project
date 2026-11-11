@@ -949,6 +949,7 @@ export const EditHint = styled.div({
 });
 // 일정 카드 목록
 export const StopList = styled.div({
+  "--schedule-row-gap": "10px",
   position: "relative",
   display: "flex",
   flexDirection: "column",
@@ -959,6 +960,7 @@ export const StopList = styled.div({
 
   "@media (max-width: 1023px)": {
     gap: "8px",
+    "--schedule-row-gap": "8px",
   },
 });
 // 일정 카드 행
@@ -988,10 +990,15 @@ export const StopRow = styled.div<{
 
   '&[data-editor-present="true"]': { zIndex: 20 },
 
+  '&[data-has-next="true"]': { paddingBottom: "40px" },
+
   // 메뉴가 열린 카드
   "&:has([aria-expanded='true'])": {
     zIndex: 20,
   },
+
+  // Each row draws the upper half; the previous row reaches this row's top.
+  "&:first-child > div:nth-of-type(2)::before": { display: "none" },
 
   // 마지막 타임라인 점선 제거
   "&:last-child > div:nth-of-type(2)::after": {
@@ -1015,6 +1022,10 @@ export const StopRow = styled.div<{
     "& > div:first-of-type, & > div:nth-of-type(2)": {
       alignSelf: "start",
       height: "130px",
+    },
+    '&[data-edit-mode="false"] > div:nth-of-type(2)': {
+      alignSelf: "stretch",
+      height: "auto",
     },
     '&[data-edit-mode="true"]': {
       display: "grid",
@@ -1142,12 +1153,23 @@ export const Timeline = styled.div({
   minWidth: "28px",
   alignSelf: "stretch",
 
-  '&[data-edit-mode="true"]::after': { display: "none" },
+  '&[data-edit-mode="true"]::before, &[data-edit-mode="true"]::after': { display: "none" },
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    top: 0,
+    bottom: "50%",
+    left: "50%",
+    transform: "translateX(-50%)",
+    borderLeft: "2px dashed #58B6B1",
+    zIndex: 0,
+    pointerEvents: "none",
+  },
   "&::after": {
     content: '""',
     position: "absolute",
     top: "50%",
-    bottom: "-50%",
+    bottom: "calc(-40px - var(--schedule-row-gap, 10px))",
     left: "50%",
     transform: "translateX(-50%)",
     borderLeft: "2px dashed #58B6B1",
@@ -3571,4 +3593,28 @@ export const ChecklistArea = styled.div({
   "@media (min-width: 768px) and (max-width: 1023px)": {
     "& .checklist-layout": { gridTemplateRows: "auto 1fr" },
   },
+});
+
+// Outgoing leg belongs to the same draggable row; the card layout stays unchanged.
+export const StopLegInfo = styled.div({
+  position: "absolute",
+  left: "64px",
+  right: 0,
+  bottom: "5px",
+  minHeight: "28px",
+  display: "flex",
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: "6px",
+  color: "#596D75",
+  fontSize: "12px",
+  lineHeight: 1.4,
+  "& > svg, & .leg-icons": { flex: "0 0 auto" },
+  "& .leg-icons": { display: "inline-flex", alignItems: "center", gap: "2px" },
+  "& button": {
+    border: 0, padding: "3px 6px", borderRadius: "4px", backgroundColor: "#FFFFFF",
+    color: "#0D3E41", font: "inherit", cursor: "pointer", textDecoration: "underline",
+  },
+  "& button:focus-visible": { outline: "2px solid #527F79", outlineOffset: "2px" },
+  "@media (max-width: 767px)": { left: "34px", fontSize: "11px" },
 });
