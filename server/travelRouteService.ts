@@ -1,5 +1,6 @@
 /** 카카오 경로 API는 서버에서만 호출합니다. REST API 키를 브라우저에 공개하지 않습니다. */
 export type TravelMode = "walk" | "bike" | "car" | "transit";
+export type TransitType = "all" | "bus" | "subway";
 export type TravelPoint = { lat: number; lng: number };
 export type TravelRoute = {
   mode: TravelMode;
@@ -80,7 +81,7 @@ function collectPoints(steps: unknown[]): TravelPoint[] {
   return points.filter((_, i) => i % skip === 0 || i === points.length - 1);
 }
 
-export function parseKakaoRoute(mode: TravelMode, data: unknown): TravelRoute {
+export function parseKakaoRoute(mode: TravelMode, data: unknown, transitType: TransitType = "all"): TravelRoute {
   const root = obj(data);
   let distanceMeters: number;
   let durationSeconds: number;
@@ -111,19 +112,31 @@ export function parseKakaoRoute(mode: TravelMode, data: unknown): TravelRoute {
       throw new Error("대중교통 경로를 찾을 수 없습니다.");
     const routes = items(root.routes).map(obj);
     const candidate = routes
-      .filter((route) =>
-        Number.isFinite(positive(obj(route.properties).totalTime)),
-      )
+      .filter((route) => {
+        const properties = obj(route.properties);
+        if (!Number.isFinite(positive(properties.totalTime)) || !Number.isFinite(positive(properties.totalDistance))) return false;
+        const types = items(route.steps).map(step => obj(obj(step).properties).type);
+        if (transitType === "bus") {
+          return properties.type === "BUS" && types.length > 0 && types.includes("BUS") &&
+            types.every(type => type === "BUS" || type === "WALKING");
+        }
+        if (transitType === "subway") {
+          return properties.type === "SUBWAY" && types.length > 0 && types.includes("SUBWAY") &&
+            types.every(type => type === "SUBWAY" || type === "WALKING");
+        }
+        return ["BUS", "SUBWAY", "BUS_AND_SUBWAY"].includes(String(properties.type));
+      })
       .sort(
         (a, b) =>
           Number(obj(a.properties).totalTime) -
           Number(obj(b.properties).totalTime),
       )[0];
-    if (!candidate) throw new Error("대중교통 경로를 찾을 수 없습니다.");
+    if (!candidate) throw new Error(transitType === "bus" ? "버스만 이용하는 경로가 없습니다." : transitType === "subway" ? "지하철만 이용하는 경로가 없습니다." : "대중교통 경로를 찾을 수 없습니다.");
     const properties = obj(candidate.properties);
     distanceMeters = positive(properties.totalDistance);
     durationSeconds = positive(properties.totalTime);
-    transfers = positive(properties.transfers);
+    const transferCount = positive(properties.transfers);
+    if (Number.isFinite(transferCount)) transfers = transferCount;
     const fare = positive(obj(properties.fare).value);
     if (Number.isFinite(fare)) fareWon = fare;
     path = collectPoints(items(candidate.steps));
@@ -164,6 +177,7 @@ export async function lookupTravelRoute(
   mode: TravelMode,
   from: TravelPoint,
   to: TravelPoint,
+  transitType: TransitType = "all",
 ): Promise<TravelRoute> {
   const key = process.env.KAKAO_REST_API_KEY?.trim();
   if (!key) throw new Error("서버에 KAKAO_REST_API_KEY를 설정해야 합니다.");
@@ -202,7 +216,7 @@ export async function lookupTravelRoute(
         throw new Error("카카오 API 호출 한도에 도달했습니다.");
       throw new Error(`카카오 경로 조회 오류 (${response.status})`);
     }
-    return parseKakaoRoute(mode, await response.json());
+    return parseKakaoRoute(mode, await response.json(), transitType);
   } finally {
     clearTimeout(timer);
   }
