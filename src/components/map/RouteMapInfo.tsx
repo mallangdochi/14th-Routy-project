@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 import * as S from "./RouteMapInfoStyle";
 
 export type TravelMode = "walk" | "bike" | "car" | "bus" | "subway" | "transit";
 export type RoutePoint = { lat: number; lng: number };
 export type RouteLine = {
   path: RoutePoint[];
+  /** 직선 안내 경로 여부 (실제 경로 API 조회 실패·누락 시 true). */
+  isFallback?: boolean;
   /** From/to fields are optional for compatibility with older callers. */
   order?: number;
   fromId?: string | number;
@@ -300,20 +302,15 @@ export function RouteMapDetails({
   const headline = stop
     ? `${selection.order}번 ${role} · ${stop.title}`
     : `${selection.order}구간 · ${route?.fromName || "출발"} → ${route?.toName || "도착"}`;
-  const summary = stop
-    ? stop.time
-      ? `방문 예정 ${stop.time}`
-      : "장소 정보"
-    : route?.isFallback
-      ? "실제 경로 조회 안 됨"
-      : `${route?.transportLabel || modeName(route?.mode)} · ${distanceLabel(route?.distanceMeters)} · ${durationLabel(route?.durationSeconds)}`;
   const link = safeKakaoLink(stop?.externalUrl ?? route?.link);
 
   return (
     <S.DetailPanel
       $touch={isTouch}
       $expanded={expanded}
-      aria-label="선택한 이동 구간 상세"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      aria-label={stop ? "선택한 일정 장소 상세" : "선택한 이동 구간 상세"}
     >
       <S.DetailHeader>
         <S.TitleButton
@@ -321,9 +318,7 @@ export function RouteMapDetails({
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
         >
-          <span>
-            {order}구간 · {route.fromName || "출발"} → {route.toName || "도착"}
-          </span>
+          <span>{headline}</span>
           {isTouch ? (
             <span aria-hidden="true">{expanded ? "⌄" : "⌃"}</span>
           ) : null}
@@ -420,7 +415,9 @@ export function RouteMapDetails({
               )}
               {typeof route.fareWon === "number" && (
                 <div>
-                  <strong>요금</strong>
+                  <strong>
+                    {route.mode === "car" ? "예상 택시비" : "요금"}
+                  </strong>
                   <span>{route.fareWon.toLocaleString()}원</span>
                 </div>
               )}
@@ -466,137 +463,6 @@ export function MapViewport({
       {children}
     </div>
   );
-}
-
-/** 데스크톱에서 지도 경로/마커 위에 포인터를 올렸을 때 표시하는 안내 */
-export function RouteHoverHint({
-  selection,
-}: {
-  selection: RouteSelection | null;
-}) {
-  if (!selection) return null;
-  const heading =
-    selection.kind === "stop"
-      ? String(selection.order) + "번 · " + selection.stop.title
-      : (selection.route.fromName || "출발") +
-        " → " +
-        (selection.route.toName || "도착");
-  const description =
-    selection.kind === "stop"
-      ? selection.stop.time || selection.stop.address || "등록된 장소"
-      : "isFallback" in selection.route && selection.route.isFallback === true
-        ? "방문 순서를 표시한 직선 안내선입니다. 실제 도로 경로가 아닙니다."
-        : [
-            modeName(selection.route.mode),
-            distanceLabel(selection.route.distanceMeters),
-            durationLabel(selection.route.durationSeconds),
-          ].join(" · ");
-  return (
-    <div
-      role="status"
-      style={{
-        position: "absolute",
-        zIndex: 10,
-        top: 12,
-        left: 12,
-        maxWidth: "min(360px, calc(100% - 24px))",
-        pointerEvents: "none",
-        border: "1px solid #D7E6E5",
-        borderRadius: 10,
-        background: "#FFF",
-        boxShadow: "0 4px 14px #0002",
-        padding: "10px 14px",
-        color: "#0A414B",
-        fontSize: 15,
-      }}
-    >
-      <strong style={{ display: "block", marginBottom: 3 }}>{heading}</strong>
-      <span>{description}</span>
-    </div>
-  );
-}
-
-type RoutyRouteStop = {
-  id: string | number;
-  title: string;
-  lat?: number;
-  lng?: number;
-  time?: string;
-  address?: string;
-  description?: string;
-};
-
-/** 실제 API 경로를 먼저 매칭하고, 없으면 방문순서 안내 직선으로만 표시 (요금/시간은 추정하지 않음). */
-export function buildDisplayRoutes(
-  stops: RoutyRouteStop[],
-  routePaths: RouteLine[] = [],
-  mode: TravelMode = "walk",
-): Array<RouteLine & { isFallback: boolean }> {
-  const isValid = (s: RoutyRouteStop) =>
-    typeof s.lat === "number" &&
-    Number.isFinite(s.lat) &&
-    typeof s.lng === "number" &&
-    Number.isFinite(s.lng);
-  const routes = routePaths.filter(
-    (line) =>
-      Array.isArray(line.path) &&
-      line.path.length >= 2 &&
-      (line.mode === undefined || line.mode === mode),
-  );
-  return stops.slice(0, -1).flatMap((from, idx) => {
-    const to = stops[idx + 1];
-    const order = idx + 1;
-    // 다른 구간에 전용 경로를 잘못 적용하지 않도록 ID -> 순번 -> 전체 일치 순서를 사용합니다.
-    const matched =
-      routes.find(
-        (line) =>
-          line.fromId !== undefined &&
-          line.toId !== undefined &&
-          String(line.fromId) === String(from.id) &&
-          String(line.toId) === String(to.id),
-      ) ??
-      routes.find(
-        (line) =>
-          line.fromId === undefined &&
-          line.toId === undefined &&
-          line.order === order,
-      ) ??
-      (routes.length === stops.length - 1 &&
-      routes.every(
-        (line) =>
-          line.fromId === undefined &&
-          line.toId === undefined &&
-          line.order === undefined,
-      )
-        ? routes[idx]
-        : undefined);
-    if (!matched && (!isValid(from) || !isValid(to))) return [];
-    const path: RoutePoint[] = matched
-      ? matched.path
-      : [
-          { lat: from.lat!, lng: from.lng! },
-          { lat: to.lat!, lng: to.lng! },
-        ];
-    return [
-      {
-        ...(matched ?? {}),
-        path,
-        isFallback: !matched,
-        order,
-        fromId: from.id,
-        toId: to.id,
-        fromName: from.title,
-        toName: to.title,
-        fromAddress: from.address,
-        toAddress: to.address,
-        fromDescription: from.description,
-        toDescription: to.description,
-        fromTime: from.time,
-        toTime: to.time,
-        mode: matched?.mode ?? mode,
-      },
-    ];
-  });
 }
 
 /** 카카오 Polyline의 hover 상태 표시. 지도 SDK 인스턴스 형식과 충돌하지 않도록 구조적 타입 사용. */
