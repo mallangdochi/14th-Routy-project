@@ -1,0 +1,111 @@
+
+// ROUTY_MAP_COMPAT_BEGIN
+/** Schedule.tsx에서 사용하는 지도 미리보기 레이아웃. 기존 지도 UI는 유지합니다. */
+export function MapViewport({ children }: { children: ReactNode }) {
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0 }}>
+      {children}
+    </div>
+  );
+}
+
+/** 마우스 오버로 확인하는 경로/장소 정보 (모바일은 기존 RouteMapDetails 사용). */
+export function RouteHoverHint({ selection }: { selection: RouteSelection | null }) {
+  if (!selection) return null;
+  const label = selection.kind === "stop"
+    ? `${selection.order}번 · ${selection.stop.title}`
+    : `${selection.route.fromName || "출발"} → ${selection.route.toName || "도착"}`;
+  const details = selection.kind === "stop"
+    ? selection.stop.time || selection.stop.address || "일정 장소"
+    : ("isFallback" in selection.route && selection.route.isFallback === true)
+      ? "방문 순서 직선 안내선 · 실제 도로 경로가 아닙니다"
+      : `${modeName(selection.route.mode)} · ${distanceLabel(selection.route.distanceMeters)} · ${durationLabel(selection.route.durationSeconds)}`;
+  return (
+    <div role="status" style={{
+      position: "absolute", top: 12, left: 12, zIndex: 30,
+      maxWidth: "min(360px, calc(100% - 24px))", pointerEvents: "none",
+      padding: "10px 14px", border: "1px solid #D7E6E5", borderRadius: 10,
+      background: "rgba(255,255,255,.98)", boxShadow: "0 4px 14px rgba(0,0,0,.12)",
+      color: "#0A414B", fontSize: 15,
+    }}>
+      <strong style={{ display: "block", marginBottom: 3 }}>{label}</strong>
+      <span>{details}</span>
+    </div>
+  );
+}
+
+type RoutyDisplayStop = {
+  id: string | number;
+  title: string;
+  lat?: number;
+  lng?: number;
+  time?: string;
+  address?: string;
+  description?: string;
+};
+
+/** API가 반환한 실제 도로/대중교통 경로를 우선 사용합니다.
+ * 조회되지 않은 구간만 직선 안내선으로 구분해 표시하고 거리/시간을 추정하지 않습니다.
+ */
+export function buildDisplayRoutes(
+  stops: RoutyDisplayStop[],
+  routePaths: RouteLine[] = [],
+  mode: TravelMode,
+): Array<RouteLine & { isFallback: boolean }> {
+  const validPoint = (stop: RoutyDisplayStop) =>
+    typeof stop.lat === "number" && Number.isFinite(stop.lat) &&
+    typeof stop.lng === "number" && Number.isFinite(stop.lng);
+
+  return stops.slice(0, -1).flatMap((from, index) => {
+    const to = stops[index + 1];
+    const order = index + 1;
+    const usable = routePaths.filter((line) =>
+      line.path.length >= 2 && (!line.mode || line.mode === mode),
+    );
+    const matchesIds = (line: RouteLine) =>
+      line.fromId !== undefined && line.toId !== undefined &&
+      String(line.fromId) === String(from.id) && String(line.toId) === String(to.id);
+    const actual = usable.find(matchesIds) ??
+      usable.find((line) => line.fromId === undefined && line.toId === undefined && line.order === order) ??
+      (usable.length === stops.length - 1 &&
+      usable.every((line) => line.fromId === undefined && line.toId === undefined && line.order === undefined)
+        ? usable[index] : undefined);
+    if (!actual && (!validPoint(from) || !validPoint(to))) return [];
+    const path: RoutePoint[] = actual?.path && actual.path.length >= 2
+      ? actual.path
+      : [{ lat: from.lat!, lng: from.lng! }, { lat: to.lat!, lng: to.lng! }];
+    return [{
+      ...(actual || {}),
+      path,
+      isFallback: !actual || actual.path.length < 2,
+      order,
+      fromId: from.id,
+      toId: to.id,
+      fromName: from.title,
+      toName: to.title,
+      fromAddress: from.address,
+      toAddress: to.address,
+      fromTime: from.time,
+      toTime: to.time,
+      fromDescription: from.description,
+      toDescription: to.description,
+      mode: actual?.mode || mode,
+    }];
+  });
+}
+
+/** 카카오 Polyline의 마우스 오버 스타일을 변경하고 원래대로 복구합니다. */
+export function setRouteLineHoverStyle(
+  line: unknown,
+  route: RouteLine & { isFallback?: boolean },
+  hovered: boolean,
+) {
+  const polyline = line as { setOptions?: (options: { strokeWeight?: number; strokeOpacity?: number }) => void } | null;
+  if (!polyline || typeof polyline.setOptions !== "function") return;
+  const regularWeight = route.isFallback ? 5 : 9;
+  polyline.setOptions({
+    strokeWeight: hovered ? regularWeight + 3 : regularWeight,
+    strokeOpacity: hovered ? 1 : route.isFallback ? 0.7 : 0.92,
+  });
+}
+// ROUTY_MAP_COMPAT_END

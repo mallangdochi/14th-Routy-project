@@ -307,6 +307,51 @@ function createDay(isoDate: string, id: number, image = defaultTripImage): Day {
   };
 }
 
+// 같은 장소 사진을 중복 표시하지 않고 기본 일러스트는 마지막에만 사용합니다.
+function getPhotoCandidates(
+  ...sources: (string | null | undefined)[]
+): string[] {
+  const unique = new Set<string>();
+  for (const source of sources) {
+    const url = typeof source === "string" ? source.trim() : "";
+    if (
+      !url ||
+      url === defaultTripImage ||
+      /(?:^|\/)where2?\.webp(?:\?.*)?$/i.test(url)
+    ) {
+      continue;
+    }
+    unique.add(url);
+  }
+  return [...unique];
+}
+
+type TripPhotoKind = "cover" | "day";
+
+// 첫 번째 사진을 불러올 수 없는 경우 다른 장소 사진을 순서대로 시도합니다.
+function TripPhoto({
+  candidates,
+  kind,
+  alt,
+}: {
+  candidates: string[];
+  kind: TripPhotoKind;
+  alt: string;
+}) {
+  const [failedIndex, setFailedIndex] = useState(0);
+  const imageUrl = candidates[failedIndex] ?? defaultTripImage;
+  const handleError = () => {
+    if (failedIndex < candidates.length) {
+      setFailedIndex((index) => Math.min(index + 1, candidates.length));
+    }
+  };
+
+  if (kind === "cover") {
+    return <S.TripThumbnail src={imageUrl} alt={alt} onError={handleError} />;
+  }
+  return <S.DayThumbnail src={imageUrl} alt={alt} onError={handleError} />;
+}
+
 const moveStop = (
   items: Stop[],
   fromIndex: number,
@@ -1363,6 +1408,28 @@ function ScheduleContent({
     createStoredStopsByDay(selectedTrip.schedule, selectedTrip.dates),
   );
 
+  // 서버가 대표 이미지를 제공하면 우선 사용하고, 없으면 저장된 장소 사진에서 선택합니다.
+  // 일정 추가·삭제·날짜 이동을 하면 stopsByDay가 바뀌므로 이미지도 즉시 갱신됩니다.
+  const tripWithPhotos = selectedTrip as ScheduleTrip & {
+    coverImage?: string | null;
+    coverImageUrl?: string | null;
+    image?: string | null;
+    imageUrl?: string | null;
+    thumbnail?: string | null;
+    thumbnailUrl?: string | null;
+  };
+  const tripPhotoCandidates = getPhotoCandidates(
+    tripWithPhotos.coverImage,
+    tripWithPhotos.coverImageUrl,
+    tripWithPhotos.image,
+    tripWithPhotos.imageUrl,
+    tripWithPhotos.thumbnail,
+    tripWithPhotos.thumbnailUrl,
+    ...days.flatMap((day) =>
+      (stopsByDay[day.id] ?? []).map((place) => place.image),
+    ),
+  );
+
   const scheduleVersionRef = useRef(selectedTrip.schedule.version);
   const scheduleSaveLock = useRef(false);
   const [scheduleSaving, setScheduleSaving] = useState(false);
@@ -2168,7 +2235,12 @@ function ScheduleContent({
             )}
 
             <S.TripInfo>
-              <S.TripThumbnail src={defaultTripImage} alt="" />
+              <TripPhoto
+                key={JSON.stringify(tripPhotoCandidates)}
+                kind="cover"
+                candidates={tripPhotoCandidates}
+                alt={`${tripName} 대표 사진`}
+              />
 
               <S.TripDescription>
                 <S.TripTitleRow>
@@ -2348,33 +2420,44 @@ function ScheduleContent({
 
           {(activeTab === "schedule" || activeTab === "map") && (
             <S.DayTabs>
-              {days.map((day) => (
-                <S.DayButton
-                  key={day.isoDate}
-                  type="button"
-                  $active={activeDayId === day.id}
-                  onClick={() => {
-                    setExpandedStopId(null);
-                    setSelectedStopIds([]);
+              {days.map((day) => {
+                const dayPhotos = getPhotoCandidates(
+                  ...(stopsByDay[day.id] ?? []).map((place) => place.image),
+                  ...tripPhotoCandidates,
+                );
+                return (
+                  <S.DayButton
+                    key={day.isoDate}
+                    type="button"
+                    $active={activeDayId === day.id}
+                    onClick={() => {
+                      setExpandedStopId(null);
+                      setSelectedStopIds([]);
 
-                    editAllSnapshotRef.current = null;
-                    setActiveDayId(day.id);
-                    setIsEditMode(false);
-                    setMenuId(null);
-                    setShowSaveStatus(false);
-                    resetDrag();
-                  }}
-                >
-                  <S.DayThumbnail src={day.image} alt="" />
+                      editAllSnapshotRef.current = null;
+                      setActiveDayId(day.id);
+                      setIsEditMode(false);
+                      setMenuId(null);
+                      setShowSaveStatus(false);
+                      resetDrag();
+                    }}
+                  >
+                    <TripPhoto
+                      key={`${day.isoDate}:${JSON.stringify(dayPhotos)}`}
+                      kind="day"
+                      candidates={dayPhotos}
+                      alt={`Day ${day.id} 장소 사진`}
+                    />
 
-                  <S.DayButtonText>
-                    <strong>Day {day.id}</strong>
-                    <span>
-                      {day.date} ({day.weekday})
-                    </span>
-                  </S.DayButtonText>
-                </S.DayButton>
-              ))}
+                    <S.DayButtonText>
+                      <strong>Day {day.id}</strong>
+                      <span>
+                        {day.date} ({day.weekday})
+                      </span>
+                    </S.DayButtonText>
+                  </S.DayButton>
+                );
+              })}
             </S.DayTabs>
           )}
 
