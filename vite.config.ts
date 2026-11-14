@@ -4,6 +4,7 @@ import {
   isTourKeyConfigured,
   lookupTourImage,
 } from "./server/tourPhotoService.js";
+import { lookupTourPlaceDetail } from "./server/tourPlaceDetailService.js";
 import { lookupRegionPhoto } from "./server/tourRegionPhotoService.js";
 import {
   lookupTravelRoute,
@@ -11,7 +12,7 @@ import {
   validPoint,
 } from "./server/travelRouteService.js";
 
-/** 기존 /api 프록시는 유지하고 관광공사 사진 경로만 로컬에서 처리합니다. */
+/** 기존 /api 프록시는 유지하고 관광공사 사진·상세정보 및 경로 API를 로컬에서 처리합니다. */
 function localTourPhotoApi(): Plugin {
   return {
     name: "routy-local-tour-photos",
@@ -21,6 +22,7 @@ function localTourPhotoApi(): Plugin {
         const url = new URL(req.url ?? "/", "http://localhost");
         if (
           url.pathname !== "/api/tour/photos" &&
+          url.pathname !== "/api/tour/details" &&
           url.pathname !== "/api/tour/region-photo" &&
           url.pathname !== "/api/travel/route"
         )
@@ -142,6 +144,34 @@ function localTourPhotoApi(): Plugin {
               message: "장소 이름이나 주소가 올바르지 않습니다.",
             }),
           );
+          return;
+        }
+        if (url.pathname === "/api/tour/details") {
+          const category = url.searchParams.get("category") ?? undefined;
+          if (category !== undefined && !["관광", "음식점", "카페", "숙소"].includes(category)) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ message: "장소 카테고리가 올바르지 않습니다." }));
+            return;
+          }
+          const contentTypeId = url.searchParams.get("contentTypeId") ?? undefined;
+          if (contentTypeId !== undefined && !["12", "14", "15", "25", "28", "32", "38", "39"].includes(contentTypeId)) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ message: "관광 유형이 올바르지 않습니다." }));
+            return;
+          }
+          if (!process.env.TOUR_API_SERVICE_KEY?.trim()) {
+            res.statusCode = 503;
+            res.end(JSON.stringify({ message: "서버에 TOUR_API_SERVICE_KEY가 없습니다." }));
+            return;
+          }
+          try {
+            const data = await lookupTourPlaceDetail(name, address, lat, lng, category ?? contentTypeId);
+            res.setHeader("Cache-Control", "private, no-store");
+            res.end(JSON.stringify(data));
+          } catch {
+            res.statusCode = 502;
+            res.end(JSON.stringify({ message: "관광공사 장소 상세정보 조회에 실패했습니다." }));
+          }
           return;
         }
         if (!isTourKeyConfigured()) {
