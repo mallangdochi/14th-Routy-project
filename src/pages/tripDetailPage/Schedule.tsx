@@ -685,32 +685,44 @@ function ScheduleStopCard({
   onHandlePointerUp,
 }: StopCardProps) {
   const infoId = useId();
-  const [placeInfo, setPlaceInfo] = useState<KakaoPlaceInfo | null>(null);
-  const [infoStatus, setInfoStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [infoRetry, setInfoRetry] = useState(0);
-  // Same lookup as PlaceDetailPage; fetch only while the information is open.
-  useEffect(() => {
-    if (isEditMode || !expanded) return;
-    let active = true;
-    setPlaceInfo(null);
-    setInfoStatus("loading");
-    void findPlaceDetail({
+  const placeInfoRequest = React.useMemo(() => ({
+    enabled: !isEditMode && expanded,
+    retry: infoRetry,
+    input: {
       id: stop.placeId || stop.sourcePlaceId || stop.externalId || "",
       name: stop.title,
       address: stop.address,
-      category: stop.category,
       lat: stop.lat,
       lng: stop.lng,
-    }).then((record) => {
+    },
+  }), [isEditMode, expanded, infoRetry, stop.placeId, stop.sourcePlaceId,
+    stop.externalId, stop.title, stop.address, stop.lat, stop.lng]);
+  const [placeInfoResult, setPlaceInfoResult] = useState<{
+    request: typeof placeInfoRequest;
+    status: "ready" | "error";
+    record: KakaoPlaceInfo | null;
+  } | null>(null);
+  const currentPlaceInfoResult = placeInfoResult?.request === placeInfoRequest
+    ? placeInfoResult : null;
+  const placeInfo = placeInfoRequest.enabled
+    ? currentPlaceInfoResult?.record ?? null : null;
+  const infoStatus = !placeInfoRequest.enabled ? "idle"
+    : currentPlaceInfoResult?.status ?? "loading";
+
+  // Loading is derived from the current request. State changes only on completion.
+  useEffect(() => {
+    if (!placeInfoRequest.enabled) return;
+    let active = true;
+    void findPlaceDetail(placeInfoRequest.input).then((record) => {
       if (!active) return;
-      setPlaceInfo(record);
-      setInfoStatus("ready");
+      setPlaceInfoResult({ request: placeInfoRequest, status: "ready", record });
     }).catch(() => {
-      if (active) setInfoStatus("error");
+      if (!active) return;
+      setPlaceInfoResult({ request: placeInfoRequest, status: "error", record: null });
     });
     return () => { active = false; };
-  }, [isEditMode, expanded, stop.placeId, stop.sourcePlaceId, stop.externalId,
-    stop.title, stop.address, stop.category, stop.lat, stop.lng, infoRetry]);
+  }, [placeInfoRequest]);
   const [editorPresent, setEditorPresent] = useState(expanded);
   const [previousExpanded, setPreviousExpanded] = useState(expanded);
   if (previousExpanded !== expanded) {
@@ -1900,26 +1912,6 @@ function ScheduleContent({
     setDragOverId(null);
   };
 
-  const toggleEditMode = () => {
-    if (!canEditTrip) return;
-    setExpandedStopId(null);
-    setSelectedStopIds([]);
-
-    if (!isEditMode) {
-      editAllSnapshotRef.current = stopsByDay;
-      editSnapshotRef.current = stops.map((stop) => ({
-        ...stop,
-      }));
-      setIsEditMode(true);
-    } else {
-      handleCancelEdit();
-    }
-
-    setShowSaveStatus(false);
-    setMenuId(null);
-    resetDrag();
-  };
-
   const handleCancelEdit = () => {
     if (scheduleSaveLock.current) return;
     setEditingStop(null);
@@ -1940,6 +1932,26 @@ function ScheduleContent({
     setIsEditMode(false);
     setMenuId(null);
     setShowSaveStatus(false);
+    resetDrag();
+  };
+
+  const toggleEditMode = () => {
+    if (!canEditTrip) return;
+    setExpandedStopId(null);
+    setSelectedStopIds([]);
+
+    if (!isEditMode) {
+      editAllSnapshotRef.current = stopsByDay;
+      editSnapshotRef.current = stops.map((stop) => ({
+        ...stop,
+      }));
+      setIsEditMode(true);
+    } else {
+      handleCancelEdit();
+    }
+
+    setShowSaveStatus(false);
+    setMenuId(null);
     resetDrag();
   };
 

@@ -191,7 +191,12 @@ export async function lookupTravelRoute(
   to: TravelPoint,
   transitType: TransitType = "all",
 ): Promise<TravelRoute> {
-  const key = process.env.KAKAO_REST_API_KEY?.trim();
+  const runtime = globalThis as typeof globalThis & {
+    process?: {
+      env?: Record<string, string | undefined>;
+    };
+  };
+  const key = runtime.process?.env?.KAKAO_REST_API_KEY?.trim();
   if (!key) throw new Error("서버에 KAKAO_REST_API_KEY를 설정해야 합니다.");
   if (!validPoint(from) || !validPoint(to))
     throw new Error("국내 장소의 정확한 위도·경도가 필요합니다.");
