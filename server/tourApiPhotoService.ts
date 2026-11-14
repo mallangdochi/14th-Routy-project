@@ -7,7 +7,8 @@ export type TourPhotoResult = {
   source: "한국관광공사 TourAPI" | null;
 };
 
-type TourItem = {
+export type TourItem = {
+  contenttypeid?: string | number;
   title?: string;
   addr1?: string;
   contentid?: string | number;
@@ -61,7 +62,7 @@ function nameSimilarity(a: string, b: string): number {
   return short.length / long.length;
 }
 
-function matchesPlace(item: TourItem, name: string, address: string, lat?: number, lng?: number): boolean {
+export function matchesPlace(item: TourItem, name: string, address: string, lat?: number, lng?: number): boolean {
   const similarity = nameSimilarity(item.title ?? "", name);
   if (similarity < 0.72) return false;
   const itemLat = Number(item.mapy);
@@ -112,7 +113,7 @@ export function isTourKeyConfigured() {
   return Boolean(process.env.TOUR_API_SERVICE_KEY?.trim());
 }
 
-async function getItems<T>(endpoint: string, params: Record<string, string>, key: string): Promise<T[]> {
+export async function getItems<T>(endpoint: string, params: Record<string, string>, key: string): Promise<T[]> {
   const url = new URL(`${API_ROOT}/${endpoint}`);
   const query = new URLSearchParams({
     serviceKey: key,

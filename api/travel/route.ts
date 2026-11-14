@@ -3,7 +3,7 @@ import {
   lookupTravelRoute,
   validMode,
   validPoint,
-} from "../../server/travelRouteService";
+} from "../../server/travelRouteService.ts";
 
 /** Vercel 배포에서 /api/travel/route 경로 처리 */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -14,11 +14,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     typeof query[name] === "string" ? (query[name] as string) : "";
   const mode = get("mode");
   const transitType = get("transitType") || "all";
-  if (transitType !== "all" && transitType !== "bus" && transitType !== "subway") {
+  if (
+    transitType !== "all" &&
+    transitType !== "bus" &&
+    transitType !== "subway"
+  ) {
     return res.status(400).json({ message: "대중교통 조건을 확인해주세요." });
   }
   if (mode !== "transit" && transitType !== "all") {
-    return res.status(400).json({ message: "대중교통에서만 전용 조건을 사용할 수 있습니다." });
+    return res
+      .status(400)
+      .json({ message: "대중교통에서만 전용 조건을 사용할 수 있습니다." });
   }
   const from = { lat: Number(get("fromLat")), lng: Number(get("fromLng")) };
   const to = { lat: Number(get("toLat")), lng: Number(get("toLng")) };
@@ -37,13 +43,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader("Cache-Control", "private, max-age=120");
     return res.status(200).json(result);
   } catch (error) {
-    return res
-      .status(502)
-      .json({
-        message:
-          error instanceof Error
-            ? error.message
-            : "경로를 불러오지 못했습니다.",
-      });
+    return res.status(502).json({
+      message:
+        error instanceof Error ? error.message : "경로를 불러오지 못했습니다.",
+    });
   }
 }

@@ -15,7 +15,7 @@ export type ScheduleLeg = {
 type RouteResponse = {
   mode: string; path: Array<{ lat: number; lng: number }>;
   distanceMeters: number; durationSeconds: number; link?: string | null;
-  transfers?: number; fareWon?: number;
+  transfers?: number; fareWon?: number; taxiFareWon?: number; transitSteps?: string[];
 };
 const TTL = 120_000;
 const cache = new Map<string, { expires: number; data: RouteResponse }>();
@@ -41,7 +41,22 @@ async function fetchLeg(leg: ScheduleLeg, signal: AbortSignal): Promise<RouteRes
       !raw.path.every((point: { lat?: number; lng?: number }) => point && validPoint(point))) {
     throw new Error("경로 응답 형식이 올바르지 않습니다.");
   }
-  const data = raw as RouteResponse;
+  // 기존 자동차 API는 예상 택시비를 fareWon으로 반환합니다.
+  // 자동차 응답에서만 호환 처리하고 대중교통 요금과는 구분합니다.
+  const validFare = (value: unknown): value is number =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0;
+  const taxiFareWon = choice.mode === "car"
+    ? validFare(raw.taxiFareWon)
+      ? raw.taxiFareWon
+      : validFare(raw.fareWon)
+        ? raw.fareWon
+        : undefined
+    : undefined;
+  const data: RouteResponse = {
+    ...raw,
+    taxiFareWon,
+    transitSteps: Array.isArray(raw.transitSteps) ? raw.transitSteps.filter((step: unknown): step is string => step === "버스" || step === "지하철") : undefined,
+  };
   if (signal.aborted) throw new DOMException("Aborted", "AbortError");
   if (cache.size >= 300) cache.delete(cache.keys().next().value!);
   cache.set(key, { expires: Date.now() + TTL, data });

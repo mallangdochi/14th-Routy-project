@@ -34,7 +34,7 @@ import * as S from "./placeAddModalStyle";
 import Dropdown from "../../dropdown/Dropdown";
 import { useSavedPlaces } from "../../../contexts/SavedPlacesContext";
 // 프로젝트의 기존 TimePicker 경로에 맞춰 이 import만 조정하세요.
-import TimePicker from "../../pickers/TimePicker";
+// import TimePicker from "../../pickers/TimePicker";
 
 export type PlaceCategory = "관광지" | "맛집" | "카페" | "숙소";
 
@@ -1088,7 +1088,7 @@ function PlaceAddModalContent({
                           className="schedule-fields"
                           id={`${titleId}-settings-${index}`}
                         >
-                          <div className="schedule-field">
+                          {/* <div className="schedule-field">
                             <ScheduleTimePicker
                               value={draft.startTime}
                               onChange={(value) =>
@@ -1096,7 +1096,7 @@ function PlaceAddModalContent({
                               }
                               disabled={submitting}
                             />
-                          </div>
+                          </div> */}
                           <div className="schedule-field">
                             <span
                               className="field-label"
@@ -1338,77 +1338,77 @@ function resolveDuration(hours: string, minutes: string): number | null {
 }
 
 /** 공통 TimePicker는 수정하지 않고 모달 안의 팝업 위치만 보정 */
-function ScheduleTimePicker({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  disabled: boolean;
-}) {
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const wrapper = root.current;
-    if (!wrapper) return;
-    let frame = 0;
-    function position() {
-      const popup = wrapper?.querySelector<HTMLElement>(".picker-popup");
-      const trigger = wrapper?.querySelector<HTMLElement>(".picker-trigger");
-      const panel = wrapper?.closest<HTMLElement>(
-        '[role="dialog"].place-add-panel',
-      );
-      if (!popup || !trigger || !panel) return;
-      const t = trigger.getBoundingClientRect(),
-        p = panel.getBoundingClientRect();
-      // modalAnimation의 transform에 의해 fixed 팝업은 Panel 기준으로 배치
-      const width = Math.min(320, p.width - 32);
-      popup.style.position = "fixed";
-      popup.style.width = `${width}px`;
-      popup.style.maxWidth = "none";
-      popup.style.right = "auto";
-      popup.style.bottom = "auto";
-      popup.style.left = `${Math.max(16, Math.min(t.left - p.left, p.width - width - 16))}px`;
-      popup.style.maxHeight = `${Math.max(100, p.height - 40)}px`;
-      popup.style.overflowY = "auto";
-      popup.style.zIndex = "30";
-      const height = popup.offsetHeight;
-      const below = t.bottom - p.top + 8;
-      const top =
-        below + height <= p.height - 16
-          ? below
-          : Math.max(16, t.top - p.top - height - 8);
-      popup.style.top = `${Math.min(top, Math.max(16, p.height - height - 16))}px`;
-    }
-    const schedule = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(position);
-    };
-    const observer = new MutationObserver(schedule);
-    observer.observe(wrapper, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["data-open", "data-present"],
-    });
-    window.addEventListener("resize", schedule);
-    document.addEventListener("scroll", schedule, true);
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", schedule);
-      document.removeEventListener("scroll", schedule, true);
-    };
-  }, []);
-  return (
-    <div ref={root} className="schedule-time-picker">
-      <TimePicker
-        label="일정 시작 시간"
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        placement="top"
-      />
-    </div>
-  );
-}
+// function ScheduleTimePicker({
+//   value,
+//   onChange,
+//   disabled,
+// }: {
+//   value: string;
+//   onChange: (value: string) => void;
+//   disabled: boolean;
+// }) {
+//   const root = useRef<HTMLDivElement>(null);
+//   useEffect(() => {
+//     const wrapper = root.current;
+//     if (!wrapper) return;
+//     let frame = 0;
+//     function position() {
+//       const popup = wrapper?.querySelector<HTMLElement>(".picker-popup");
+//       const trigger = wrapper?.querySelector<HTMLElement>(".picker-trigger");
+//       const panel = wrapper?.closest<HTMLElement>(
+//         '[role="dialog"].place-add-panel',
+//       );
+//       if (!popup || !trigger || !panel) return;
+//       const t = trigger.getBoundingClientRect(),
+//         p = panel.getBoundingClientRect();
+//       // modalAnimation의 transform에 의해 fixed 팝업은 Panel 기준으로 배치
+//       const width = Math.min(320, p.width - 32);
+//       popup.style.position = "fixed";
+//       popup.style.width = `${width}px`;
+//       popup.style.maxWidth = "none";
+//       popup.style.right = "auto";
+//       popup.style.bottom = "auto";
+//       popup.style.left = `${Math.max(16, Math.min(t.left - p.left, p.width - width - 16))}px`;
+//       popup.style.maxHeight = `${Math.max(100, p.height - 40)}px`;
+//       popup.style.overflowY = "auto";
+//       popup.style.zIndex = "30";
+//       const height = popup.offsetHeight;
+//       const below = t.bottom - p.top + 8;
+//       const top =
+//         below + height <= p.height - 16
+//           ? below
+//           : Math.max(16, t.top - p.top - height - 8);
+//       popup.style.top = `${Math.min(top, Math.max(16, p.height - height - 16))}px`;
+//     }
+//     const schedule = () => {
+//       cancelAnimationFrame(frame);
+//       frame = requestAnimationFrame(position);
+//     };
+//     const observer = new MutationObserver(schedule);
+//     observer.observe(wrapper, {
+//       childList: true,
+//       subtree: true,
+//       attributes: true,
+//       attributeFilter: ["data-open", "data-present"],
+//     });
+//     window.addEventListener("resize", schedule);
+//     document.addEventListener("scroll", schedule, true);
+//     return () => {
+//       observer.disconnect();
+//       cancelAnimationFrame(frame);
+//       window.removeEventListener("resize", schedule);
+//       document.removeEventListener("scroll", schedule, true);
+//     };
+//   }, []);
+//   return (
+//     <div ref={root} className="schedule-time-picker">
+//       <TimePicker
+//         label="일정 시작 시간"
+//         value={value}
+//         onChange={onChange}
+//         disabled={disabled}
+//         placement="top"
+//       />
+//     </div>
+//   );
+// }

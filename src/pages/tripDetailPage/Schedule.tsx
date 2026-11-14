@@ -1,4 +1,5 @@
 // import TripRoleBadge from "../../components/main/TripRoleBadge";
+import { findPlaceDetail, type KakaoPlaceInfo } from "../../api/kakao/placeDetails";
 import { Global } from "@emotion/react";
 import Dropdown from "../../components/dropdown/Dropdown";
 import TimePicker from "../../components/pickers/TimePicker";
@@ -14,7 +15,6 @@ import type {
 } from "../../api/kakao/kakaoTypes";
 import type { KakaoStop, LocatedStop } from "../../api/kakao/kakaoPlaces";
 
-import { renderToStaticMarkup } from "react-dom/server";
 import {
   loadTripParticipants,
   getSharedTripDetail,
@@ -35,6 +35,8 @@ import {
 } from "../../api/kakao/searchPlaceModal";
 import React, { useEffect, useId, useRef, useState } from "react";
 import {
+  Phone,
+  FileText,
   LogOut,
   TriangleAlert,
   CircleX,
@@ -47,12 +49,12 @@ import {
   ClipboardCheck,
   Cloud,
   CarFront,
-  TrainFront,
+  // TrainFront,
   TramFront,
   BusFront,
   // CarTaxiFront,
   Footprints,
-  Plane,
+  // Plane,
   type LucideIcon,
   Camera,
   Utensils,
@@ -69,6 +71,7 @@ import {
   ChevronDown,
   LayoutGrid,
   Users,
+  Bike,
 } from "lucide-react";
 import avatarP1 from "../../assets/profileAvatars/P1.webp";
 import avatarP2 from "../../assets/profileAvatars/P2.webp";
@@ -94,29 +97,36 @@ import * as S from "./ScheduleStyle";
 import {
   MapViewport,
   RouteHoverHint,
-  RouteMapDetails,
   buildDisplayRoutes,
-  routeColor,
-  setRouteLineHoverStyle,
   useTouchMap,
   type RouteSelection,
   type TravelMode,
 } from "../../components/map/RouteMapInfo";
-import { getKakaoMapPointUrl } from "../../api/kakao/kakaoLinks";
+import {
+  createMapPlacePin,
+  mountPlacePinLayout,
+  closeMapPlacePins,
+} from "../../components/map/MapPlacePin";
+import { mountRouteOverlapLayer } from "../../components/map/RouteOverlapLayer";
 import type { RouteLine } from "../../components/map/RouteMapInfo";
-import { useScheduleRoutes, type ScheduleLeg } from "../../hooks/useScheduleRoutes";
-import { resolveScheduleTransport, formatLegDistance, formatLegDuration } from "../../utils/scheduleTransport";
-import KakaoTravelMap, { type KakaoPlace } from "../../map/KakaoTravelMap";
+import {
+  useScheduleRoutes,
+  type ScheduleLeg,
+} from "../../hooks/useScheduleRoutes";
+import {
+  resolveScheduleTransport,
+  formatLegDistance,
+  formatLegDuration,
+} from "../../utils/scheduleTransport";
 import ShareModal from "../../components/modal/share/ShareModal";
 import MobileHeader from "../../components/mobileBanner/MobileHeader";
 import MobileNav from "../../components/mobileBanner/MobileFooter";
 import Breadcrumb from "../../components/MainSidebar/mainHeader/Breadcrumb";
 import TripChecklist from "../../components/checklist/TripChecklist";
 import TravelBudgetTab from "../../components/travelBudget/TravelBudgetTab";
-import { getTripDays, saveTripDays } from "../../api/tripDays";
+import { getTripDays } from "../../api/tripDays";
 import {
   getTripPlaces,
-  appendTripPlaces,
   replaceTripPlaces,
   type TripPlacesResult,
 } from "../../api/tripPlaces";
@@ -199,6 +209,76 @@ type Stop = {
   externalId?: string;
   sourcePlaceId?: string;
 };
+
+// Only the first stop supplies a time. Never treat an unavailable route as zero minutes.
+function calculateStopTimes(items: Stop[], durations: Array<number | undefined>): Stop[] {
+  if (!items.length) return items;
+  const match = /^(\d{1,2}):(\d{2})$/.exec(items[0].time);
+  let minutes: number | undefined = match && Number(match[2]) < 60
+    ? Number(match[1]) * 60 + Number(match[2]) : undefined;
+  return items.map((stop, index) => {
+    if (index > 0) {
+      const duration = durations[index - 1];
+      const stay = items[index - 1].stayDurationMinutes ?? 60;
+      minutes = minutes !== undefined && duration !== undefined &&
+        Number.isFinite(duration) && duration >= 0 && Number.isFinite(stay) && stay >= 0
+        ? minutes + Math.floor(stay) + Math.ceil(duration / 60) : undefined;
+    }
+    const time = minutes === undefined ? "—"
+      : `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+    return time === stop.time ? stop : { ...stop, time };
+  });
+}
+
+// Recalculate every saved day, including days that were not opened after moving stops.
+async function resolveDayStopTimes(items: Stop[], defaultTransport: string): Promise<Stop[]> {
+  if (!items.length) return items;
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(items[0].time)) {
+    throw new Error("첫 일정의 시작 시간을 입력해주세요.");
+  }
+  if (items.length === 1) return items;
+  let located = items;
+  if (items.some((stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng))) {
+    const sdk = await loadKakaoMaps();
+    const places = new sdk.services.Places();
+    located = await Promise.all(items.map(async (stop) => {
+      if (Number.isFinite(stop.lat) && Number.isFinite(stop.lng)) return stop;
+      const point = await resolveKakaoPlace(sdk, places, {
+        id: stop.id, title: stop.title, address: stop.address,
+        latitude: stop.lat, longitude: stop.lng,
+      });
+      if (!point) throw new Error(`${stop.title}의 위치를 확인한 후 다시 저장해주세요.`);
+      return { ...stop, lat: point.latitude, lng: point.longitude };
+    }));
+  }
+  const durations: number[] = [];
+  // Limit route requests to three at a time.
+  for (let start = 0; start < located.length - 1; start += 3) {
+    const batch = await Promise.all(located.slice(start, Math.min(start + 3, located.length - 1)).map(async (from, offset) => {
+      const to = located[start + offset + 1];
+      const choice = resolveScheduleTransport(from.transport, defaultTransport);
+      if (!choice.mode) throw new Error(`${from.title}의 이용 교통을 선택해주세요.`);
+      const params = new URLSearchParams({
+        mode: choice.mode, fromLat: String(from.lat), fromLng: String(from.lng),
+        toLat: String(to.lat), toLng: String(to.lng),
+        ...(choice.transitType ? { transitType: choice.transitType } : {}),
+      });
+      const response = await fetch(`/api/travel/route?${params}`);
+      const data = await response.json().catch(() => null);
+      if (!response.ok || data?.mode !== choice.mode ||
+          typeof data?.durationSeconds !== "number" || !Number.isFinite(data.durationSeconds) || data.durationSeconds < 0) {
+        throw new Error(`${from.title} → ${to.title} 이동 시간을 확인하지 못했어요. 경로를 다시 조회해주세요.`);
+      }
+      return data.durationSeconds as number;
+    }));
+    durations.push(...batch);
+  }
+  const calculated = calculateStopTimes(located, durations);
+  if (calculated.some((stop) => stop.time === "—" || Number(stop.time.split(":")[0]) >= 24)) {
+    throw new Error("일정이 자정을 넘거나 시작 시간이 올바르지 않아요. 첫 시작 시간이나 체류 시간을 조정해주세요.");
+  }
+  return calculated;
+}
 
 // DB 응답을 날짜별 카드로 변환합니다. 빈 날짜는 빈 배열을 유지합니다.
 function createStoredStopsByDay(
@@ -307,31 +387,77 @@ function createDay(isoDate: string, id: number, image = defaultTripImage): Day {
   };
 }
 
+// 같은 장소 사진을 중복 표시하지 않고 기본 일러스트는 마지막에만 사용합니다.
+function getPhotoCandidates(
+  ...sources: (string | null | undefined)[]
+): string[] {
+  const unique = new Set<string>();
+  for (const source of sources) {
+    const url = typeof source === "string" ? source.trim() : "";
+    if (
+      !url ||
+      url === defaultTripImage ||
+      /(?:^|\/)where2?\.webp(?:\?.*)?$/i.test(url)
+    ) {
+      continue;
+    }
+    unique.add(url);
+  }
+  return [...unique];
+}
+
+type TripPhotoKind = "cover" | "day";
+
+// 첫 번째 사진을 불러올 수 없는 경우 다른 장소 사진을 순서대로 시도합니다.
+function TripPhoto({
+  candidates,
+  kind,
+  alt,
+}: {
+  candidates: string[];
+  kind: TripPhotoKind;
+  alt: string;
+}) {
+  const [failedIndex, setFailedIndex] = useState(0);
+  const imageUrl = candidates[failedIndex] ?? defaultTripImage;
+  const handleError = () => {
+    if (failedIndex < candidates.length) {
+      setFailedIndex((index) => Math.min(index + 1, candidates.length));
+    }
+  };
+
+  if (kind === "cover") {
+    return <S.TripThumbnail src={imageUrl} alt={alt} onError={handleError} />;
+  }
+  return <S.DayThumbnail src={imageUrl} alt={alt} onError={handleError} />;
+}
+
 const moveStop = (
   items: Stop[],
   fromIndex: number,
   toIndex: number,
 ): Stop[] => {
   const result = [...items];
-  const times = items.map((item) => item.time);
+  const firstTime = items[0]?.time;
 
   const [moved] = result.splice(fromIndex, 1);
   result.splice(toIndex, 0, moved);
 
   return result.map((item, index) => ({
     ...item,
-    time: times[index],
+    time: index === 0 ? (firstTime ?? item.time) : "—",
   }));
 };
 
 const TRANSPORT_ICONS: Record<string, LucideIcon> = {
   "자동차·택시": CarFront,
-  기차: TrainFront,
+  // 기차: TrainFront,
   지하철: TramFront,
   버스: BusFront,
   "대중교통(혼합)": BusFront,
   도보: Footprints,
-  비행기: Plane,
+  자전거: Bike,
+  // 비행기: Plane,
 };
 
 // 아이콘을 포함하는 일정 교통 선택기. 공용 Dropdown 파일은 수정하지 않습니다.
@@ -429,14 +555,22 @@ function StopTransportDropdown({
           }
         }}
       >
-        {value && (
-          value === "대중교통(혼합)" ? (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 2, flex: "0 0 auto" }}>
+        {value &&
+          (value === "대중교통(혼합)" ? (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 2,
+                flex: "0 0 auto",
+              }}
+            >
               <BusFront size={20} aria-hidden="true" />
               <TramFront size={20} aria-hidden="true" />
             </span>
-          ) : <TriggerIcon size={20} aria-hidden="true" />
-        )}
+          ) : (
+            <TriggerIcon size={20} aria-hidden="true" />
+          ))}
         <span>{value || "여행 기본 교통 사용"}</span>
         <ChevronDown
           size={18}
@@ -469,14 +603,22 @@ function StopTransportDropdown({
                   triggerRef.current?.focus();
                 }}
               >
-                {option && (
-                  option === "대중교통(혼합)" ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 2, flex: "0 0 auto" }}>
+                {option &&
+                  (option === "대중교통(혼합)" ? (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 2,
+                        flex: "0 0 auto",
+                      }}
+                    >
                       <BusFront size={20} aria-hidden="true" />
                       <TramFront size={20} aria-hidden="true" />
                     </span>
-                  ) : <Icon size={20} aria-hidden="true" />
-                )}
+                  ) : (
+                    <Icon size={20} aria-hidden="true" />
+                  ))}
                 <span>{option || "여행 기본 교통 사용"}</span>
                 {value === option && <Check size={17} aria-hidden="true" />}
               </button>
@@ -496,7 +638,8 @@ type StopCardProps = {
   previewOffset: number;
   defaultTransport: string;
   leg?: ScheduleLeg;
-  onRetryRoute: () => void;
+  canChangeTransport: boolean;
+  onSwitchToWalking: () => void;
   expanded: boolean;
   onToggleExpanded: () => void;
   onUpdate: (patch: Partial<Stop>) => void;
@@ -524,7 +667,8 @@ function ScheduleStopCard({
   previewOffset,
   defaultTransport,
   leg,
-  onRetryRoute,
+  canChangeTransport,
+  onSwitchToWalking,
   expanded,
   onToggleExpanded,
   onUpdate,
@@ -540,6 +684,45 @@ function ScheduleStopCard({
   onHandlePointerMove,
   onHandlePointerUp,
 }: StopCardProps) {
+  const infoId = useId();
+  const [infoRetry, setInfoRetry] = useState(0);
+  const placeInfoRequest = React.useMemo(() => ({
+    enabled: !isEditMode && expanded,
+    retry: infoRetry,
+    input: {
+      id: stop.placeId || stop.sourcePlaceId || stop.externalId || "",
+      name: stop.title,
+      address: stop.address,
+      lat: stop.lat,
+      lng: stop.lng,
+    },
+  }), [isEditMode, expanded, infoRetry, stop.placeId, stop.sourcePlaceId,
+    stop.externalId, stop.title, stop.address, stop.lat, stop.lng]);
+  const [placeInfoResult, setPlaceInfoResult] = useState<{
+    request: typeof placeInfoRequest;
+    status: "ready" | "error";
+    record: KakaoPlaceInfo | null;
+  } | null>(null);
+  const currentPlaceInfoResult = placeInfoResult?.request === placeInfoRequest
+    ? placeInfoResult : null;
+  const placeInfo = placeInfoRequest.enabled
+    ? currentPlaceInfoResult?.record ?? null : null;
+  const infoStatus = !placeInfoRequest.enabled ? "idle"
+    : currentPlaceInfoResult?.status ?? "loading";
+
+  // Loading is derived from the current request. State changes only on completion.
+  useEffect(() => {
+    if (!placeInfoRequest.enabled) return;
+    let active = true;
+    void findPlaceDetail(placeInfoRequest.input).then((record) => {
+      if (!active) return;
+      setPlaceInfoResult({ request: placeInfoRequest, status: "ready", record });
+    }).catch(() => {
+      if (!active) return;
+      setPlaceInfoResult({ request: placeInfoRequest, status: "error", record: null });
+    });
+    return () => { active = false; };
+  }, [placeInfoRequest]);
   const [editorPresent, setEditorPresent] = useState(expanded);
   const [previousExpanded, setPreviousExpanded] = useState(expanded);
   if (previousExpanded !== expanded) {
@@ -551,22 +734,49 @@ function ScheduleStopCard({
     const timer = window.setTimeout(() => setEditorPresent(false), 240);
     return () => window.clearTimeout(timer);
   }, [expanded, editorPresent]);
-  const transport = resolveScheduleTransport(stop.transport, defaultTransport).label;
-  const TransportIcon = TRANSPORT_ICONS[transport] ?? (resolveScheduleTransport(stop.transport, defaultTransport).mode === "car" ? CarFront : MapPin);
-  const travelTimeLabel = !leg ? "다음 이동 없음" :
-    leg.status === "ready" && leg.route
+  const transport = resolveScheduleTransport(
+    stop.transport,
+    defaultTransport,
+  ).label;
+  const TransportIcon =
+    TRANSPORT_ICONS[transport] ??
+    (resolveScheduleTransport(stop.transport, defaultTransport).mode === "car"
+      ? CarFront
+      : MapPin);
+  const showWalkingSuggestion = leg?.status === "error" &&
+    leg.choice.mode === "transit" && leg.error !== "장소 좌표 확인 필요";
+  const travelTimeLabel = !leg
+    ? "다음 이동 없음"
+    : leg.status === "ready" && leg.route
       ? `${formatLegDistance(leg.route.distanceMeters!)} · 약 ${formatLegDuration(leg.route.durationSeconds!)}` +
-        (leg.route.transfers !== undefined ? ` · 환승 ${leg.route.transfers}회` : "") +
+        (leg.route.transfers !== undefined
+          ? ` · 환승 ${leg.route.transfers}회`
+          : "") +
+        (leg.choice.mode === "car"
+          ? typeof leg.route.taxiFareWon === "number" &&
+            Number.isFinite(leg.route.taxiFareWon) &&
+            leg.route.taxiFareWon >= 0
+            ? ` · 예상 택시비 약 ${leg.route.taxiFareWon.toLocaleString("ko-KR")}원`
+            : " · 예상 택시비 조회 정보 없음"
+          : "") +
         (leg.route.path.length < 2 ? " · 지도 경로 없음" : "")
-      : leg.status === "loading" ? "경로 계산 중…"
-      : leg.status === "unsupported" ? "경로 조회 미지원" :
-        leg.error === "장소 좌표 확인 필요" ? leg.error : "경로 조회 실패";
+      : leg.status === "loading"
+        ? "경로 계산 중…"
+        : leg.status === "unsupported"
+          ? "경로 조회 미지원"
+          : leg.error === "장소 좌표 확인 필요"
+            ? leg.error
+            : "경로 조회 실패";
   return (
     <S.StopRow
       data-stop-row
       data-has-next={Boolean(leg)}
+      data-walking-suggestion={showWalkingSuggestion}
       data-preview-offset={previewOffset}
-      style={{ transform: `translateY(${previewOffset}px)`, paddingBottom: leg ? 40 : undefined }}
+      style={{
+        transform: `translateY(${previewOffset}px)`,
+        paddingBottom: leg && !showWalkingSuggestion ? 40 : undefined,
+      }}
       data-editor-present={isEditMode && editorPresent}
       data-stop-id={stop.id}
       data-edit-mode={isEditMode}
@@ -596,7 +806,7 @@ function ScheduleStopCard({
         )}
       </S.DragSlot>
 
-      <S.Timeline data-edit-mode={isEditMode}>
+      <S.InformationTimeline data-edit-mode={isEditMode}>
         {isEditMode ? (
           <S.StopCheckbox
             type="checkbox"
@@ -607,22 +817,23 @@ function ScheduleStopCard({
         ) : (
           <S.TimelineDot>{index + 1}</S.TimelineDot>
         )}
-      </S.Timeline>
+      </S.InformationTimeline>
 
-      <S.StopCard
+      <S.InformationStopCard
+        data-info-open={!isEditMode && expanded}
         data-stop-card
         data-edit-mode={isEditMode}
         data-expanded={isEditMode && editorPresent}
       >
-        {isEditMode && (
+        {
           <S.StopExpandTrigger
             type="button"
-            aria-label={`${stop.title} 일정 편집 ${expanded ? "접기" : "펼치기"}`}
+            aria-label={`${stop.title} ${isEditMode ? "일정 편집" : "장소 정보"} ${expanded ? "접기" : "펼치기"}`}
             aria-expanded={expanded}
-            aria-controls={`stop-editor-${stop.id}`}
+            aria-controls={isEditMode ? `stop-editor-${stop.id}` : infoId}
             onClick={onToggleExpanded}
           />
-        )}
+        }
         <S.StopTime data-stop-time>
           <span>{stop.time}</span>
           <S.MobileStopCategory $category={stop.category}>
@@ -678,17 +889,19 @@ function ScheduleStopCard({
             role="region"
             aria-label={`${stop.title} 일정 편집`}
           >
-            <S.StopEditorRow>
-              <span>일정 시작 시간</span>
-              <S.StopTimePickerField>
-                <TimePicker
-                  label=""
-                  value={stop.time}
-                  placement="bottom"
-                  onChange={(value) => onUpdate({ time: value })}
-                />
-              </S.StopTimePickerField>
-            </S.StopEditorRow>
+            {index === 0 && (
+              <S.StopEditorRow>
+                <span>일정 시작 시간</span>
+                <S.StopTimePickerField>
+                  <TimePicker
+                    label=""
+                    value={stop.time}
+                    placement="bottom"
+                    onChange={(value) => onUpdate({ time: value })}
+                  />
+                </S.StopTimePickerField>
+              </S.StopEditorRow>
+            )}
             <S.StopEditorRow>
               <span>예정 체류 시간</span>
               <div>
@@ -749,29 +962,100 @@ function ScheduleStopCard({
                     onUpdate({ transport: value || undefined })
                   }
                 />
-                {leg && <S.StopTransportNotice role="status" aria-live="polite">
-                  {transport === "대중교통(혼합)" ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 2, flex: "0 0 auto" }}>
-                      <BusFront size={18} aria-hidden="true" />
-                      <TramFront size={18} aria-hidden="true" />
+                {leg && (
+                  <S.StopTransportNotice role="status" aria-live="polite">
+                    {transport === "대중교통(혼합)" ? (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 2,
+                          flex: "0 0 auto",
+                        }}
+                      >
+                        <BusFront size={18} aria-hidden="true" />
+                        <TramFront size={18} aria-hidden="true" />
+                      </span>
+                    ) : (
+                      <TransportIcon size={18} aria-hidden="true" />
+                    )}
+                    <span>
+                      {transport || "여행 기본 교통"} · {travelTimeLabel}
                     </span>
-                  ) : <TransportIcon size={18} aria-hidden="true" />}
-                  <span>
-                    {transport || "여행 기본 교통"} · {travelTimeLabel}
-                  </span>
-                </S.StopTransportNotice>}
+                  </S.StopTransportNotice>
+                )}
               </S.StopTransportField>
             </S.StopEditorRow>
           </S.StopEditor>
         )}
-      </S.StopCard>
-      {leg && (
-        <S.StopLegInfo title={leg.error} aria-label={`${stop.title}에서 ${leg.to.title}까지 이동`}>
+        {!isEditMode && (
+          <S.StopInformationCollapse data-open={expanded} inert={!expanded} aria-hidden={!expanded}>
+            <S.StopInformationClip>
+          <S.StopInformation id={infoId} role="region" aria-label={`${stop.title} 장소 정보`}
+            data-open={expanded}
+            aria-busy={infoStatus === "loading"}>
+            <dl>
+              <div className="place-info-row">
+                <dt><MapPin size={20} aria-hidden="true" />주소</dt>
+                <dd>{placeInfo?.road_address_name || placeInfo?.address_name || stop.address || "정보 없음"}</dd>
+              </div>
+              <div className="place-info-row">
+                <dt><Phone size={20} aria-hidden="true" />전화번호</dt>
+                <dd>{placeInfo?.phone ? (
+                  <a href={`tel:${placeInfo.phone.replace(/[^\d+]/g, "")}`}>{placeInfo.phone}</a>
+                ) : infoStatus === "loading" ? "확인 중…" : infoStatus === "error" ? "조회 실패" : "정보 없음"}</dd>
+              </div>
+              <div className="place-info-row">
+                <dt><FileText size={20} aria-hidden="true" />분류</dt>
+                <dd>{placeInfo?.category_name || stop.category || "정보 없음"}</dd>
+              </div>
+            </dl>
+            {infoStatus === "error" && (
+              <p className="place-info-status" role="status">
+                장소 정보를 불러오지 못했어요.
+                <button type="button" onClick={() => setInfoRetry((value) => value + 1)}>다시 시도</button>
+              </p>
+            )}
+          </S.StopInformation>
+            </S.StopInformationClip>
+          </S.StopInformationCollapse>
+        )}
+      </S.InformationStopCard>
+      {showWalkingSuggestion && (
+        <S.StopWalkingNotice role="status" aria-live="polite">
+          <TramFront className="walking-notice-icon" size={22} aria-hidden="true" />
+          <div className="walking-notice-copy">
+            <strong>{transport} 경로를 찾지 못했어요.</strong>
+            <span>가까운 구간이라면 도보로 이동해 보세요.</span>
+          </div>
+          {canChangeTransport && (
+            <button
+              type="button"
+              aria-label={`${stop.title}에서 ${leg?.to.title ?? "다음 장소"}까지 도보로 변경`}
+              onClick={onSwitchToWalking}
+            >
+              도보로 변경
+            </button>
+          )}
+        </S.StopWalkingNotice>
+      )}
+      {leg && !showWalkingSuggestion && (
+        <S.StopLegInfo
+          title={leg.error}
+          aria-label={`${stop.title}에서 ${leg.to.title}까지 이동`}
+        >
           {transport === "대중교통(혼합)" ? (
-            <span className="leg-icons"><BusFront size={14} aria-hidden="true" /><TramFront size={14} aria-hidden="true" /></span>
-          ) : <TransportIcon size={14} aria-hidden="true" />}
-          <span>{transport} · {travelTimeLabel}</span>
-          {leg.status === "error" && <button type="button" onClick={onRetryRoute}>재시도</button>}
+            <span className="leg-icons">
+              <BusFront size={14} aria-hidden="true" />
+              <TramFront size={14} aria-hidden="true" />
+            </span>
+          ) : (
+            <TransportIcon size={14} aria-hidden="true" />
+          )}
+          <span>
+            {transport} · {travelTimeLabel}
+          </span>
+
         </S.StopLegInfo>
       )}
     </S.StopRow>
@@ -1363,6 +1647,30 @@ function ScheduleContent({
     createStoredStopsByDay(selectedTrip.schedule, selectedTrip.dates),
   );
 
+  // 서버가 대표 이미지를 제공하면 우선 사용하고, 없으면 저장된 장소 사진에서 선택합니다.
+  // 일정 추가·삭제·날짜 이동을 하면 stopsByDay가 바뀌므로 이미지도 즉시 갱신됩니다.
+  const tripWithPhotos = selectedTrip as ScheduleTrip & {
+    coverImage?: string | null;
+    coverImageUrl?: string | null;
+    image?: string | null;
+    imageUrl?: string | null;
+    thumbnail?: string | null;
+    thumbnailUrl?: string | null;
+  };
+  const tripPhotoCandidates = getPhotoCandidates(
+    tripWithPhotos.coverImage,
+    tripWithPhotos.coverImageUrl,
+    tripWithPhotos.image,
+    tripWithPhotos.imageUrl,
+    tripWithPhotos.thumbnail,
+    tripWithPhotos.thumbnailUrl,
+    ...days.flatMap((day) =>
+      (stopsByDay[day.id] ?? []).map((place) => place.image),
+    ),
+  );
+
+  const savedStopsRef = useRef(stopsByDay);
+  const savedDaysRef = useRef(days);
   const scheduleVersionRef = useRef(selectedTrip.schedule.version);
   const scheduleSaveLock = useRef(false);
   const [scheduleSaving, setScheduleSaving] = useState(false);
@@ -1463,7 +1771,7 @@ function ScheduleContent({
     days[0] ??
     createDay(selectedTrip.startDate, 1);
 
-  const stops = React.useMemo(
+  const rawStops = React.useMemo(
     () => stopsByDay[activeDayId] ?? [],
     [stopsByDay, activeDayId],
   );
@@ -1472,7 +1780,7 @@ function ScheduleContent({
   useEffect(() => {
     let cancelled = false;
     if (
-      !stops.some(
+      !rawStops.some(
         (stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng),
       )
     ) {
@@ -1484,7 +1792,7 @@ function ScheduleContent({
       .then(async (maps) => {
         const places = new maps.services.Places();
         const found = await Promise.all(
-          stops.map((stop) =>
+          rawStops.map((stop) =>
             resolveKakaoPlace(maps, places, {
               id: stop.id,
               title: stop.title,
@@ -1498,12 +1806,12 @@ function ScheduleContent({
         const locations: Record<number, { lat: number; lng: number }> = {};
         found.forEach((point, index) => {
           if (point)
-            locations[stops[index].id] = {
+            locations[rawStops[index].id] = {
               lat: point.latitude,
               lng: point.longitude,
             };
         });
-        setLocatedResult({ source: stops, points: locations });
+        setLocatedResult({ source: rawStops, points: locations });
       })
       .catch(() => {
         /* 위치 조회 실패 구간은 미조회 상태로 둡니다. */
@@ -1511,22 +1819,36 @@ function ScheduleContent({
     return () => {
       cancelled = true;
     };
-  }, [stops]);
+  }, [rawStops]);
 
-  const routeStops = React.useMemo(() => {
-    const locatedStops = locatedResult.source === stops ? locatedResult.points : {};
-    return stops.map((stop) => ({
+  const routeInputStops = React.useMemo(() => {
+    const locatedStops =
+      locatedResult.source === rawStops ? locatedResult.points : {};
+    return rawStops.map((stop) => ({
       ...stop,
       lat: Number.isFinite(stop.lat) ? stop.lat : locatedStops[stop.id]?.lat,
       lng: Number.isFinite(stop.lng) ? stop.lng : locatedStops[stop.id]?.lng,
     }));
-  }, [stops, locatedResult]);
+  }, [rawStops, locatedResult]);
 
-  const { legs: routeLegs, routes: routePaths, retry: retryRoutes } = useScheduleRoutes(
-    routeStops,
+  const {
+    legs: routeLegs,
+    routes: rawRoutePaths,
+  } = useScheduleRoutes(
+    routeInputStops,
     modalDefaultTransport,
     `${selectedTrip.id}:${activeDay.isoDate}`,
   );
+
+  const stops = React.useMemo(() => calculateStopTimes(rawStops, routeLegs.map((leg) =>
+    leg.status === "ready" ? leg.route?.durationSeconds : undefined,
+  )), [rawStops, routeLegs]);
+  const routeStops = React.useMemo(() => routeInputStops.map((stop, index) => ({
+    ...stop, time: stops[index].time,
+  })), [routeInputStops, stops]);
+  const routePaths = React.useMemo(() => rawRoutePaths.map((route, index) => ({
+    ...route, fromTime: stops[index]?.time, toTime: stops[index + 1]?.time,
+  })), [rawRoutePaths, stops]);
 
   const selectedStopCount = stops.filter((stop) =>
     selectedStopIds.includes(stop.id),
@@ -1542,10 +1864,6 @@ function ScheduleContent({
   };
   const showMapPanel = activeTab === "map" || stops.length > 0;
 
-  const visibleMapStops = routeStops.filter(
-    (stop) => activeFilter === "전체" || stop.category === activeFilter,
-  );
-
   const kakaoMapStops = React.useMemo(
     () =>
       routeStops.map((stop) => ({
@@ -1557,11 +1875,18 @@ function ScheduleContent({
   );
 
   const updateStops = (updater: (previous: Stop[]) => Stop[]) => {
-    if (!canEditTrip) return;
-    setStopsByDay((previous) => ({
-      ...previous,
-      [activeDayId]: updater(previous[activeDayId] ?? []),
-    }));
+    if (!canEditTrip || scheduleSaveLock.current) return;
+    setStopsByDay((previous) => {
+      const current = previous[activeDayId] ?? [];
+      const calculated = calculateStopTimes(current, routeLegs.map((leg) =>
+        leg.status === "ready" ? leg.route?.durationSeconds : undefined,
+      ));
+      // Keep valid computed times when a later stop becomes the first stop.
+      const timed = calculated.map((stop, index) =>
+        stop.time === "—" ? current[index] : stop,
+      );
+      return { ...previous, [activeDayId]: updater(timed) };
+    });
 
     setShowSaveStatus(false);
   };
@@ -1587,6 +1912,29 @@ function ScheduleContent({
     setDragOverId(null);
   };
 
+  const handleCancelEdit = () => {
+    if (scheduleSaveLock.current) return;
+    setEditingStop(null);
+    setIsPlaceModalOpen(false);
+    setIsStopDeleteOpen(false);
+    setStopDeleteIds(null);
+    setScheduleError("");
+    setExpandedStopId(null);
+    setSelectedStopIds([]);
+
+    setStopsByDay(savedStopsRef.current);
+    setDays(savedDaysRef.current);
+    setActiveDayId((current) => savedDaysRef.current.some((day) => day.id === current)
+      ? current : savedDaysRef.current[0]!.id);
+    editAllSnapshotRef.current = null;
+
+    editSnapshotRef.current = null;
+    setIsEditMode(false);
+    setMenuId(null);
+    setShowSaveStatus(false);
+    resetDrag();
+  };
+
   const toggleEditMode = () => {
     if (!canEditTrip) return;
     setExpandedStopId(null);
@@ -1599,59 +1947,40 @@ function ScheduleContent({
       }));
       setIsEditMode(true);
     } else {
-      setIsEditMode(false);
-      editSnapshotRef.current = null;
+      handleCancelEdit();
     }
 
     setShowSaveStatus(false);
     setMenuId(null);
-    resetDrag();
-  };
-
-  const handleCancelEdit = () => {
-    setExpandedStopId(null);
-    setSelectedStopIds([]);
-
-    if (editAllSnapshotRef.current) {
-      setStopsByDay(editAllSnapshotRef.current);
-      editAllSnapshotRef.current = null;
-    } else if (editSnapshotRef.current) {
-      const snapshot = editSnapshotRef.current;
-
-      updateStops(() => snapshot);
-    }
-
-    editSnapshotRef.current = null;
-    setIsEditMode(false);
-    setMenuId(null);
-    setShowSaveStatus(false);
     resetDrag();
   };
 
   const handleSave = async () => {
-    if (!canEditTrip || scheduleSaveLock.current) return;
+    if (!canEditTrip || !isEditMode || scheduleSaveLock.current) return;
     scheduleSaveLock.current = true;
     setScheduleSaving(true);
     setScheduleError("");
     try {
+      const calculatedDays: Record<number, Stop[]> = {};
+      for (const day of days) {
+        calculatedDays[day.id] = await resolveDayStopTimes(stopsByDay[day.id] ?? [], modalDefaultTransport);
+      }
       const payload = days.flatMap((day) =>
-        (stopsByDay[day.id] ?? []).map((stop) => ({
-          ...stop,
-          date: day.isoDate,
-        })),
+        calculatedDays[day.id].map((stop) => ({ ...stop, date: day.isoDate })),
       );
       const saved = await replaceTripPlaces(
         String(selectedTrip.id),
         scheduleVersionRef.current,
         payload,
+        days.map((day) => day.isoDate),
+        savedDaysRef.current.map((day) => day.isoDate),
       );
       scheduleVersionRef.current = saved.version;
-      setStopsByDay(
-        createStoredStopsByDay(
-          saved,
-          days.map((day) => day.isoDate),
-        ),
-      );
+      const persisted = createStoredStopsByDay(saved, days.map((day) => day.isoDate));
+      savedStopsRef.current = persisted;
+      savedDaysRef.current = days;
+      setStopsByDay(persisted);
+      window.dispatchEvent(new Event("routy:schedule-saved"));
 
       setExpandedStopId(null);
       setSelectedStopIds([]);
@@ -1710,11 +2039,9 @@ function ScheduleContent({
         ?.querySelector<HTMLElement>("[data-stop-card]");
       if (card) {
         const preview = card.cloneNode(true) as HTMLElement;
-        preview
-          .querySelectorAll("[id]")
-          .forEach((node) => {
-            node.removeAttribute("id");
-          });
+        preview.querySelectorAll("[id]").forEach((node) => {
+          node.removeAttribute("id");
+        });
         preview.removeAttribute("id");
         preview
           .querySelectorAll("button, input, [role='region']")
@@ -1941,9 +2268,14 @@ function ScheduleContent({
       selectedStopIds.length === 0
     )
       return;
+    if (scheduleSaveLock.current) return;
     const selectedIds = new Set(selectedStopIds);
     setStopsByDay((previous) => {
-      const source = previous[activeDayId] ?? [];
+      const current = previous[activeDayId] ?? [];
+      const calculated = calculateStopTimes(current, routeLegs.map((leg) =>
+        leg.status === "ready" ? leg.route?.durationSeconds : undefined,
+      ));
+      const source = calculated.map((stop, index) => stop.time === "—" ? current[index] : stop);
       const moved = source.filter((stop) => selectedIds.has(stop.id));
       const target = previous[targetDayId] ?? [];
       const usedIds = new Set(target.map((stop) => stop.id));
@@ -2005,7 +2337,7 @@ function ScheduleContent({
         image: place.image || kakaoPlace?.image || defaultTripImage,
         x: 50,
         y: 50,
-        stayDurationMinutes: place.stayDurationMinutes || 60,
+        stayDurationMinutes: place.stayDurationMinutes ?? 60,
         transport: place.transport?.trim() || undefined,
         lat:
           typeof placeWithCoords.lat === "number"
@@ -2017,64 +2349,18 @@ function ScheduleContent({
             : kakaoPlace?.lng,
       };
     });
-    scheduleSaveLock.current = true;
-    try {
-      // append는 이 날짜의 새 장소만 저장합니다. 다른 날짜/편집 중인 변경은 건드리지 않습니다.
-      const saved = await appendTripPlaces(
-        String(selectedTrip.id),
-        targetDay.isoDate,
-        added,
-      );
-      // 편집 중 다른 사용자의 변경이 있으면 이후 전체 저장 시 충돌을 감지하도록
-      // 기존 버전을 유지합니다. 우리 append만 있었다면 한 버전 증가합니다.
-      const previousVersion = scheduleVersionRef.current;
-      if (!isEditMode || saved.version === previousVersion + 1)
-        scheduleVersionRef.current = saved.version;
-      const persisted = createStoredStopsByDay(
-        saved,
-        days.map((day) => day.isoDate),
-      );
-      const mergeAdded = (previous: Record<number, Stop[]>) => {
-        const existing = previous[targetDay.id] ?? [];
-        const addedIds = new Set(added.map((stop) => stop.placeId));
-        const newStops = (persisted[targetDay.id] ?? []).filter(
-          (stop) =>
-            addedIds.has(stop.placeId) &&
-            !existing.some((item) => item.placeId === stop.placeId),
-        );
-        return { ...previous, [targetDay.id]: [...existing, ...newStops] };
-      };
-      if (isEditMode) {
-        setStopsByDay(mergeAdded);
-        // 추가는 이미 DB에 저장되었습니다. 편집 취소로 사라지지 않도록 기준도 갱신합니다.
-        if (editAllSnapshotRef.current)
-          editAllSnapshotRef.current = mergeAdded(editAllSnapshotRef.current);
-      } else setStopsByDay(persisted);
-      setShowSaveStatus(false);
-      setIsPlaceModalOpen(false);
-    } finally {
-      scheduleSaveLock.current = false;
+    // Keep additions in this page's draft until the header Save succeeds.
+    if (!places.length) return;
+    if (!isEditMode) {
+      editAllSnapshotRef.current = savedStopsRef.current;
+      setIsEditMode(true);
     }
-  };
-
-  // 카카오 지도에서 선택한 장소 추가
-  const addPlaceFromKakao = (place: KakaoPlace) => {
-    updateStops((previous) => [
+    setStopsByDay((previous) => ({
       ...previous,
-      {
-        id: Date.now(),
-        title: place.name,
-        time: selectedTrip.startTime,
-        description: "카카오 지도에서 추가한 장소",
-        address: place.address,
-        category: "관광지",
-        image: defaultTripImage,
-        x: 50,
-        y: 50,
-        lat: place.lat,
-        lng: place.lng,
-      },
-    ]);
+      [targetDay.id]: [...(previous[targetDay.id] ?? []), ...added],
+    }));
+    setShowSaveStatus(false);
+    setIsPlaceModalOpen(false);
   };
 
   const handleApplyDates = async (dates: string[]) => {
@@ -2100,13 +2386,8 @@ function ScheduleContent({
       return false;
     }
 
-    // DB 저장에 성공하기 전에는 화면 데이터를 변경하지 않습니다.
-    const saved = await saveTripDays(
-      selectedTrip.id,
-      nextDates,
-      days.map((day) => day.isoDate),
-    );
-
+    if (scheduleSaveLock.current) throw new Error("저장 중입니다. 잠시 후 다시 시도해주세요.");
+    const saved = { dates: nextDates };
     const activeDate = days.find((day) => day.id === activeDayId)?.isoDate;
 
     const nextDays = reindexTripDays(days, saved.dates, createDay);
@@ -2121,7 +2402,7 @@ function ScheduleContent({
       nextDays.find((day) => day.isoDate === activeDate)?.id ?? nextDays[0]!.id,
     );
 
-    setIsEditMode(false);
+    setIsEditMode(true);
     setMenuId(null);
     setIsPlaceModalOpen(false);
     setEditingStop(null);
@@ -2168,7 +2449,12 @@ function ScheduleContent({
             )}
 
             <S.TripInfo>
-              <S.TripThumbnail src={defaultTripImage} alt="" />
+              <TripPhoto
+                key={JSON.stringify(tripPhotoCandidates)}
+                kind="cover"
+                candidates={tripPhotoCandidates}
+                alt={`${tripName} 대표 사진`}
+              />
 
               <S.TripDescription>
                 <S.TripTitleRow>
@@ -2336,7 +2622,11 @@ function ScheduleContent({
                     key={tab.key}
                     type="button"
                     $active={activeTab === tab.key}
-                    onClick={() => setActiveTab(tab.key)}
+                    onClick={() => {
+                      if (tab.key === activeTab) return;
+                      handleCancelEdit();
+                      setActiveTab(tab.key);
+                    }}
                   >
                     <Icon size={19} />
                     {tab.label}
@@ -2348,33 +2638,41 @@ function ScheduleContent({
 
           {(activeTab === "schedule" || activeTab === "map") && (
             <S.DayTabs>
-              {days.map((day) => (
-                <S.DayButton
-                  key={day.isoDate}
-                  type="button"
-                  $active={activeDayId === day.id}
-                  onClick={() => {
-                    setExpandedStopId(null);
-                    setSelectedStopIds([]);
+              {days.map((day) => {
+                const dayPhotos = getPhotoCandidates(
+                  ...(stopsByDay[day.id] ?? []).map((place) => place.image),
+                  ...tripPhotoCandidates,
+                );
+                return (
+                  <S.DayButton
+                    key={day.isoDate}
+                    type="button"
+                    $active={activeDayId === day.id}
+                    onClick={() => {
+                      if (day.id === activeDayId) return;
+                      handleCancelEdit();
+                      // Resolve by date after restoring the persisted day list.
+                      setActiveDayId(savedDaysRef.current.find((savedDay) =>
+                        savedDay.isoDate === day.isoDate,
+                      )?.id ?? savedDaysRef.current[0]!.id);
+                    }}
+                  >
+                    <TripPhoto
+                      key={`${day.isoDate}:${JSON.stringify(dayPhotos)}`}
+                      kind="day"
+                      candidates={dayPhotos}
+                      alt={`Day ${day.id} 장소 사진`}
+                    />
 
-                    editAllSnapshotRef.current = null;
-                    setActiveDayId(day.id);
-                    setIsEditMode(false);
-                    setMenuId(null);
-                    setShowSaveStatus(false);
-                    resetDrag();
-                  }}
-                >
-                  <S.DayThumbnail src={day.image} alt="" />
-
-                  <S.DayButtonText>
-                    <strong>Day {day.id}</strong>
-                    <span>
-                      {day.date} ({day.weekday})
-                    </span>
-                  </S.DayButtonText>
-                </S.DayButton>
-              ))}
+                    <S.DayButtonText>
+                      <strong>Day {day.id}</strong>
+                      <span>
+                        {day.date} ({day.weekday})
+                      </span>
+                    </S.DayButtonText>
+                  </S.DayButton>
+                );
+              })}
             </S.DayTabs>
           )}
 
@@ -2382,7 +2680,7 @@ function ScheduleContent({
             <S.ContentGrid
               data-edit-mode={activeTab === "schedule" && showMapPanel}
             >
-              <S.SchedulePanel data-tablet-hidden={activeTab === "map"}>
+              {activeTab === "schedule" && (
                 <S.ScheduleHeading>
                   <S.ScheduleHeadingLeft>
                     <div className="date-wrapper">
@@ -2527,7 +2825,9 @@ function ScheduleContent({
                     </S.MobileEditAction>
                   )}
                 </S.ScheduleHeading>
+              )}
 
+              <S.SchedulePanel data-tablet-hidden={activeTab === "map"}>
                 {/* <S.ScheduleListArea> */}
                 {isEditMode && stops.length > 0 && (
                   <S.SelectAllRow>
@@ -2577,7 +2877,15 @@ function ScheduleContent({
                       previewOffset={getDragPreviewOffset(index)}
                       defaultTransport={modalDefaultTransport}
                       leg={routeLegs[index]}
-                      onRetryRoute={retryRoutes}
+                      canChangeTransport={canEditTrip}
+                      onSwitchToWalking={() => {
+                        if (!canEditTrip || scheduleSaveLock.current) return;
+                        // Use the same save/cancel lifecycle as other schedule edits.
+                        if (!isEditMode) toggleEditMode();
+                        updateStops((previous) => previous.map((item) =>
+                          item.id === stop.id ? { ...item, transport: "도보" } : item,
+                        ));
+                      }}
                       expanded={expandedStopId === stop.id}
                       onToggleExpanded={() =>
                         setExpandedStopId((previous) =>
@@ -2607,8 +2915,7 @@ function ScheduleContent({
                   ))}
                 </S.StopList>
 
-
-                {isEditMode && stops.length > 0 && (
+                {/* {isEditMode && stops.length > 0 && (
                   <S.AddPlaceButton type="button" onClick={openPlaceModal}>
                     <S.AddPlaceTitle>
                       <Plus size={17} />
@@ -2617,7 +2924,7 @@ function ScheduleContent({
 
                     <span>맛집, 카페, 명소 등 원하는 장소를 추가해보세요.</span>
                   </S.AddPlaceButton>
-                )}
+                )} */}
               </S.SchedulePanel>
 
               {showMapPanel && (
@@ -2626,30 +2933,15 @@ function ScheduleContent({
                   data-tablet-hidden={activeTab === "schedule"}
                 >
                   <S.MapCanvas>
-                    {activeTab === "schedule" ? (
-                      <ScheduleEditRouteMap
-                        key={`${activeDayId}-${editMapFitVersion}`}
-                        stops={kakaoMapStops}
-                        category="전체"
-                        showRoute={showRoute}
-                        routePaths={routePaths}
-                        routeMode={routeMode}
-                        zoom={mapZoom}
-                      />
-                    ) : (
-                      <KakaoTravelMap
-                        region={tripRegion}
-                        stops={visibleMapStops}
-                        routeStops={routeStops}
-                        routePaths={routePaths}
-                        routeMode={routeMode}
-                        showRoute={showRoute}
-                        zoom={mapZoom}
-                        onAddPlace={addPlaceFromKakao}
-                        hideSearch
-                      />
-
-                    )}
+                    <ScheduleEditRouteMap
+                      key={`${activeTab}-${activeDayId}-${editMapFitVersion}`}
+                      stops={kakaoMapStops}
+                      category={activeTab === "map" ? activeFilter : "전체"}
+                      showRoute={showRoute}
+                      routePaths={routePaths}
+                      routeMode={routeMode}
+                      zoom={mapZoom}
+                    />
                   </S.MapCanvas>
 
                   {!(activeTab === "schedule") && (
@@ -2736,12 +3028,16 @@ function ScheduleContent({
                       <S.RouteToggle
                         type="button"
                         $active={showRoute}
-                        onClick={() => setShowRoute((prev) => !prev)}
+                        onClick={() => {
+                          setShowRoute(true);
+                          setMapZoom(1);
+                          setEditMapFitVersion((version) => version + 1);
+                        }}
                       >
                         <Route size={17} />
 
                         <span>
-                          {showRoute ? "경로 숨기기" : "전체 경로 보기"}
+                          전체 경로
                         </span>
                       </S.RouteToggle>
                     </S.MapToolbar>
@@ -2846,20 +3142,21 @@ function ScheduleContent({
               />
             </S.EditField>
 
-            <S.EditField>
-              <label>방문 시간</label>
-              <S.FormInput
-                type="time"
-                value={editingStop.time}
-                onChange={(event) =>
-                  setEditingStop({
-                    ...editingStop,
-                    time: event.target.value,
-                  })
-                }
-              />
-            </S.EditField>
-
+            {editingStop.id === rawStops[0]?.id && (
+              <S.EditField>
+                <label>방문 시간</label>
+                <S.FormInput
+                  type="time"
+                  value={editingStop.time}
+                  onChange={(event) =>
+                    setEditingStop({
+                      ...editingStop,
+                      time: event.target.value,
+                    })
+                  }
+                />
+              </S.EditField>
+            )}
             <S.EditField>
               <label>장소 설명</label>
               <S.FormInput
@@ -3273,113 +3570,6 @@ type EditRouteMapProps = {
   zoom: number;
 };
 
-function createMarkerContent(
-  stop: KakaoStop & { time?: string },
-  order: number,
-  total: number,
-  onActiveChange: (active: boolean) => void,
-  onSelect: (selected: boolean) => void,
-  onHover: (active: boolean) => void,
-): HTMLElement {
-  const marker = document.createElement("div");
-  marker.className = "route-map-marker";
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "route-map-pin";
-  const role =
-    total === 1
-      ? "출발·도착"
-      : order === 1
-        ? "출발지"
-        : order === total
-          ? "도착지"
-          : "경유지";
-  button.setAttribute(
-    "aria-label",
-    `${order}번 ${role} ${stop.title}${stop.time ? ` · ${stop.time}` : ""}`,
-  );
-  button.setAttribute("aria-expanded", "false");
-  button.innerHTML = renderToStaticMarkup(
-    <svg width="44" height="54" viewBox="0 0 44 54" aria-hidden="true">
-      <path
-        d="M22 2C11 2 3 10 3 21c0 13 19 30 19 30s19-17 19-30C41 10 33 2 22 2Z"
-        fill={order === 1 ? "#269B76" : order === total ? "#D9853C" : "#007C80"}
-        stroke="white"
-        strokeWidth="3"
-      />
-    </svg>,
-  );
-  const number = document.createElement("span");
-  number.className = "route-map-pin-number";
-  number.textContent = String(order);
-  button.append(number);
-  const tooltip = document.createElement("span");
-  tooltip.className = "route-map-tooltip";
-  tooltip.id = `route-stop-${String(stop.id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-  tooltip.setAttribute("role", "tooltip");
-  tooltip.hidden = true;
-  button.setAttribute("aria-describedby", tooltip.id);
-  const title = document.createElement("strong");
-  title.textContent = stop.title;
-  const time = document.createElement("span");
-  time.textContent = stop.time ? `일정 시간 ${stop.time}` : "일정 시간 미정";
-  tooltip.append(title, time);
-  if (stop.address) {
-    const address = document.createElement("span");
-    address.textContent = stop.address;
-    tooltip.append(address);
-  }
-  const description = (stop as KakaoStop & { description?: string })
-    .description;
-  if (description?.trim()) {
-    const info = document.createElement("span");
-    info.textContent = description;
-    tooltip.append(info);
-  }
-  const timeLabel = document.createElement("span");
-  timeLabel.className = "route-map-pin-time";
-  timeLabel.textContent = stop.time || "시간 미정";
-  marker.append(button, timeLabel, tooltip);
-  const show = (active: boolean) => {
-    tooltip.hidden = !active;
-    button.setAttribute("aria-expanded", String(active));
-    marker.dataset.active = String(active);
-    onActiveChange(active || tapped);
-  };
-  let tapped = false;
-  const deselect = () => {
-    tapped = false;
-    marker.dataset.selected = "false";
-    button.setAttribute("aria-pressed", "false");
-    show(false);
-    onSelect(false);
-  };
-  marker.addEventListener("route-marker-deselect", deselect);
-  button.setAttribute("aria-pressed", "false");
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const nextSelected = !tapped;
-    marker
-      .closest("[data-route-map-root]")
-      ?.querySelectorAll('.route-map-marker[data-selected="true"]')
-      .forEach((other) => {
-        if (other !== marker)
-          other.dispatchEvent(new Event("route-marker-deselect"));
-      });
-    tapped = nextSelected;
-    marker.dataset.selected = String(tapped);
-    button.setAttribute("aria-pressed", String(tapped));
-    show(tapped);
-    onSelect(tapped);
-  });
-  button.addEventListener("mouseenter", () => onHover(true));
-  button.addEventListener("mouseleave", () => onHover(false));
-  button.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") deselect();
-  });
-  return marker;
-}
-
 function ScheduleEditRouteMap({
   stops,
   category,
@@ -3391,7 +3581,10 @@ function ScheduleEditRouteMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const layersRef = useRef<OverlayInstance[]>([]);
-  const locatedRef = useRef<LocatedStop[]>([]);
+  const routeLayerRef = useRef<ReturnType<
+    typeof mountRouteOverlapLayer
+  > | null>(null);
+  const [locatedPoints, setLocatedPoints] = useState<LocatedStop[]>([]);
   const initialLevelRef = useRef(9);
   const [sdk, setSdk] = useState<KakaoMapsSDK | null>(null);
   const [error, setError] = useState("");
@@ -3452,11 +3645,11 @@ function ScheduleEditRouteMap({
     void Promise.all(stops.map((stop) => resolveKakaoPlace(sdk, places, stop)))
       .then((found) => {
         if (cancelled) return;
-        locatedRef.current = found.filter(
+        const coordinates = found.filter(
           (item): item is LocatedStop => item !== null,
         );
-        setUnresolved(found.length - locatedRef.current.length);
-        const coordinates = locatedRef.current;
+        setLocatedPoints(coordinates);
+        setUnresolved(found.length - coordinates.length);
         map.relayout();
         if (coordinates.length > 0) {
           if (coordinates.length === 1) {
@@ -3498,12 +3691,21 @@ function ScheduleEditRouteMap({
   // 마커·순서 연결선은 동일 좌표 데이터를 사용합니다.
   useEffect(() => {
     const map = mapRef.current;
-    if (!sdk || !map || loading) return;
+    const mapContainer = containerRef.current;
+    if (!sdk || !map || loading || !mapContainer) return;
     layersRef.current.forEach((layer) => {
-        layer.setMap(null);
-      });
+      layer.setMap(null);
+    });
     layersRef.current = [];
-    const coordinatePoints = locatedRef.current;
+    // Geocoding may return cached stop metadata. Only reuse its coordinates;
+    // popup times and details must come from the current calculated schedule.
+    const coordinatePoints = locatedPoints.flatMap((point) => {
+      const stop = stops.find((item) => String(item.id) === String(point.stop.id));
+      return stop ? [{ ...point, stop }] : [];
+    });
+    const pinCleanups: Array<() => void> = [];
+    const layoutPins: Array<{element: HTMLElement; lat: number; lng: number}> = [];
+    let routeLayer: ReturnType<typeof mountRouteOverlapLayer> | null = null;
     const openRouteInfo = (info: RouteSelection, pinned: boolean) => {
       if (!isTouchMap) {
         routePinnedRef.current = false;
@@ -3523,17 +3725,6 @@ function ScheduleEditRouteMap({
     const leaveRouteInfo = () => {
       setRouteHover(null);
     };
-    const kakaoEvent = (
-      sdk as KakaoMapsSDK & {
-        event?: {
-          addListener(
-            target: object,
-            event: string,
-            listener: () => void,
-          ): void;
-        };
-      }
-    ).event;
     if (showRoute) {
       const ordered = stops.map((stop) => {
         const found = coordinatePoints.find(
@@ -3552,110 +3743,86 @@ function ScheduleEditRouteMap({
           lng: found?.longitude,
         };
       });
-      buildDisplayRoutes(ordered, routePaths, routeMode).forEach((leg) => {
-        const line = new sdk.Polyline({
+      if (containerRef.current) {
+        routeLayer = mountRouteOverlapLayer({
+          sdk,
           map,
-          path: leg.path.map(({ lat, lng }) => new sdk.LatLng(lat, lng)),
-          strokeWeight: leg.isFallback ? 5 : 9,
-          strokeColor: leg.isFallback ? "#778D90" : routeColor(leg.mode),
-          strokeOpacity: leg.isFallback ? 0.7 : 0.92,
-          strokeStyle: leg.isFallback ? "shortdash" : "solid",
+          container: containerRef.current,
+          routes: buildDisplayRoutes(ordered, routePaths, routeMode),
+          isTouch: isTouchMap,
+          pinPositions: coordinatePoints.map((point) => ({
+            lat: point.latitude,
+            lng: point.longitude,
+          })),
+          onHover: (value) => {
+            if (value) {
+              closeMapPlacePins(mapContainer);
+              hoverRouteInfo(value);
+            } else leaveRouteInfo();
+          },
+          onSelect: (value) => {
+            closeMapPlacePins(mapContainer);
+            openRouteInfo(value, true);
+          },
+          onClear: () => {
+            routePinnedRef.current = false;
+            selectedRouteRef.current = null;
+            setRouteSelection(null);
+            setRouteHover(null);
+          },
         });
-        layersRef.current.push(line);
-        const info: RouteSelection = {
-          kind: "route",
-          route: leg,
-          order: leg.order ?? 1,
-        };
-        kakaoEvent?.addListener(line, "mouseover", () => {
-          if (!isTouchMap) setRouteLineHoverStyle(line, leg, true);
-          hoverRouteInfo(info);
-        });
-        kakaoEvent?.addListener(line, "mouseout", () => {
-          if (!isTouchMap) setRouteLineHoverStyle(line, leg, false);
-          leaveRouteInfo();
-        });
-        kakaoEvent?.addListener(line, "click", () => openRouteInfo(info, true));
-      });
+        routeLayerRef.current = routeLayer;
+      }
     }
+
     coordinatePoints.forEach(({ stop, latitude, longitude }) => {
       if (category !== "전체" && stop.category !== category) return;
       const order = stops.findIndex((item) => item.id === stop.id) + 1;
       let overlay:
         | (OverlayInstance & { setZIndex?: (index: number) => void })
         | null = null;
-      const content = createMarkerContent(
-        stop,
+      const pin = createMapPlacePin({
+        sdk,
+        map,
+        container: mapContainer,
+        isTouch: isTouchMap,
         order,
-        stops.length,
-        (active) => {
+        total: stops.length,
+        stop: {
+          id: stop.id,
+          title: stop.title,
+          time: stop.time,
+          address: stop.address,
+          category: stop.category,
+          description:
+            "description" in stop && typeof stop.description === "string"
+              ? stop.description
+              : undefined,
+        },
+        onActiveChange: (active) => {
           overlay?.setZIndex?.(active ? 20 : 3);
+          if (active) routeLayer?.clearSelection();
         },
-        (selected) => {
-          if (selected) {
-            openRouteInfo(
-              {
-                kind: "stop",
-                order,
-                total: stops.length,
-                stop: {
-                  id: stop.id,
-                  title: stop.title,
-                  time: stop.time,
-                  address: stop.address,
-                  category: stop.category,
-                  description:
-                    "description" in stop &&
-                    typeof stop.description === "string"
-                      ? stop.description
-                      : undefined,
-                  externalUrl: getKakaoMapPointUrl(
-                    stop.title,
-                    latitude,
-                    longitude,
-                  ),
-                },
-              },
-              true,
-            );
-          } else {
-            routePinnedRef.current = false;
-            selectedRouteRef.current = null;
-            setRouteSelection(null);
-            setRouteHover(null);
-          }
-        },
-        (active) => {
-          if (!active || isTouchMap) return;
-          hoverRouteInfo({
-            kind: "stop",
-            order,
-            total: stops.length,
-            stop: {
-              id: stop.id,
-              title: stop.title,
-              time: stop.time,
-              address: stop.address,
-              category: stop.category,
-              description:
-                "description" in stop && typeof stop.description === "string"
-                  ? stop.description
-                  : undefined,
-              externalUrl: getKakaoMapPointUrl(stop.title, latitude, longitude),
-            },
-          });
-        },
-      );
+      });
+      pinCleanups.push(pin.destroy);
+      layoutPins.push({element:pin.element,lat:latitude,lng:longitude});
       overlay = new sdk.CustomOverlay({
         map,
         position: new sdk.LatLng(latitude, longitude),
-        content,
+        content: pin.element,
         yAnchor: 1,
         zIndex: 3,
       });
       layersRef.current.push(overlay);
     });
+    const disposePinLayout = mountPlacePinLayout({sdk, map, container:mapContainer, pins:layoutPins});
     return () => {
+      disposePinLayout();
+      pinCleanups.forEach((cleanup) => {
+        cleanup();
+      });
+      routeLayer?.setMap(null);
+      if (routeLayerRef.current === routeLayer) routeLayerRef.current = null;
       layersRef.current.forEach((layer) => {
         layer.setMap(null);
       });
@@ -3669,6 +3836,7 @@ function ScheduleEditRouteMap({
     routePaths,
     routeMode,
     loading,
+    locatedPoints,
     isTouchMap,
   ]);
 
@@ -3721,7 +3889,14 @@ function ScheduleEditRouteMap({
           style={{ width: "100%", height: "100%" }}
           aria-label="카카오 지도"
         />
-        {!isTouchMap && <RouteHoverHint selection={routeHover} />}
+        <RouteHoverHint
+          selection={isTouchMap ? routeSelection : routeHover}
+          onDismiss={
+            isTouchMap
+              ? () => routeLayerRef.current?.clearSelection()
+              : undefined
+          }
+        />
         {!KAKAO_KEY ? (
           <S.EditMapMessage role="status">
             <strong>카카오맵 API 키가 필요해요.</strong>
@@ -3753,19 +3928,6 @@ function ScheduleEditRouteMap({
           </S.EditMapNote>
         )}
       </MapViewport>
-      {isTouchMap && (
-        <RouteMapDetails
-          key={`${routeSelection?.kind ?? "none"}-${routeSelection?.order ?? ""}-${isTouchMap}`}
-          selection={routeSelection}
-          isTouch={isTouchMap}
-          onClose={() => {
-            routePinnedRef.current = false;
-            selectedRouteRef.current = null;
-            setRouteSelection(null);
-            setRouteHover(null);
-          }}
-        />
-      )}
     </S.EditMapRoot>
   );
 }

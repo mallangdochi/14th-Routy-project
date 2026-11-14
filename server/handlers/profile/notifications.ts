@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
    } });
   }
   if (req.method === "GET" && action === "feed") {
-   const { data, error } = await db.rpc("routy_notification_feed", { p_action: "list", p_ids: [] });
+   const { data, error } = await db.rpc("routy_schedule_notification_feed", { p_action: "list", p_ids: [] });
    if (error) throw operationError("FEED_LOOKUP", error.code);
    return res.status(200).json(data);
   }
@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (action === "dismiss" || action === "restore") {
    if (!Array.isArray(input.ids) || !input.ids.length || input.ids.length > 100 || input.ids.some(id => typeof id !== "string" || !uuid.test(id)))
     return res.status(400).json({ message: "알림 ID를 확인해주세요." });
-   const { data, error } = await db.rpc("routy_notification_feed", { p_action: action, p_ids: input.ids });
+   const { data, error } = await db.rpc("routy_schedule_notification_feed", { p_action: action, p_ids: input.ids });
    if (error) throw operationError("FEED_MUTATION", error.code);
    return res.status(200).json(data);
   }

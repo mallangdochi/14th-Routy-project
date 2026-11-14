@@ -23,11 +23,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = createSupabaseServer(req,res);
     const { data: { user }, error: authError } = await db.auth.getUser();
     if (authError || !user) return res.status(401).json({ message: "로그인이 필요합니다." });
-    const { data, error } = await db.rpc("routy_schedule", {
+    const { data, error } = await db.rpc(req.method === "POST" ? "routy_schedule_with_events" : "routy_schedule", {
       p_trip_id: input.tripId, p_action: action,
       p_date: action === "append" ? input.date : null,
       p_places: req.method === "POST" ? input.places : [],
       p_expected_version: action === "replace" ? input.version : null,
+      ...(req.method === "POST" ? { p_dates: input.dates ?? null, p_expected_dates: input.expectedDates ?? null } : {}),
     });
     if (error) {
       const status = error.code === "42501" ? 403 : error.code === "40001" ? 409 : 400;
