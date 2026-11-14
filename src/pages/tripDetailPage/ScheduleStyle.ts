@@ -730,19 +730,17 @@ export const ContentGrid = styled.div({
   backgroundColor: "#FFFFFF",
   boxShadow: "0 3px 14px rgba(13,62,65,.025)",
   "& > section": { width: "100%", minWidth: 0 },
+  "& > div:first-of-type": { gridColumn: "1 / -1", marginBottom: 0 },
   "@media (min-width: 1100px)": {
     '&[data-edit-mode="true"]': {
       gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-      gridTemplateRows: "auto auto",
+      gridTemplateRows: "auto minmax(0, 1fr)",
       columnGap: "22px",
-      "& > section:first-of-type": { display: "contents" },
-      "& > section:first-of-type > div:first-of-type": {
-        gridColumn: "1 / -1",
-        marginBottom: 0,
-      },
-      "& > section:first-of-type > div:nth-of-type(2)": {
+      // Keep selection and the whole stop list inside one left-column panel.
+      "& > section:first-of-type": {
         gridColumn: "1",
         gridRow: "2",
+        display: "flex",
       },
       "& > section:last-of-type": {
         gridColumn: "2",
@@ -991,6 +989,11 @@ export const StopRow = styled.div<{
   '&[data-editor-present="true"]': { zIndex: 20 },
 
   '&[data-has-next="true"]': { paddingBottom: "40px" },
+  '&[data-walking-suggestion="true"]': {
+    flexWrap: "wrap",
+    paddingBottom: 0,
+    rowGap: "12px",
+  },
 
   // 메뉴가 열린 카드
   "&:has([aria-expanded='true'])": {
@@ -1017,6 +1020,7 @@ export const StopRow = styled.div<{
   },
 
   "@media (max-width: 767px)": {
+    '&[data-walking-suggestion="true"]': { paddingBottom: 0 },
     minHeight: "130px",
     gap: "6px",
     "& > div:first-of-type, & > div:nth-of-type(2)": {
@@ -1153,7 +1157,9 @@ export const Timeline = styled.div({
   minWidth: "28px",
   alignSelf: "stretch",
 
-  '&[data-edit-mode="true"]::before, &[data-edit-mode="true"]::after': { display: "none" },
+  '&[data-edit-mode="true"]::before, &[data-edit-mode="true"]::after': {
+    display: "none",
+  },
   "&::before": {
     content: '""',
     position: "absolute",
@@ -1384,6 +1390,9 @@ export const StopDetails = styled.div({
     lineHeight: 1.4,
     color: "#172324",
     overflowWrap: "anywhere",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   "& > small": {
     display: "flex",
@@ -3612,9 +3621,194 @@ export const StopLegInfo = styled.div({
   "& > svg, & .leg-icons": { flex: "0 0 auto" },
   "& .leg-icons": { display: "inline-flex", alignItems: "center", gap: "2px" },
   "& button": {
-    border: 0, padding: "3px 6px", borderRadius: "4px", backgroundColor: "#FFFFFF",
-    color: "#0D3E41", font: "inherit", cursor: "pointer", textDecoration: "underline",
+    border: 0,
+    padding: "3px 6px",
+    borderRadius: "4px",
+    backgroundColor: "#FFFFFF",
+    color: "#0D3E41",
+    font: "inherit",
+    cursor: "pointer",
+    textDecoration: "underline",
   },
-  "& button:focus-visible": { outline: "2px solid #527F79", outlineOffset: "2px" },
+  "& button:focus-visible": {
+    outline: "2px solid #527F79",
+    outlineOffset: "2px",
+  },
   "@media (max-width: 767px)": { left: "34px", fontSize: "11px" },
+});
+
+
+// Normal flow lets the notice grow without overlapping cards at narrow widths.
+export const StopWalkingNotice = styled.div({
+  position: "relative",
+  flex: "0 0 calc(100% - 64px)",
+  width: "calc(100% - 64px)",
+  marginLeft: "64px",
+  marginBottom: "8px",
+  gridColumn: "1 / -1",
+  order: 3,
+  boxSizing: "border-box",
+  minHeight: "80px",
+  display: "grid",
+  gridTemplateColumns: "22px minmax(0, 1fr) auto",
+  alignItems: "center",
+  gap: "12px",
+  padding: "14px 16px",
+  borderRadius: "10px",
+  backgroundColor: "#EDF8F5",
+  color: "#0D3E41",
+  "& .walking-notice-icon": { color: "#0D3E41", flexShrink: 0 },
+  "& .walking-notice-copy": {
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    lineHeight: 1.5,
+    overflowWrap: "anywhere",
+  },
+  "& strong": { fontSize: "14px", fontWeight: 700 },
+  "& .walking-notice-copy > span": { fontSize: "12px", color: "#596D75" },
+  "& button": {
+    alignSelf: "center",
+    flexShrink: 0,
+    minHeight: "34px",
+    padding: "6px 12px",
+    border: "1px solid #00858A",
+    borderRadius: "7px",
+    backgroundColor: "#FFFFFF",
+    color: "#006D70",
+    fontFamily: "inherit",
+    fontSize: "13px",
+    fontWeight: 700,
+    lineHeight: 1.4,
+    whiteSpace: "nowrap",
+    cursor: "pointer",
+  },
+  "& button:focus-visible": {
+    outline: "2px solid #527F79",
+    outlineOffset: "3px",
+  },
+  "@media (hover: hover)": {
+    "& button:hover": { backgroundColor: "#F2FAF9" },
+  },
+  "@media (max-width: 767px)": {
+    flexBasis: "calc(100% - 34px)",
+    width: "calc(100% - 34px)",
+    marginLeft: "34px",
+    minHeight: "80px",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    gap: "8px",
+    padding: "10px",
+    "& .walking-notice-icon": { display: "none" },
+    "& strong": { fontSize: "12px" },
+    "& .walking-notice-copy > span": { fontSize: "11px" },
+    "& button": { minHeight: "40px", fontSize: "12px", padding: "6px 8px" },
+  },
+});
+
+// Normal cards use an explicit header row; the information spans the row below.
+// Keep the existing edit-mode layout and its floating editor unchanged.
+export const InformationStopCard = styled(StopCard)({
+  '&[data-edit-mode="false"]': {
+    display: "grid",
+    gridTemplateColumns: "48px 108px minmax(0, 1fr)",
+    gridTemplateRows: "104px",
+    gridAutoRows: "auto",
+    columnGap: 10,
+    rowGap: 0,
+    '& > button': { bottom: "auto", height: 124 },
+  },
+  '&[data-info-open="true"]': {
+    backgroundColor: "#F1F9F8",
+    borderColor: "#00A1AA",
+    boxShadow: "0 8px 18px rgba(13, 62, 65, 0.08)",
+  },
+  '@media (min-width: 768px) and (max-width: 1023px)': {
+    '&[data-edit-mode="false"]': {
+      gridTemplateColumns: "42px 96px minmax(0, 1fr)",
+      columnGap: 8,
+    },
+  },
+  '@media (max-width: 767px)': {
+    '&[data-edit-mode="false"]': {
+      display: "block",
+      padding: "130px 0 0",
+      '& > button': { height: 130 },
+    },
+  },
+});
+
+export const InformationTimeline = styled(Timeline)({
+  '&[data-edit-mode="false"]': {
+    alignItems: "flex-start",
+    paddingTop: 49,
+    boxSizing: "border-box",
+    '&::before': { bottom: "auto", height: 62 },
+    '&::after': { top: 62 },
+  },
+  '@media (max-width: 1023px)': {
+    '&[data-edit-mode="false"]': { paddingTop: 49.5 },
+  },
+  '@media (max-width: 767px)': {
+    '&[data-edit-mode="false"]': {
+      paddingTop: 54,
+      '&::before': { height: 65 },
+      '&::after': { top: 65 },
+    },
+  },
+});
+
+export const StopInformation = styled.div({
+  ...dropdownAnimation,
+  width: "100%",
+  minWidth: 0,
+  boxSizing: "border-box",
+  position: "relative",
+  zIndex: 2,
+  color: "#0D3E41",
+  borderTop: "1px solid #DCE9E8",
+  marginTop: 0,
+  cursor: "default",
+  "& dl": { margin: 0 },
+  "& .place-info-row": {
+    display: "grid",
+    gridTemplateColumns: "112px minmax(0, 1fr)",
+    alignItems: "center",
+    gap: 16,
+    padding: "16px 4px",
+    borderBottom: "1px solid #DCE9E8",
+    fontSize: 14,
+    lineHeight: 1.6,
+  },
+  "& .place-info-row:last-child": { borderBottom: 0 },
+  "& dt": { display: "flex", alignItems: "center", gap: 12, fontWeight: 600 },
+  "& dt svg": { flexShrink: 0 },
+  "& dd": { margin: 0, textAlign: "right", overflowWrap: "anywhere" },
+  "& a": { color: "inherit", textDecoration: "none" },
+  "& a:focus-visible": { outline: "2px solid #527F79", outlineOffset: 3 },
+  "& .place-info-status": { margin: "0 4px 12px", fontSize: 12, color: "#596D75" },
+  "& .place-info-status button": { marginLeft: 8, cursor: "pointer", color: "inherit" },
+  "@media (max-width: 767px)": {
+    marginTop: 0,
+    padding: "0 16px 4px",
+    borderRadius: "0 0 16px 16px",
+    backgroundColor: "#F1F9F8",
+    "& .place-info-row": { gridTemplateColumns: "88px minmax(0, 1fr)", gap: 10, padding: "12px 0", fontSize: 12 },
+    "& dt": { gap: 8 },
+  },
+});
+
+export const StopInformationCollapse = styled.div({
+  gridColumn: "1 / -1",
+  display: "grid",
+  gridTemplateRows: "0fr",
+  minWidth: 0,
+  transition: "grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1)",
+  '&[data-open="true"]': { gridTemplateRows: "1fr" },
+  "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+});
+
+export const StopInformationClip = styled.div({
+  minHeight: 0,
+  overflow: "hidden",
 });

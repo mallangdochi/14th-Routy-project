@@ -3,6 +3,9 @@ import type { KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   Bookmark,
+  Clock3,
+  Ticket,
+  ParkingCircle,
   CalendarDays,
   ChevronRight,
   FileText,
@@ -47,6 +50,21 @@ export type DetailPlace = {
   description?: string;
 };
 
+type TourDetails = {
+  additionalInfo?: { label: string; value: string }[];
+  parkingHours?: string | null;
+  overview?: string | null;
+  parking?: string | null;
+  parkingFee?: string | null;
+  partial?: boolean;
+  hours: string | null;
+  hoursLabel: string;
+  restDays: string | null;
+  menu: string | null;
+  fee: string | null;
+  source: string | null;
+};
+
 type NavigationState = { place?: DetailPlace } | null;
 const tabs: { id: Tab; label: string; Icon: typeof FileText }[] = [
   { id: "intro", label: "소개", Icon: FileText },
@@ -59,6 +77,20 @@ function finiteCoordinate(input: string | null): number | undefined {
   if (!input?.trim()) return undefined;
   const value = Number(input);
   return Number.isFinite(value) ? value : undefined;
+}
+
+type PlaceCategory = "관광" | "음식점" | "카페" | "숙소";
+function normalizePlaceCategory(
+  category: string,
+  categoryName = "",
+): PlaceCategory {
+  if (/카페|커피|찻집/.test(category)) return "카페";
+  if (/숙소|숙박|호텔|펜션|모텔|게스트하우스/.test(category)) return "숙소";
+  if (/음식점|맛집|식당/.test(category)) return "음식점";
+  if (/카페|커피|찻집/.test(categoryName)) return "카페";
+  if (/숙박|호텔|펜션|모텔|게스트하우스/.test(categoryName)) return "숙소";
+  if (/음식점|식당/.test(categoryName)) return "음식점";
+  return "관광";
 }
 
 function fromKakao(item: KakaoPlaceInfo): DetailPlace {
@@ -187,7 +219,16 @@ export default function PlaceDetailPage() {
     key: string;
     place: DetailPlace;
   } | null>(null);
-  const place = resolved?.key === urlKey ? resolved.place : initialPlace;
+  const currentPlace = resolved?.key === urlKey ? resolved.place : initialPlace;
+  const place = currentPlace
+    ? {
+        ...currentPlace,
+        category: normalizePlaceCategory(
+          currentPlace.category,
+          currentPlace.categoryName,
+        ),
+      }
+    : null;
   const [apiError, setApiError] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("intro");
   const [category, setCategory] = useState<NearCategory>("전체");
@@ -197,6 +238,10 @@ export default function PlaceDetailPage() {
   const [photo, setPhoto] = useState<{
     key: string;
     url: string | null;
+  } | null>(null);
+  const [tourDetails, setTourDetails] = useState<{
+    key: string;
+    data: TourDetails | null;
   } | null>(null);
   const [brokenPhotoKey, setBrokenPhotoKey] = useState<string | null>(null);
   const {
@@ -279,6 +324,96 @@ export default function PlaceDetailPage() {
       active = false;
     };
   }, [photoKey, photoName, photoAddress, photoLat, photoLng]);
+
+  const tourCategory = place?.category;
+  useEffect(() => {
+    if (!photoName || !photoAddress) return;
+    const controller = new AbortController();
+    const search = new URLSearchParams({
+      name: photoName,
+      address: photoAddress,
+    });
+    if (tourCategory) search.set("category", tourCategory);
+    if (Number.isFinite(photoLat)) search.set("lat", String(photoLat));
+    if (Number.isFinite(photoLng)) search.set("lng", String(photoLng));
+    void fetch(`/api/tour/details?${search.toString()}`, {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("TOUR_DETAIL_UNAVAILABLE");
+        return (await response.json()) as TourDetails;
+      })
+      .then((data) => {
+        if (!controller.signal.aborted)
+          setTourDetails({ key: `${photoKey}|${tourCategory ?? ""}`, data });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setTourDetails({
+            key: `${photoKey}|${tourCategory ?? ""}`,
+            data: null,
+          });
+      });
+    return () => controller.abort();
+  }, [photoKey, photoName, photoAddress, photoLat, photoLng, tourCategory]);
+  const detail =
+    tourDetails?.key === `${photoKey}|${tourCategory ?? ""}`
+      ? tourDetails.data
+      : null;
+  const detailsLoading = Boolean(
+    photoName &&
+    photoAddress &&
+    tourDetails?.key !== `${photoKey}|${tourCategory ?? ""}`,
+  );
+
+  const detailFailed =
+    tourDetails?.key === `${photoKey}|${tourCategory ?? ""}` &&
+    tourDetails.data === null;
+  const detailValue = (value: string | null | undefined, fallback: string) =>
+    detailsLoading
+      ? "확인하고 있어요"
+      : value || (detailFailed ? "정보를 불러오지 못했어요" : fallback);
+
+  const hasTourValue = (value: unknown): value is string =>
+    typeof value === "string" &&
+    Boolean(value.trim()) &&
+    !/^(?:[-?]|정보\s*없음|미등록|null|undefined|n\/a|[oxyn01○◯◎×✓✔]|true|false)$/i.test(value.trim());
+  const introFacts = [
+    {
+      label: place?.category === "관광" ? "입장료" : "이용요금",
+      value: detail?.fee,
+      Icon: Ticket,
+    },
+    { label: "주차시설", value: detail?.parking, Icon: ParkingCircle },
+    { label: "주차 운영시간", value: detail?.parkingHours, Icon: Clock3 },
+    { label: "주차요금", value: detail?.parkingFee, Icon: Ticket },
+    { label: "대표 메뉴", value: detail?.menu, Icon: FileText },
+    ...(detail?.additionalInfo ?? []).map((item) => ({
+      ...item,
+      Icon: FileText,
+    })),
+  ]
+    .filter((item): item is typeof item & { value: string } =>
+      hasTourValue(item.value),
+    )
+    .filter(
+      (item, index, items) =>
+        items.findIndex(
+          (other) =>
+            other.label === item.label &&
+            other.value.trim() === item.value.trim(),
+        ) === index,
+    );
+  const hasTourIntro = hasTourValue(detail?.overview) || introFacts.length > 0;
+  const hasTourInformation = Boolean(
+    detail?.source &&
+    (hasTourIntro ||
+      hasTourValue(detail?.hours) ||
+      hasTourValue(detail?.restDays)),
+  );
+  const basicIntroduction = place
+    ? `${place.name}의 위치와 기본 정보입니다. ${place.categoryName ? `분류: ${place.categoryName}. ` : ""}주소는 ${place.address}입니다. 상세 운영 시간과 이용 후기는 카카오맵에서 확인해 주세요.`
+    : "";
 
   const nearbyId = place?.id;
   const nearbyLat = place?.lat;
@@ -428,9 +563,34 @@ export default function PlaceDetailPage() {
                       <MapPin size={18} />
                       <span>{place.address}</span>
                     </div>
-                    <p className="verified-detail">
-                      카카오맵 장소 검색 정보를 기준으로 표시합니다.
-                    </p>
+                    <ul className="summary-metadata">
+                      <li>
+                        <span className="metadata-label">
+                          <Phone aria-hidden="true" />
+                          <strong>전화번호</strong>
+                        </span>
+                        <span className="metadata-value">
+                          {place.phone ? (
+                            <a
+                              href={`tel:${place.phone.replace(/[^\d+]/g, "")}`}
+                            >
+                              {place.phone}
+                            </a>
+                          ) : (
+                            "전화번호 정보가 없어요"
+                          )}
+                        </span>
+                      </li>
+                      <li>
+                        <span className="metadata-label">
+                          <FileText aria-hidden="true" />
+                          <strong>분류</strong>
+                        </span>
+                        <span className="metadata-value">
+                          {place.categoryName || place.category}
+                        </span>
+                      </li>
+                    </ul>
                     {apiError && (
                       <p className="inline-warning" role="status">
                         추가 정보 조회 실패: {apiError}
@@ -489,40 +649,40 @@ export default function PlaceDetailPage() {
                       </p>
                     )}
                   </section>
-                  <section className="info-card">
-                    <h2>장소 정보</h2>
+                  <section
+                    className="info-card usage-guide"
+                    aria-busy={detailsLoading}
+                  >
+                    <div className="usage-heading">
+                      <h2>이용안내</h2>
+                      <span className="usage-note">
+                        운영시간은 방문 전 확인해 주세요
+                      </span>
+                    </div>
                     <ul className="info-list">
                       <li>
                         <span className="info-label">
-                          <MapPin />
-                          <strong>주소</strong>
+                          <Clock3 aria-hidden="true" />
+                          <strong>{detail?.hoursLabel || "영업시간"}</strong>
                         </span>
-                        <span className="info-value">{place.address}</span>
+                        <span className="info-value" role="status">
+                          {detailsLoading
+                            ? "확인하고 있어요"
+                            : detailFailed
+                              ? "영업시간을 불러오지 못했어요"
+                              : detail?.hours || "영업시간 정보가 없어요"}
+                        </span>
                       </li>
                       <li>
                         <span className="info-label">
-                          <Phone />
-                          <strong>전화번호</strong>
+                          <CalendarDays aria-hidden="true" />
+                          <strong>쉬는 날</strong>
                         </span>
                         <span className="info-value">
-                          {place.phone ? (
-                            <a
-                              href={`tel:${place.phone.replace(/[^\d+]/g, "")}`}
-                            >
-                              {place.phone}
-                            </a>
-                          ) : (
-                            "정보 없음"
+                          {detailValue(
+                            detail?.restDays,
+                            "쉬는 날 정보가 없어요",
                           )}
-                        </span>
-                      </li>
-                      <li>
-                        <span className="info-label">
-                          <FileText />
-                          <strong>분류</strong>
-                        </span>
-                        <span className="info-value">
-                          {place.categoryName || place.category}
                         </span>
                       </li>
                     </ul>
@@ -573,15 +733,51 @@ export default function PlaceDetailPage() {
                     <div className="section-heading">
                       <h2>{place.name} 소개</h2>
                     </div>
-                    <p className="section-description">
-                      {place.name}의 위치와 기본 정보입니다.{" "}
-                      {place.categoryName
-                        ? `분류: ${place.categoryName}. `
-                        : ""}
-                      주소는 {place.address}입니다. 상세 운영 시간과 이용 후기는
-                      카카오맵에서 확인해 주세요.
-                    </p>
-                    <h3 className="detail-subheading">지도에서 위치 확인</h3>
+                    {hasTourIntro ? (
+                      <>
+                        {introFacts.length > 0 && (
+                          <div className="intro-facts">
+                            {introFacts.map(({ label, value, Icon }) => (
+                              <div
+                                className="intro-fact"
+                                key={`${label}:${value}`}
+                              >
+                                <h3>
+                                  <Icon aria-hidden="true" />
+                                  {label}
+                                </h3>
+                                <p>{value}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {hasTourValue(detail?.overview) && (
+                          <div className="intro-overview">
+                            <h3>개요</h3>
+                            <p>{detail?.overview}</p>
+                          </div>
+                        )}
+                        {detail?.partial && (
+                          <p className="inline-warning" role="status">
+                            일부 상세정보를 불러오지 못했어요. 잠시 후 다시
+                            확인해 주세요.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="section-description">{basicIntroduction}</p>
+                    )}
+                    {detailsLoading && (
+                      <p className="tour-source" role="status">
+                        상세정보를 확인하고 있어요
+                      </p>
+                    )}
+                    {hasTourInformation && (
+                      <p className="tour-source">정보 제공: 한국관광공사</p>
+                    )}
+                    <h3 className="detail-subheading">
+                      {hasTourIntro ? "위치 안내" : "지도에서 위치 확인"}
+                    </h3>
                     {Number.isFinite(place.lat) &&
                     Number.isFinite(place.lng) ? (
                       <KakaoPlaceDetailMap
@@ -594,7 +790,7 @@ export default function PlaceDetailPage() {
                         좌표 정보가 없어 지도를 표시할 수 없습니다.
                       </p>
                     )}
-                    {kakaoUrl && (
+                    {!hasTourInformation && kakaoUrl && (
                       <a
                         className="external-map-link"
                         href={kakaoUrl}

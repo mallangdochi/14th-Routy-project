@@ -49,7 +49,12 @@ export const PlaceDetailPageStyle = styled.div({
     fontWeight: 600,
   },
   "& .photo-placeholder small": { fontSize: 15, fontWeight: 400 },
-  "& .verified-detail": { marginTop: 16, fontSize: 15, color: "#697d8f" },
+  "& .tour-source": {
+    display: "block",
+    marginTop: 16,
+    fontSize: 12,
+    color: "#596D75",
+  },
   "& .inline-warning": { margin: "12px 0", fontSize: 15, color: "#9c5428" },
   "& .detail-subheading": {
     fontSize: 20,
@@ -156,13 +161,16 @@ export const PlaceDetailPageStyle = styled.div({
 
   "& .summary-card, & .info-card": {
     ...surface,
-    padding: "20px 22px",
+  },
+  " & .info-card": {
+    padding: "20px 22px 0px",
   },
 
   "& .summary-card": {
     display: "flex",
     flexDirection: "column",
     flex: "1 1 auto",
+    padding: "20px 22px",
   },
 
   "& .tag-row": {
@@ -234,8 +242,8 @@ export const PlaceDetailPageStyle = styled.div({
     display: "grid",
     gridTemplateColumns: "minmax(0, 1fr) 54px",
     gap: "9px",
-    marginTop: "auto",
-    paddingTop: "23px",
+    // marginTop: "auto",
+    // paddingTop: "23px",
   },
 
   "& .primary-action-button": {
@@ -260,12 +268,25 @@ export const PlaceDetailPageStyle = styled.div({
     color: colors.primaryDark,
   },
 
-  "& .info-card h2": {
+  "& .info-card .usage-heading": {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
     paddingBottom: "9px",
     borderBottom: `1px solid ${colors.line}`,
-    color: "#101820",
-    fontSize: "22px",
-    fontWeight: 800,
+    h2: {
+      color: "#101820",
+      fontSize: "22px",
+      fontWeight: 800,
+    },
+  },
+  "& .usage-note": {
+    // borderTop: "1px solid #E2E6E9",
+    // paddingTop: 16,
+    // margin: "10px 0 0",
+    color: "#596D75",
+    fontSize: 13,
+    lineHeight: 1.6,
   },
 
   "& .info-list li": {
@@ -342,7 +363,8 @@ export const PlaceDetailPageStyle = styled.div({
     pointerEvents: "none",
     bottom: 0,
     left: "var(--tab-inset)",
-    width: "calc((100% - var(--tab-inset) - var(--tab-inset) - var(--tab-gap) - var(--tab-gap)) / 3)",
+    width:
+      "calc((100% - var(--tab-inset) - var(--tab-inset) - var(--tab-gap) - var(--tab-gap)) / 3)",
     height: "3px",
     borderRadius: "999px",
     backgroundColor: colors.primary,
@@ -1131,5 +1153,115 @@ export const PlaceDetailPageStyle = styled.div({
     "& .review-photos img": {
       height: "95px",
     },
+  },
+  "& .summary-metadata": {
+    listStyle: "none",
+    padding: 0,
+    margin: "18px 0 4px",
+    minHeight: 104,
+    color: "#0D3E41",
+  },
+  "& .summary-metadata li": {
+    display: "grid",
+    gridTemplateColumns: "100px minmax(0, 1fr)",
+    gap: 12,
+    alignItems: "start",
+    minHeight: 52,
+    padding: "14px 0",
+    borderTop: "1px solid #E2E6E9",
+    fontSize: 14,
+    lineHeight: 1.65,
+  },
+  "& .metadata-label": { display: "flex", alignItems: "center", gap: 10 },
+  "& .metadata-label svg": { width: 18, height: 18, flexShrink: 0 },
+  "& .metadata-value": {
+    textAlign: "right",
+    overflowWrap: "anywhere",
+    minWidth: 0,
+  },
+  "& .usage-guide .info-list": { listStyle: "none", padding: 0, margin: 0 },
+  "& .usage-guide .info-list li": {
+    display: "grid",
+    gridTemplateColumns: "120px minmax(0, 1fr)",
+    gap: 12,
+    alignItems: "start",
+    padding: "18px 0",
+    minHeight: 64,
+  },
+  "& .usage-guide .info-label": { fontSize: 14, gap: 10 },
+  "& .usage-guide .info-label svg": {
+    width: 20,
+    height: 20,
+    strokeWidth: 2,
+    flexShrink: 0,
+  },
+  "& .usage-guide .info-value": {
+    fontSize: 14,
+    lineHeight: 1.7,
+    whiteSpace: "pre-line",
+    minWidth: 0,
+  },
+
+  "& .intro-facts": {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    padding: "22px 0",
+    borderBottom: "1px solid #E2E6E9",
+    rowGap: 24,
+    columnGap: 0,
+  },
+  "& .intro-fact": {
+    padding: "0 22px",
+    minWidth: 0,
+    borderLeft: "1px solid #E2E6E9",
+  },
+  "& .intro-fact:nth-of-type(odd)": { paddingLeft: 0, borderLeft: 0 },
+  "& .intro-fact:only-child": { gridColumn: "1 / -1", paddingRight: 0 },
+  "& .intro-fact h3": {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    margin: "0 0 12px",
+    fontSize: 16,
+    color: "#0D3E41",
+  },
+  "& .intro-fact svg": { width: 22, height: 22, flexShrink: 0 },
+  "& .intro-fact p, & .intro-overview p, & .intro-menu p": {
+    margin: 0,
+    fontSize: 14,
+    lineHeight: 1.8,
+    whiteSpace: "pre-line",
+    overflowWrap: "anywhere",
+    color: "#0D3E41",
+  },
+  "& .intro-fact .parking-fee": {
+    marginTop: 8,
+    color: "#596D75",
+    fontSize: 13,
+  },
+  "& .intro-overview, & .intro-menu": {
+    padding: "22px 0",
+    borderBottom: "1px solid #E2E6E9",
+  },
+  "& .intro-overview h3, & .intro-menu h3": {
+    margin: "0 0 12px",
+    fontSize: 20,
+    color: "#0D3E41",
+  },
+  "@media screen and (max-width: 767px)": {
+    "& .summary-metadata li": {
+      gridTemplateColumns: "90px minmax(0, 1fr)",
+      fontSize: 14,
+    },
+    "& .usage-guide .info-list li": {
+      gridTemplateColumns: "100px minmax(0, 1fr)",
+    },
+    "& .intro-facts": { gridTemplateColumns: "1fr", padding: 0, rowGap: 0 },
+    "& .intro-fact, & .intro-fact:nth-of-type(odd)": {
+      borderLeft: 0,
+      borderBottom: "1px solid #E2E6E9",
+      padding: "18px 0",
+    },
+    "& .intro-fact:last-of-type": { borderBottom: 0 },
   },
 });
