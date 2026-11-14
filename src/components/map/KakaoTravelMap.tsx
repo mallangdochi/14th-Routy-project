@@ -1,13 +1,23 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { getKakaoMapKey } from "../api/kakao/kakaoSdk";
-import { getAllowedCurrentLocation } from "../utils/locationService";
+import { useEffect, useRef, useState, type FormEvent, type ChangeEvent } from "react";
+import { getKakaoMapKey } from "../../api/kakao/kakaoSdk";
+import { getAllowedCurrentLocation } from "../../utils/locationService";
 import * as S from "./KakaoTravelMapStyle";
 import {
-  MapDock, MapViewport, RouteHoverHint, RouteModePicker, buildDisplayRoutes, useTouchMap,
-  type RouteLine, type RouteSelection, type TravelMode,
-} from "../components/map/RouteMapInfo";
-import { createMapPlacePin, closeMapPlacePins } from "../components/map/MapPlacePin";
-import { mountRouteOverlapLayer } from "../components/map/RouteOverlapLayer";
+  MapDock,
+  MapViewport,
+  RouteHoverHint,
+  RouteModePicker,
+  buildDisplayRoutes,
+  useTouchMap,
+  type RouteLine,
+  type RouteSelection,
+  type TravelMode,
+} from "../../components/map/RouteMapInfo";
+import {
+  createMapPlacePin,
+  closeMapPlacePins,
+} from "../../components/map/MapPlacePin";
+import { mountRouteOverlapLayer } from "../../components/map/RouteOverlapLayer";
 
 export type KakaoPlace = {
   name: string;
@@ -55,6 +65,7 @@ type MapInstance = {
 
 type Overlay = {
   setMap(map: MapInstance | null): void;
+  setZIndex?(index: number): void;
 };
 
 type PlaceRecord = {
@@ -67,7 +78,9 @@ type PlaceRecord = {
 };
 
 type KakaoSDK = {
-  event?: { addListener: (target: object, event: string, handler: () => void) => void };
+  event?: {
+    addListener: (target: object, event: string, handler: () => void) => void;
+  };
   CustomOverlay: new (options: {
     map: MapInstance;
     position: LatLng;
@@ -192,7 +205,9 @@ export default function KakaoTravelMap({
     null,
   );
   const overlaysRef = useRef<Overlay[]>([]);
-  const routeLayerRef = useRef<ReturnType<typeof mountRouteOverlapLayer> | null>(null);
+  const routeLayerRef = useRef<ReturnType<
+    typeof mountRouteOverlapLayer
+  > | null>(null);
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
@@ -201,7 +216,9 @@ export default function KakaoTravelMap({
   const [searched, setSearched] = useState(false);
   const [searching, setSearching] = useState(false);
   const [selection, setSelection] = useState<RouteSelection | null>(null);
-  const [hoverSelection, setHoverSelection] = useState<RouteSelection | null>(null);
+  const [hoverSelection, setHoverSelection] = useState<RouteSelection | null>(
+    null,
+  );
   const isTouch = useTouchMap();
   const pinnedRef = useRef(false);
   const selectedRouteRef = useRef<RouteLine | null>(null);
@@ -236,7 +253,9 @@ export default function KakaoTravelMap({
           const points = selectedRouteRef.current?.path ?? [];
           if (points.length > 1) {
             const bounds = new sdk.LatLngBounds();
-            points.forEach(({ lat, lng }) => { bounds.extend(new sdk.LatLng(lat, lng)); });
+            points.forEach(({ lat, lng }) => {
+              bounds.extend(new sdk.LatLng(lat, lng));
+            });
             map.setBounds(bounds, 60);
           }
         });
@@ -258,7 +277,9 @@ export default function KakaoTravelMap({
       cancelled = true;
       observer?.disconnect();
 
-      overlaysRef.current.forEach((overlay) => { overlay.setMap(null); });
+      overlaysRef.current.forEach((overlay) => {
+        overlay.setMap(null);
+      });
 
       overlaysRef.current = [];
       mapRef.current = null;
@@ -272,19 +293,26 @@ export default function KakaoTravelMap({
     const map = mapRef.current;
     if (!ready || !sdk || !map || stops.length > 0) return;
     let cancelled = false;
-    void getAllowedCurrentLocation().then((point) => {
-      if (cancelled || !point) return;
-      map.setCenter(new sdk.LatLng(point.lat, point.lng));
-      map.setLevel(5);
-    }).catch(() => { /* 거부 시 여행 지역 기준 지도를 유지 */ });
-    return () => { cancelled = true; };
+    void getAllowedCurrentLocation()
+      .then((point) => {
+        if (cancelled || !point) return;
+        map.setCenter(new sdk.LatLng(point.lat, point.lng));
+        map.setLevel(5);
+      })
+      .catch(() => {
+        /* 거부 시 여행 지역 기준 지도를 유지 */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [ready, stops.length]);
 
   useEffect(() => {
     if (!ready) return;
     const onFocus = (event: Event) => {
-      const pos = (event as CustomEvent<{lat: number; lng: number}>).detail;
-      if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lng)) return;
+      const pos = (event as CustomEvent<{ lat: number; lng: number }>).detail;
+      if (!pos || !Number.isFinite(pos.lat) || !Number.isFinite(pos.lng))
+        return;
       const sdk = sdkRef.current;
       if (!sdk) return;
       mapRef.current?.setCenter(new sdk.LatLng(pos.lat, pos.lng));
@@ -301,7 +329,9 @@ export default function KakaoTravelMap({
     const mapContainer = mapNode.current;
     if (!ready || !map || !sdk || !mapContainer) return;
 
-    overlaysRef.current.forEach((overlay) => { overlay.setMap(null); });
+    overlaysRef.current.forEach((overlay) => {
+      overlay.setMap(null);
+    });
     overlaysRef.current = [];
 
     const pinCleanups: Array<() => void> = [];
@@ -323,40 +353,86 @@ export default function KakaoTravelMap({
     const hover = (value: RouteSelection) => {
       if (!isTouch && !pinnedRef.current) setHoverSelection(value);
     };
-    const leave = () => { setHoverSelection(null); };
+    const leave = () => {
+      setHoverSelection(null);
+    };
 
     const ordered = routeStops.length ? routeStops : stops;
     ordered.forEach((stop, index) => {
       if (!Number.isFinite(stop.lat) || !Number.isFinite(stop.lng)) return;
       const order = index + 1;
-      let overlay: Overlay & { setZIndex?: (index: number) => void };
+      let overlay: Overlay | null = null;
       const pin = createMapPlacePin({
-        sdk, map, container: mapContainer, isTouch, order, total: ordered.length,
-        stop: { id: stop.id, title: stop.title, time: stop.time, address: stop.address, description: stop.description, category: stop.category },
-        onActiveChange: active => { overlay?.setZIndex?.(active ? 20 : 3); if (active) routeLayer?.clearSelection(); },
+        sdk,
+        map,
+        container: mapContainer,
+        isTouch,
+        order,
+        total: ordered.length,
+        stop: {
+          id: stop.id,
+          title: stop.title,
+          time: stop.time,
+          address: stop.address,
+          description: stop.description,
+          category: stop.category,
+        },
+        onActiveChange: (active: boolean) => {
+          overlay?.setZIndex?.(active ? 20 : 3);
+          if (active) routeLayer?.clearSelection();
+        },
       });
       pinCleanups.push(pin.destroy);
-      overlay = new sdk.CustomOverlay({ map, position: new sdk.LatLng(stop.lat!,stop.lng!), content: pin.element, yAnchor: 1, zIndex: 3 });
+      overlay = new sdk.CustomOverlay({
+        map,
+        position: new sdk.LatLng(stop.lat!, stop.lng!),
+        content: pin.element,
+        yAnchor: 1,
+        zIndex: 3,
+      });
       overlaysRef.current.push(overlay);
     });
 
     if (showRoute && mapNode.current) {
       routeLayer = mountRouteOverlapLayer({
-        sdk, map, container: mapNode.current,
+        sdk,
+        map,
+        container: mapNode.current,
         routes: buildDisplayRoutes(ordered, routePaths, routeMode),
         isTouch,
-        pinPositions: ordered.filter(stop => Number.isFinite(stop.lat) && Number.isFinite(stop.lng)).map(stop => ({ lat: stop.lat!, lng: stop.lng! })),
-        onHover: value => { if (value) { closeMapPlacePins(mapContainer); hover(value); } else leave(); },
-        onSelect: value => { closeMapPlacePins(mapContainer); show(value, true); },
-        onClear: () => { pinnedRef.current = false; selectedRouteRef.current = null; setSelection(null); setHoverSelection(null); },
+        pinPositions: ordered
+          .filter(
+            (stop) => Number.isFinite(stop.lat) && Number.isFinite(stop.lng),
+          )
+          .map((stop) => ({ lat: stop.lat!, lng: stop.lng! })),
+        onHover: (value: RouteSelection | null) => {
+          if (value) {
+            closeMapPlacePins(mapContainer);
+            hover(value);
+          } else leave();
+        },
+        onSelect: (value: RouteSelection) => {
+          closeMapPlacePins(mapContainer);
+          show(value, true);
+        },
+        onClear: () => {
+          pinnedRef.current = false;
+          selectedRouteRef.current = null;
+          setSelection(null);
+          setHoverSelection(null);
+        },
       });
       routeLayerRef.current = routeLayer;
     }
     return () => {
-      pinCleanups.forEach(cleanup => { cleanup(); });
+      pinCleanups.forEach((cleanup) => {
+        cleanup();
+      });
       routeLayer?.setMap(null);
       if (routeLayerRef.current === routeLayer) routeLayerRef.current = null;
-      overlaysRef.current.forEach((overlay) => { overlay.setMap(null); });
+      overlaysRef.current.forEach((overlay) => {
+        overlay.setMap(null);
+      });
       overlaysRef.current = [];
     };
   }, [stops, routeStops, routePaths, routeMode, showRoute, ready, isTouch]);
@@ -376,13 +452,16 @@ export default function KakaoTravelMap({
     const sdk = sdkRef.current;
     const map = mapRef.current;
     if (!ready || !sdk || !map) return;
-    const located = stops.filter((stop) => Number.isFinite(stop.lat) && Number.isFinite(stop.lng));
+    const located = stops.filter(
+      (stop) => Number.isFinite(stop.lat) && Number.isFinite(stop.lng),
+    );
     if (located.length === 1) {
       map.setCenter(new sdk.LatLng(located[0].lat!, located[0].lng!));
       map.setLevel(4);
     } else if (located.length > 1) {
       const bounds = new sdk.LatLngBounds();
-      for (const stop of located) bounds.extend(new sdk.LatLng(stop.lat!, stop.lng!));
+      for (const stop of located)
+        bounds.extend(new sdk.LatLng(stop.lat!, stop.lng!));
       map.setBounds(bounds, 70);
     }
   }, [stops, ready]);
@@ -443,63 +522,72 @@ export default function KakaoTravelMap({
     <MapDock>
       <MapViewport>
         <S.MapCanvas ref={mapNode} />
-      <RouteModePicker mode={routeMode} onChange={onRouteModeChange} />
-      <RouteHoverHint selection={isTouch ? selection : hoverSelection} onDismiss={isTouch ? () => routeLayerRef.current?.clearSelection() : undefined} />
+        <RouteModePicker mode={routeMode} onChange={onRouteModeChange} />
+        <RouteHoverHint
+          selection={isTouch ? selection : hoverSelection}
+          onDismiss={
+            isTouch ? () => routeLayerRef.current?.clearSelection() : undefined
+          }
+        />
 
-      {!key && (
-        <S.Status>
-          카카오 JavaScript 키가 없습니다. .env.local에 VITE_KAKAO_MAP_KEY를
-          입력해주세요.
-        </S.Status>
-      )}
-
-      {error && <S.Status role="alert">{error}</S.Status>}
-
-      {key && !ready && !error && (
-        <S.Status>카카오 지도를 불러오는 중입니다.</S.Status>
-      )}
-
-      {!hideSearch && <S.SearchArea>
-        <S.SearchForm onSubmit={onSearch}>
-          <S.SearchInput
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`${region} 장소 검색`}
-            aria-label="카카오 장소 검색"
-          />
-          <S.SearchButton type="submit" disabled={!ready || searching}>
-            {searching ? "검색 중" : "검색"}
-          </S.SearchButton>
-        </S.SearchForm>
-
-        {searched && results.length === 0 && !error && (
-          <S.Help>검색 결과가 없습니다.</S.Help>
+        {!key && (
+          <S.Status>
+            카카오 JavaScript 키가 없습니다. .env.local에 VITE_KAKAO_MAP_KEY를
+            입력해주세요.
+          </S.Status>
         )}
 
-        {results.length > 0 && (
-          <S.ResultList>
-            {results.map((place, index) => (
-              <S.ResultButton
-                key={`${place.lat}-${place.lng}-${index}`}
-                type="button"
-                onClick={() => {
-                  mapRef.current?.setCenter(
-                    new sdkRef.current!.LatLng(place.lat, place.lng),
-                  );
+        {error && <S.Status role="alert">{error}</S.Status>}
 
-                  onAddPlace(place);
-                  setResults([]);
-                  setSearched(false);
-                  setQuery("");
-                }}
-              >
-                <strong>{place.name} · 일정에 추가</strong>
-                <span>{place.address}</span>
-              </S.ResultButton>
-            ))}
-          </S.ResultList>
+        {key && !ready && !error && (
+          <S.Status>카카오 지도를 불러오는 중입니다.</S.Status>
         )}
-      </S.SearchArea>}
+
+        {!hideSearch && (
+          <S.SearchArea>
+            <S.SearchForm onSubmit={onSearch}>
+              <S.SearchInput
+                value={query}
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  setQuery(event.currentTarget.value)
+                }
+                placeholder={`${region} 장소 검색`}
+                aria-label="카카오 장소 검색"
+              />
+              <S.SearchButton type="submit" disabled={!ready || searching}>
+                {searching ? "검색 중" : "검색"}
+              </S.SearchButton>
+            </S.SearchForm>
+
+            {searched && results.length === 0 && !error && (
+              <S.Help>검색 결과가 없습니다.</S.Help>
+            )}
+
+            {results.length > 0 && (
+              <S.ResultList>
+                {results.map((place, index) => (
+                  <S.ResultButton
+                    key={`${place.lat}-${place.lng}-${index}`}
+                    type="button"
+                    onClick={() => {
+                      mapRef.current?.setCenter(
+                        new sdkRef.current!.LatLng(place.lat, place.lng),
+                      );
+
+                      onAddPlace(place);
+                      setResults([]);
+                      setSearched(false);
+                      setQuery("");
+                    }}
+                  >
+                    <strong>{place.name} · 일정에 추가</strong>
+                    <span>{place.address}</span>
+                  </S.ResultButton>
+                ))}
+              </S.ResultList>
+            )}
+          </S.SearchArea>
+        )}
       </MapViewport>
     </MapDock>
   );

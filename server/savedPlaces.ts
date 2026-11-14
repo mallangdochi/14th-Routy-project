@@ -1,4 +1,8 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+// import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { createSupabaseServer } from "./supabase.js";
+
+type SupabaseClient = ReturnType<typeof createSupabaseServer>;
 
 type PlaceCategory =
   | "attraction"
