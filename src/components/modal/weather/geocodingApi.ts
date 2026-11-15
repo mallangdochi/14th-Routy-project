@@ -1,3 +1,5 @@
+import { getKakaoMapKey } from "../../../api/kakao/kakaoSdk";
+
 export type Coordinates = {
   latitude: number;
   longitude: number;
@@ -117,7 +119,7 @@ function loadKakaoServices(): Promise<KakaoServices> {
     const interval = window.setInterval(initialize, 50);
 
     if (!script && !getKakaoMaps()) {
-      const appKey = import.meta.env.VITE_KAKAO_MAP_KEY?.trim();
+      const appKey = getKakaoMapKey();
 
       if (!appKey) {
         fail("VITE_KAKAO_MAP_KEY가 설정되지 않았습니다.");
