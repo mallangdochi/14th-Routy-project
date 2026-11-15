@@ -21,14 +21,23 @@ function getSDK(): KakaoShareSDK | undefined {
 }
 
 function initialize(sdk: KakaoShareSDK): KakaoShareSDK {
-  const key = import.meta.env.VITE_KAKAO_SHARE_KEY?.trim();
+  const key =
+    import.meta.env.VITE_KAKAO_SHARE_KEY?.trim() ||
+    import.meta.env.KAKAO_SHARE_KEY?.trim() ||
+    "";
+
   if (!key) {
     throw new Error("카카오톡 공유용 JavaScript 키가 설정되지 않았습니다.");
   }
-  if (!sdk.isInitialized()) sdk.init(key);
+
+  if (!sdk.isInitialized()) {
+    sdk.init(key);
+  }
+
   if (!sdk.isInitialized() || !sdk.Share?.sendDefault) {
     throw new Error("카카오톡 공유 SDK를 초기화하지 못했습니다.");
   }
+
   return sdk;
 }
 

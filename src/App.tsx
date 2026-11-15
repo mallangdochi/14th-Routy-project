@@ -16,7 +16,8 @@ import { useAuth } from "./contexts/AuthContext";
 import Schedule from "./pages/tripDetailPage/Schedule";
 import TripInvitePage from "./pages/tripInvitePage/TripInvitePage";
 // import NotificationPage from "./pages/notificationPage/NotificationPage";
-import NotificationPreview from "./components/notification/NotificationPreview";
+// import NotificationPreview from "./components/notification/NotificationPreview";
+import NotificationPage from "./components/notification/NotificationPreview";
 
 function CreateTripRoute() {
   const navigate = useNavigate();
@@ -61,8 +62,8 @@ export default function App() {
       <Route path="/trips/:tripId" element={<TripDaysPage />} />
       <Route path="/search" element={<Search />} />
       <Route path="/profile" element={<ProfileSetupRoute />} />
-      {/* <Route path="/notifications" element={<NotificationPage />} /> */}
-      <Route path="/notifications" element={<NotificationPreview />} />
+      <Route path="/notifications" element={<NotificationPage />} />
+      {/* <Route path="/notifications" element={<NotificationPreview />} /> */}
 
       <Route
         path="/mypage"
@@ -79,6 +80,8 @@ export default function App() {
         <Route path="/login" element={null} />
         <Route path="/signup" element={null} />
       </Route>
+
+      {/* <Route path="*" element={< />} /> */}
     </Routes>
   );
 }
