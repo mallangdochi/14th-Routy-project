@@ -148,29 +148,56 @@ function localTourPhotoApi(): Plugin {
         }
         if (url.pathname === "/api/tour/details") {
           const category = url.searchParams.get("category") ?? undefined;
-          if (category !== undefined && !["관광", "음식점", "카페", "숙소"].includes(category)) {
+          if (
+            category !== undefined &&
+            !["관광", "음식점", "카페", "숙소"].includes(category)
+          ) {
             res.statusCode = 400;
-            res.end(JSON.stringify({ message: "장소 카테고리가 올바르지 않습니다." }));
+            res.end(
+              JSON.stringify({ message: "장소 카테고리가 올바르지 않습니다." }),
+            );
             return;
           }
-          const contentTypeId = url.searchParams.get("contentTypeId") ?? undefined;
-          if (contentTypeId !== undefined && !["12", "14", "15", "25", "28", "32", "38", "39"].includes(contentTypeId)) {
+          const contentTypeId =
+            url.searchParams.get("contentTypeId") ?? undefined;
+          if (
+            contentTypeId !== undefined &&
+            !["12", "14", "15", "25", "28", "32", "38", "39"].includes(
+              contentTypeId,
+            )
+          ) {
             res.statusCode = 400;
-            res.end(JSON.stringify({ message: "관광 유형이 올바르지 않습니다." }));
+            res.end(
+              JSON.stringify({ message: "관광 유형이 올바르지 않습니다." }),
+            );
             return;
           }
           if (!process.env.TOUR_API_SERVICE_KEY?.trim()) {
             res.statusCode = 503;
-            res.end(JSON.stringify({ message: "서버에 TOUR_API_SERVICE_KEY가 없습니다." }));
+            res.end(
+              JSON.stringify({
+                message: "서버에 TOUR_API_SERVICE_KEY가 없습니다.",
+              }),
+            );
             return;
           }
           try {
-            const data = await lookupTourPlaceDetail(name, address, lat, lng, category ?? contentTypeId);
+            const data = await lookupTourPlaceDetail(
+              name,
+              address,
+              lat,
+              lng,
+              category ?? contentTypeId,
+            );
             res.setHeader("Cache-Control", "private, no-store");
             res.end(JSON.stringify(data));
           } catch {
             res.statusCode = 502;
-            res.end(JSON.stringify({ message: "관광공사 장소 상세정보 조회에 실패했습니다." }));
+            res.end(
+              JSON.stringify({
+                message: "관광공사 장소 상세정보 조회에 실패했습니다.",
+              }),
+            );
           }
           return;
         }
@@ -208,6 +235,16 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), localTourPhotoApi()],
+
+    // VITE_ 변수와 지도·공유 JavaScript 키를 클라이언트에 제공
+    envPrefix: ["VITE_"],
+    define: {
+      "import.meta.env.KAKAO_MAP_KEY": JSON.stringify(env.KAKAO_MAP_KEY || ""),
+      "import.meta.env.KAKAO_SHARE_KEY": JSON.stringify(
+        env.KAKAO_SHARE_KEY || "",
+      ),
+    },
+
     server: {
       port: 5173,
       strictPort: true,
