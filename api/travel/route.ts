@@ -67,7 +67,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // 모듈 로딩 실패도 catch에서 처리합니다.
     const { lookupTravelRoute, validMode, validPoint } =
-      await import("../../server/travelRouteService.ts");
+      // await import("../../server/travelRouteService.ts");
+      await import("../../server/travelRouteService.js");
 
     stage = "validate-input";
 
