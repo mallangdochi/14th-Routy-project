@@ -1,5 +1,8 @@
 // import TripRoleBadge from "../../components/main/TripRoleBadge";
-import { findPlaceDetail, type KakaoPlaceInfo } from "../../api/kakao/placeDetails";
+import {
+  findPlaceDetail,
+  type KakaoPlaceInfo,
+} from "../../api/kakao/placeDetails";
 import { Global } from "@emotion/react";
 import Dropdown from "../../components/dropdown/Dropdown";
 import TimePicker from "../../components/pickers/TimePicker";
@@ -211,71 +214,123 @@ type Stop = {
 };
 
 // Only the first stop supplies a time. Never treat an unavailable route as zero minutes.
-function calculateStopTimes(items: Stop[], durations: Array<number | undefined>): Stop[] {
+function calculateStopTimes(
+  items: Stop[],
+  durations: Array<number | undefined>,
+): Stop[] {
   if (!items.length) return items;
   const match = /^(\d{1,2}):(\d{2})$/.exec(items[0].time);
-  let minutes: number | undefined = match && Number(match[2]) < 60
-    ? Number(match[1]) * 60 + Number(match[2]) : undefined;
+  let minutes: number | undefined =
+    match && Number(match[2]) < 60
+      ? Number(match[1]) * 60 + Number(match[2])
+      : undefined;
   return items.map((stop, index) => {
     if (index > 0) {
       const duration = durations[index - 1];
       const stay = items[index - 1].stayDurationMinutes ?? 60;
-      minutes = minutes !== undefined && duration !== undefined &&
-        Number.isFinite(duration) && duration >= 0 && Number.isFinite(stay) && stay >= 0
-        ? minutes + Math.floor(stay) + Math.ceil(duration / 60) : undefined;
+      minutes =
+        minutes !== undefined &&
+        duration !== undefined &&
+        Number.isFinite(duration) &&
+        duration >= 0 &&
+        Number.isFinite(stay) &&
+        stay >= 0
+          ? minutes + Math.floor(stay) + Math.ceil(duration / 60)
+          : undefined;
     }
-    const time = minutes === undefined ? "—"
-      : `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+    const time =
+      minutes === undefined
+        ? "—"
+        : `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
     return time === stop.time ? stop : { ...stop, time };
   });
 }
 
 // Recalculate every saved day, including days that were not opened after moving stops.
-async function resolveDayStopTimes(items: Stop[], defaultTransport: string): Promise<Stop[]> {
+async function resolveDayStopTimes(
+  items: Stop[],
+  defaultTransport: string,
+): Promise<Stop[]> {
   if (!items.length) return items;
   if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(items[0].time)) {
     throw new Error("첫 일정의 시작 시간을 입력해주세요.");
   }
   if (items.length === 1) return items;
   let located = items;
-  if (items.some((stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng))) {
+  if (
+    items.some(
+      (stop) => !Number.isFinite(stop.lat) || !Number.isFinite(stop.lng),
+    )
+  ) {
     const sdk = await loadKakaoMaps();
     const places = new sdk.services.Places();
-    located = await Promise.all(items.map(async (stop) => {
-      if (Number.isFinite(stop.lat) && Number.isFinite(stop.lng)) return stop;
-      const point = await resolveKakaoPlace(sdk, places, {
-        id: stop.id, title: stop.title, address: stop.address,
-        latitude: stop.lat, longitude: stop.lng,
-      });
-      if (!point) throw new Error(`${stop.title}의 위치를 확인한 후 다시 저장해주세요.`);
-      return { ...stop, lat: point.latitude, lng: point.longitude };
-    }));
+    located = await Promise.all(
+      items.map(async (stop) => {
+        if (Number.isFinite(stop.lat) && Number.isFinite(stop.lng)) return stop;
+        const point = await resolveKakaoPlace(sdk, places, {
+          id: stop.id,
+          title: stop.title,
+          address: stop.address,
+          latitude: stop.lat,
+          longitude: stop.lng,
+        });
+        if (!point)
+          throw new Error(
+            `${stop.title}의 위치를 확인한 후 다시 저장해주세요.`,
+          );
+        return { ...stop, lat: point.latitude, lng: point.longitude };
+      }),
+    );
   }
   const durations: number[] = [];
   // Limit route requests to three at a time.
   for (let start = 0; start < located.length - 1; start += 3) {
-    const batch = await Promise.all(located.slice(start, Math.min(start + 3, located.length - 1)).map(async (from, offset) => {
-      const to = located[start + offset + 1];
-      const choice = resolveScheduleTransport(from.transport, defaultTransport);
-      if (!choice.mode) throw new Error(`${from.title}의 이용 교통을 선택해주세요.`);
-      const params = new URLSearchParams({
-        mode: choice.mode, fromLat: String(from.lat), fromLng: String(from.lng),
-        toLat: String(to.lat), toLng: String(to.lng),
-        ...(choice.transitType ? { transitType: choice.transitType } : {}),
-      });
-      const response = await fetch(`/api/travel/route?${params}`);
-      const data = await response.json().catch(() => null);
-      if (!response.ok || data?.mode !== choice.mode ||
-          typeof data?.durationSeconds !== "number" || !Number.isFinite(data.durationSeconds) || data.durationSeconds < 0) {
-        throw new Error(`${from.title} → ${to.title} 이동 시간을 확인하지 못했어요. 경로를 다시 조회해주세요.`);
-      }
-      return data.durationSeconds as number;
-    }));
+    const batch = await Promise.all(
+      located
+        .slice(start, Math.min(start + 3, located.length - 1))
+        .map(async (from, offset) => {
+          const to = located[start + offset + 1];
+          const choice = resolveScheduleTransport(
+            from.transport,
+            defaultTransport,
+          );
+          if (!choice.mode)
+            throw new Error(`${from.title}의 이용 교통을 선택해주세요.`);
+          const params = new URLSearchParams({
+            mode: choice.mode,
+            fromLat: String(from.lat),
+            fromLng: String(from.lng),
+            toLat: String(to.lat),
+            toLng: String(to.lng),
+            ...(choice.transitType ? { transitType: choice.transitType } : {}),
+          });
+          const response = await fetch(`/api/travel/route?${params}`);
+          const data = await response.json().catch(() => null);
+          if (
+            !response.ok ||
+            data?.mode !== choice.mode ||
+            typeof data?.durationSeconds !== "number" ||
+            !Number.isFinite(data.durationSeconds) ||
+            data.durationSeconds < 0
+          ) {
+            throw new Error(
+              `${from.title} → ${to.title} 이동 시간을 확인하지 못했어요. 경로를 다시 조회해주세요.`,
+            );
+          }
+          return data.durationSeconds as number;
+        }),
+    );
     durations.push(...batch);
   }
   const calculated = calculateStopTimes(located, durations);
-  if (calculated.some((stop) => stop.time === "—" || Number(stop.time.split(":")[0]) >= 24)) {
-    throw new Error("일정이 자정을 넘거나 시작 시간이 올바르지 않아요. 첫 시작 시간이나 체류 시간을 조정해주세요.");
+  if (
+    calculated.some(
+      (stop) => stop.time === "—" || Number(stop.time.split(":")[0]) >= 24,
+    )
+  ) {
+    throw new Error(
+      "일정이 자정을 넘거나 시작 시간이 올바르지 않아요. 첫 시작 시간이나 체류 시간을 조정해주세요.",
+    );
   }
   return calculated;
 }
@@ -452,8 +507,8 @@ const moveStop = (
 const TRANSPORT_ICONS: Record<string, LucideIcon> = {
   "자동차·택시": CarFront,
   // 기차: TrainFront,
-  지하철: TramFront,
-  버스: BusFront,
+  // 지하철: TramFront,
+  // 버스: BusFront,
   "대중교통(혼합)": BusFront,
   도보: Footprints,
   자전거: Bike,
@@ -686,42 +741,69 @@ function ScheduleStopCard({
 }: StopCardProps) {
   const infoId = useId();
   const [infoRetry, setInfoRetry] = useState(0);
-  const placeInfoRequest = React.useMemo(() => ({
-    enabled: !isEditMode && expanded,
-    retry: infoRetry,
-    input: {
-      id: stop.placeId || stop.sourcePlaceId || stop.externalId || "",
-      name: stop.title,
-      address: stop.address,
-      lat: stop.lat,
-      lng: stop.lng,
-    },
-  }), [isEditMode, expanded, infoRetry, stop.placeId, stop.sourcePlaceId,
-    stop.externalId, stop.title, stop.address, stop.lat, stop.lng]);
+  const placeInfoRequest = React.useMemo(
+    () => ({
+      enabled: !isEditMode && expanded,
+      retry: infoRetry,
+      input: {
+        id: stop.placeId || stop.sourcePlaceId || stop.externalId || "",
+        name: stop.title,
+        address: stop.address,
+        lat: stop.lat,
+        lng: stop.lng,
+      },
+    }),
+    [
+      isEditMode,
+      expanded,
+      infoRetry,
+      stop.placeId,
+      stop.sourcePlaceId,
+      stop.externalId,
+      stop.title,
+      stop.address,
+      stop.lat,
+      stop.lng,
+    ],
+  );
   const [placeInfoResult, setPlaceInfoResult] = useState<{
     request: typeof placeInfoRequest;
     status: "ready" | "error";
     record: KakaoPlaceInfo | null;
   } | null>(null);
-  const currentPlaceInfoResult = placeInfoResult?.request === placeInfoRequest
-    ? placeInfoResult : null;
+  const currentPlaceInfoResult =
+    placeInfoResult?.request === placeInfoRequest ? placeInfoResult : null;
   const placeInfo = placeInfoRequest.enabled
-    ? currentPlaceInfoResult?.record ?? null : null;
-  const infoStatus = !placeInfoRequest.enabled ? "idle"
-    : currentPlaceInfoResult?.status ?? "loading";
+    ? (currentPlaceInfoResult?.record ?? null)
+    : null;
+  const infoStatus = !placeInfoRequest.enabled
+    ? "idle"
+    : (currentPlaceInfoResult?.status ?? "loading");
 
   // Loading is derived from the current request. State changes only on completion.
   useEffect(() => {
     if (!placeInfoRequest.enabled) return;
     let active = true;
-    void findPlaceDetail(placeInfoRequest.input).then((record) => {
-      if (!active) return;
-      setPlaceInfoResult({ request: placeInfoRequest, status: "ready", record });
-    }).catch(() => {
-      if (!active) return;
-      setPlaceInfoResult({ request: placeInfoRequest, status: "error", record: null });
-    });
-    return () => { active = false; };
+    void findPlaceDetail(placeInfoRequest.input)
+      .then((record) => {
+        if (!active) return;
+        setPlaceInfoResult({
+          request: placeInfoRequest,
+          status: "ready",
+          record,
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+        setPlaceInfoResult({
+          request: placeInfoRequest,
+          status: "error",
+          record: null,
+        });
+      });
+    return () => {
+      active = false;
+    };
   }, [placeInfoRequest]);
   const [editorPresent, setEditorPresent] = useState(expanded);
   const [previousExpanded, setPreviousExpanded] = useState(expanded);
@@ -743,8 +825,10 @@ function ScheduleStopCard({
     (resolveScheduleTransport(stop.transport, defaultTransport).mode === "car"
       ? CarFront
       : MapPin);
-  const showWalkingSuggestion = leg?.status === "error" &&
-    leg.choice.mode === "transit" && leg.error !== "장소 좌표 확인 필요";
+  const showWalkingSuggestion =
+    leg?.status === "error" &&
+    leg.choice.mode === "transit" &&
+    leg.error !== "장소 좌표 확인 필요";
   const travelTimeLabel = !leg
     ? "다음 이동 없음"
     : leg.status === "ready" && leg.route
@@ -989,41 +1073,86 @@ function ScheduleStopCard({
           </S.StopEditor>
         )}
         {!isEditMode && (
-          <S.StopInformationCollapse data-open={expanded} inert={!expanded} aria-hidden={!expanded}>
-            <S.StopInformationClip>
-          <S.StopInformation id={infoId} role="region" aria-label={`${stop.title} 장소 정보`}
+          <S.StopInformationCollapse
             data-open={expanded}
-            aria-busy={infoStatus === "loading"}>
-            <dl>
-              <div className="place-info-row">
-                <dt><MapPin size={20} aria-hidden="true" />주소</dt>
-                <dd>{placeInfo?.road_address_name || placeInfo?.address_name || stop.address || "정보 없음"}</dd>
-              </div>
-              <div className="place-info-row">
-                <dt><Phone size={20} aria-hidden="true" />전화번호</dt>
-                <dd>{placeInfo?.phone ? (
-                  <a href={`tel:${placeInfo.phone.replace(/[^\d+]/g, "")}`}>{placeInfo.phone}</a>
-                ) : infoStatus === "loading" ? "확인 중…" : infoStatus === "error" ? "조회 실패" : "정보 없음"}</dd>
-              </div>
-              <div className="place-info-row">
-                <dt><FileText size={20} aria-hidden="true" />분류</dt>
-                <dd>{placeInfo?.category_name || stop.category || "정보 없음"}</dd>
-              </div>
-            </dl>
-            {infoStatus === "error" && (
-              <p className="place-info-status" role="status">
-                장소 정보를 불러오지 못했어요.
-                <button type="button" onClick={() => setInfoRetry((value) => value + 1)}>다시 시도</button>
-              </p>
-            )}
-          </S.StopInformation>
+            inert={!expanded}
+            aria-hidden={!expanded}
+          >
+            <S.StopInformationClip>
+              <S.StopInformation
+                id={infoId}
+                role="region"
+                aria-label={`${stop.title} 장소 정보`}
+                data-open={expanded}
+                aria-busy={infoStatus === "loading"}
+              >
+                <dl>
+                  <div className="place-info-row">
+                    <dt>
+                      <MapPin size={20} aria-hidden="true" />
+                      주소
+                    </dt>
+                    <dd>
+                      {placeInfo?.road_address_name ||
+                        placeInfo?.address_name ||
+                        stop.address ||
+                        "정보 없음"}
+                    </dd>
+                  </div>
+                  <div className="place-info-row">
+                    <dt>
+                      <Phone size={20} aria-hidden="true" />
+                      전화번호
+                    </dt>
+                    <dd>
+                      {placeInfo?.phone ? (
+                        <a
+                          href={`tel:${placeInfo.phone.replace(/[^\d+]/g, "")}`}
+                        >
+                          {placeInfo.phone}
+                        </a>
+                      ) : infoStatus === "loading" ? (
+                        "확인 중…"
+                      ) : infoStatus === "error" ? (
+                        "조회 실패"
+                      ) : (
+                        "정보 없음"
+                      )}
+                    </dd>
+                  </div>
+                  <div className="place-info-row">
+                    <dt>
+                      <FileText size={20} aria-hidden="true" />
+                      분류
+                    </dt>
+                    <dd>
+                      {placeInfo?.category_name || stop.category || "정보 없음"}
+                    </dd>
+                  </div>
+                </dl>
+                {infoStatus === "error" && (
+                  <p className="place-info-status" role="status">
+                    장소 정보를 불러오지 못했어요.
+                    <button
+                      type="button"
+                      onClick={() => setInfoRetry((value) => value + 1)}
+                    >
+                      다시 시도
+                    </button>
+                  </p>
+                )}
+              </S.StopInformation>
             </S.StopInformationClip>
           </S.StopInformationCollapse>
         )}
       </S.InformationStopCard>
       {showWalkingSuggestion && (
         <S.StopWalkingNotice role="status" aria-live="polite">
-          <TramFront className="walking-notice-icon" size={22} aria-hidden="true" />
+          <TramFront
+            className="walking-notice-icon"
+            size={22}
+            aria-hidden="true"
+          />
           <div className="walking-notice-copy">
             <strong>{transport} 경로를 찾지 못했어요.</strong>
             <span>가까운 구간이라면 도보로 이동해 보세요.</span>
@@ -1055,7 +1184,6 @@ function ScheduleStopCard({
           <span>
             {transport} · {travelTimeLabel}
           </span>
-
         </S.StopLegInfo>
       )}
     </S.StopRow>
@@ -1831,24 +1959,39 @@ function ScheduleContent({
     }));
   }, [rawStops, locatedResult]);
 
-  const {
-    legs: routeLegs,
-    routes: rawRoutePaths,
-  } = useScheduleRoutes(
+  const { legs: routeLegs, routes: rawRoutePaths } = useScheduleRoutes(
     routeInputStops,
     modalDefaultTransport,
     `${selectedTrip.id}:${activeDay.isoDate}`,
   );
 
-  const stops = React.useMemo(() => calculateStopTimes(rawStops, routeLegs.map((leg) =>
-    leg.status === "ready" ? leg.route?.durationSeconds : undefined,
-  )), [rawStops, routeLegs]);
-  const routeStops = React.useMemo(() => routeInputStops.map((stop, index) => ({
-    ...stop, time: stops[index].time,
-  })), [routeInputStops, stops]);
-  const routePaths = React.useMemo(() => rawRoutePaths.map((route, index) => ({
-    ...route, fromTime: stops[index]?.time, toTime: stops[index + 1]?.time,
-  })), [rawRoutePaths, stops]);
+  const stops = React.useMemo(
+    () =>
+      calculateStopTimes(
+        rawStops,
+        routeLegs.map((leg) =>
+          leg.status === "ready" ? leg.route?.durationSeconds : undefined,
+        ),
+      ),
+    [rawStops, routeLegs],
+  );
+  const routeStops = React.useMemo(
+    () =>
+      routeInputStops.map((stop, index) => ({
+        ...stop,
+        time: stops[index].time,
+      })),
+    [routeInputStops, stops],
+  );
+  const routePaths = React.useMemo(
+    () =>
+      rawRoutePaths.map((route, index) => ({
+        ...route,
+        fromTime: stops[index]?.time,
+        toTime: stops[index + 1]?.time,
+      })),
+    [rawRoutePaths, stops],
+  );
 
   const selectedStopCount = stops.filter((stop) =>
     selectedStopIds.includes(stop.id),
@@ -1878,9 +2021,12 @@ function ScheduleContent({
     if (!canEditTrip || scheduleSaveLock.current) return;
     setStopsByDay((previous) => {
       const current = previous[activeDayId] ?? [];
-      const calculated = calculateStopTimes(current, routeLegs.map((leg) =>
-        leg.status === "ready" ? leg.route?.durationSeconds : undefined,
-      ));
+      const calculated = calculateStopTimes(
+        current,
+        routeLegs.map((leg) =>
+          leg.status === "ready" ? leg.route?.durationSeconds : undefined,
+        ),
+      );
       // Keep valid computed times when a later stop becomes the first stop.
       const timed = calculated.map((stop, index) =>
         stop.time === "—" ? current[index] : stop,
@@ -1924,8 +2070,11 @@ function ScheduleContent({
 
     setStopsByDay(savedStopsRef.current);
     setDays(savedDaysRef.current);
-    setActiveDayId((current) => savedDaysRef.current.some((day) => day.id === current)
-      ? current : savedDaysRef.current[0]!.id);
+    setActiveDayId((current) =>
+      savedDaysRef.current.some((day) => day.id === current)
+        ? current
+        : savedDaysRef.current[0]!.id,
+    );
     editAllSnapshotRef.current = null;
 
     editSnapshotRef.current = null;
@@ -1963,7 +2112,10 @@ function ScheduleContent({
     try {
       const calculatedDays: Record<number, Stop[]> = {};
       for (const day of days) {
-        calculatedDays[day.id] = await resolveDayStopTimes(stopsByDay[day.id] ?? [], modalDefaultTransport);
+        calculatedDays[day.id] = await resolveDayStopTimes(
+          stopsByDay[day.id] ?? [],
+          modalDefaultTransport,
+        );
       }
       const payload = days.flatMap((day) =>
         calculatedDays[day.id].map((stop) => ({ ...stop, date: day.isoDate })),
@@ -1976,7 +2128,10 @@ function ScheduleContent({
         savedDaysRef.current.map((day) => day.isoDate),
       );
       scheduleVersionRef.current = saved.version;
-      const persisted = createStoredStopsByDay(saved, days.map((day) => day.isoDate));
+      const persisted = createStoredStopsByDay(
+        saved,
+        days.map((day) => day.isoDate),
+      );
       savedStopsRef.current = persisted;
       savedDaysRef.current = days;
       setStopsByDay(persisted);
@@ -2272,10 +2427,15 @@ function ScheduleContent({
     const selectedIds = new Set(selectedStopIds);
     setStopsByDay((previous) => {
       const current = previous[activeDayId] ?? [];
-      const calculated = calculateStopTimes(current, routeLegs.map((leg) =>
-        leg.status === "ready" ? leg.route?.durationSeconds : undefined,
-      ));
-      const source = calculated.map((stop, index) => stop.time === "—" ? current[index] : stop);
+      const calculated = calculateStopTimes(
+        current,
+        routeLegs.map((leg) =>
+          leg.status === "ready" ? leg.route?.durationSeconds : undefined,
+        ),
+      );
+      const source = calculated.map((stop, index) =>
+        stop.time === "—" ? current[index] : stop,
+      );
       const moved = source.filter((stop) => selectedIds.has(stop.id));
       const target = previous[targetDayId] ?? [];
       const usedIds = new Set(target.map((stop) => stop.id));
@@ -2386,7 +2546,8 @@ function ScheduleContent({
       return false;
     }
 
-    if (scheduleSaveLock.current) throw new Error("저장 중입니다. 잠시 후 다시 시도해주세요.");
+    if (scheduleSaveLock.current)
+      throw new Error("저장 중입니다. 잠시 후 다시 시도해주세요.");
     const saved = { dates: nextDates };
     const activeDate = days.find((day) => day.id === activeDayId)?.isoDate;
 
@@ -2415,11 +2576,6 @@ function ScheduleContent({
   };
   return (
     <S.Page inert={scheduleSaving} aria-busy={scheduleSaving}>
-      {scheduleError && (
-        <div role="alert" style={{ color: "#B42318", padding: "12px" }}>
-          {scheduleError}
-        </div>
-      )}
       <Global
         styles={{
           '[role="menu"][aria-label="이동"], [role="menu"][aria-label="이동"] > button':
@@ -2435,6 +2591,11 @@ function ScheduleContent({
       </S.MobileHeaderArea>
 
       <S.MainContent>
+        {scheduleError && (
+          <div role="alert" style={{ color: "#B42318", padding: "12px", overflowWrap: "anywhere" }}>
+            {scheduleError}
+          </div>
+        )}
         <S.Container data-checklist={activeTab === "checklist"}>
           <S.Header>
             <S.BreadcrumbWrapper>
@@ -2652,9 +2813,11 @@ function ScheduleContent({
                       if (day.id === activeDayId) return;
                       handleCancelEdit();
                       // Resolve by date after restoring the persisted day list.
-                      setActiveDayId(savedDaysRef.current.find((savedDay) =>
-                        savedDay.isoDate === day.isoDate,
-                      )?.id ?? savedDaysRef.current[0]!.id);
+                      setActiveDayId(
+                        savedDaysRef.current.find(
+                          (savedDay) => savedDay.isoDate === day.isoDate,
+                        )?.id ?? savedDaysRef.current[0]!.id,
+                      );
                     }}
                   >
                     <TripPhoto
@@ -2882,9 +3045,13 @@ function ScheduleContent({
                         if (!canEditTrip || scheduleSaveLock.current) return;
                         // Use the same save/cancel lifecycle as other schedule edits.
                         if (!isEditMode) toggleEditMode();
-                        updateStops((previous) => previous.map((item) =>
-                          item.id === stop.id ? { ...item, transport: "도보" } : item,
-                        ));
+                        updateStops((previous) =>
+                          previous.map((item) =>
+                            item.id === stop.id
+                              ? { ...item, transport: "도보" }
+                              : item,
+                          ),
+                        );
                       }}
                       expanded={expandedStopId === stop.id}
                       onToggleExpanded={() =>
@@ -3036,9 +3203,7 @@ function ScheduleContent({
                       >
                         <Route size={17} />
 
-                        <span>
-                          전체 경로
-                        </span>
+                        <span>전체 경로</span>
                       </S.RouteToggle>
                     </S.MapToolbar>
                   )}
@@ -3700,11 +3865,17 @@ function ScheduleEditRouteMap({
     // Geocoding may return cached stop metadata. Only reuse its coordinates;
     // popup times and details must come from the current calculated schedule.
     const coordinatePoints = locatedPoints.flatMap((point) => {
-      const stop = stops.find((item) => String(item.id) === String(point.stop.id));
+      const stop = stops.find(
+        (item) => String(item.id) === String(point.stop.id),
+      );
       return stop ? [{ ...point, stop }] : [];
     });
     const pinCleanups: Array<() => void> = [];
-    const layoutPins: Array<{element: HTMLElement; lat: number; lng: number}> = [];
+    const layoutPins: Array<{
+      element: HTMLElement;
+      lat: number;
+      lng: number;
+    }> = [];
     let routeLayer: ReturnType<typeof mountRouteOverlapLayer> | null = null;
     const openRouteInfo = (info: RouteSelection, pinned: boolean) => {
       if (!isTouchMap) {
@@ -3805,7 +3976,7 @@ function ScheduleEditRouteMap({
         },
       });
       pinCleanups.push(pin.destroy);
-      layoutPins.push({element:pin.element,lat:latitude,lng:longitude});
+      layoutPins.push({ element: pin.element, lat: latitude, lng: longitude });
       overlay = new sdk.CustomOverlay({
         map,
         position: new sdk.LatLng(latitude, longitude),
@@ -3815,7 +3986,12 @@ function ScheduleEditRouteMap({
       });
       layersRef.current.push(overlay);
     });
-    const disposePinLayout = mountPlacePinLayout({sdk, map, container:mapContainer, pins:layoutPins});
+    const disposePinLayout = mountPlacePinLayout({
+      sdk,
+      map,
+      container: mapContainer,
+      pins: layoutPins,
+    });
     return () => {
       disposePinLayout();
       pinCleanups.forEach((cleanup) => {
