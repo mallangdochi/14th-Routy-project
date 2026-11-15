@@ -6,8 +6,8 @@ import type { KakaoMapsSDK } from "./kakaoTypes";
  */
 export const getKakaoMapKey = () =>
   (
-    import.meta.env.VITE_KAKAO_MAP_JS_KEY ||
     import.meta.env.VITE_KAKAO_MAP_KEY ||
+    import.meta.env.KAKAO_MAP_KEY ||
     ""
   ).trim();
 
