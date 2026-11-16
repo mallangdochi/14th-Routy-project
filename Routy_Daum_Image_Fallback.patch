@@ -1,0 +1,299 @@
+--- a/server/tourPhotoService.ts
++++ b/server/tourPhotoService.ts
+@@ -35,7 +35,7 @@
+ 
+ export const EMPTY_PHOTO: PhotoResult = { image: null, source: null, sourceUrl: null, title: null };
+ 
+-const POLICY_VERSION = "balanced-photos-4";
++const POLICY_VERSION = "balanced-photos-5";
+ const cache = new Map<string, { data: PhotoResult; expires: number }>();
+ const pending = new Map<string, Promise<PhotoResult>>();
+ const daumCache = new Map<string, { data: PhotoResult; expires: number }>();
+@@ -171,16 +171,18 @@
+ 
+   const address = context.address ?? "";
+   const generic = /^(중앙공원|중앙시장|전망대|공원|시청|시장|카페|맛집|해수욕장|산|여행지)$/u.test(context.name.trim());
+-  const course = /(?:제?\s*\d+\s*(?:코스|구간|길)|해파랑길\s*\d+)/u.test(context.name);
+-  const ambiguous = generic || course || (kind === "place" && expected.length < 3);
++  // 상세한 코스명은 다음 검색 결과에서 URL에 이름이 보이지 않더라도
++  // 관련 사진을 우선 표시합니다. 흔한 짧은 이름만 엄격하게 검증합니다.
++  const ambiguous = generic || (kind === "place" && expected.length < 3);
+   const regionName = primaryRegion(address);
+   const evidenceName = expected.replace(/\d+$/u, "");
+   const partialName = evidenceName.length >= 4 ? evidenceName.slice(0, Math.max(3, Math.ceil(evidenceName.length * .7))) : "";
+   let best: { doc: DaumDocument; score: number; image: string } | null = null;
+ 
+   documents.forEach((doc, index) => {
+-    // 원본 우선: 다음 API thumbnail_url은 작은 해상도인 경우가 있습니다.
+-    const image = safeImageUrl(doc.image_url) ?? safeImageUrl(doc.thumbnail_url);
++    // 우선 화면에 확실히 뜨도록 카카오 CDN 미리보기 주 소를 먼저 사용합니다.
++    // 외부 원본 서버의 hotlink 차단으로 이미지가 깨지는 일을 줄입니다.
++    const image = safeImageUrl(doc.thumbnail_url) ?? safeImageUrl(doc.image_url);
+     if (!image) return;
+     if (/\.(?:gif|svg)(?:[?#]|$)/iu.test(doc.image_url ?? "")) return;
+     if (doc.width && doc.height && (doc.width < 240 || doc.height < 150)) return;
+@@ -214,7 +216,7 @@
+     else if (partial) score = 73;
+     else if (trusted && regional) score = 68;
+     // 숫자 파일명/블로그 이미지에 장소명이 안 담기는 흔한 케이스 허용.
+-    // 단, 이름이 모호하거나 여러 경로가 같은 이름을 쓰는 코스는 채택 안 함.
++    // 검색어에 충분한 장소명을 포함했으면 상위 결과를 임시 사진으로 허용합니다.
+     else if (!ambiguous && index < 4) score = (kind === "region" ? 64 : 61) - index * 3;
+ 
+     if (ambiguous && score < 88 && kind === "place") return;
+@@ -281,7 +283,15 @@
+   const region = address.trim().split(/\s+/u).slice(0, 2).join(" ");
+   // 장소명 우선, 시·군·구로 보조하여 검색 순위 정확도를 높입니다.
+   const query = region && !place.includes(region) ? `${place} ${region} 풍경 사진` : `${place} 풍경 사진`;
+-  return lookupDaumImage(query, { name: place, address, kind: "place" });
++  const found = await lookupDaumImage(query, { name: place, address, kind: "place" });
++  if (found.image || place.length < 14) return found;
++
++  // 긴 관광 코스 설명은 검색 결과가 없기 쉽습니다. 장소명 앞부분으로 재검색합니다.
++  const course = place.match(/(?:서울둘레길|해파랑길|지리산둘레길|올레길)\s*(?:제?\s*)?\d+\s*(?:코스|구간)/u)?.[0];
++  const shortName = course || place.split(/[|·–—]/u)[0].trim().split(/\s+/u).slice(0, 3).join(" ");
++  if (shortName.length < 3 || shortName === place) return found;
++  const secondQuery = `${shortName} ${region} 관광지 사진`.trim();
++  return lookupDaumImage(secondQuery, { name: shortName, address, kind: "place" });
+ }
+ 
+ /** preferDaum=true: 관광공사 URL 이미지 로딩 실패 후 다음을 재시도할 때만 사용 */
+--- a/vite.config.ts
++++ b/vite.config.ts
+@@ -184,8 +184,9 @@
+           return;
+         }
+         try {
+-          const data = await lookupTourImage(name, address, lat, lng);
+-          res.setHeader("Cache-Control", "private, max-age=3600");
++          const preferDaum = url.searchParams.get("prefer") === "daum";
++          const data = await lookupTourImage(name, address, lat, lng, preferDaum);
++          res.setHeader("Cache-Control", data.image ? "private, max-age=300" : "no-store");
+           res.end(JSON.stringify(data));
+         } catch {
+           res.statusCode = 502;
+--- /dev/null
++++ b/src/api/kakao/placePhotoFallback.ts
+@@ -0,0 +1,55 @@
++/** 이미지가 없거나 깨졌을 때 서버의 다음 이미지 검색으로 복구합니다. */
++export type PhotoTarget = {
++  name: string;
++  address: string;
++  lat?: number | null;
++  lng?: number | null;
++};
++
++const results = new Map<string, { image: string | null; expires: number }>();
++const inFlight = new Map<string, Promise<string | null>>();
++
++/** 번들링 시 해시가 붙는 Routy 기본 캐릭터 사진도 감지합니다. */
++export function isDefaultPlaceImage(value: string | null | undefined): boolean {
++  if (!value?.trim()) return true;
++  return /(?:^|\/)(?:where2?|SearchMascot)(?:-[A-Za-z0-9_-]+)?\.webp(?:[?#].*)?$/i.test(value);
++}
++
++export function findDaumFallbackPhoto(place: PhotoTarget): Promise<string | null> {
++  if (!place.name.trim() || !place.address.trim()) return Promise.resolve(null);
++  const key = JSON.stringify([place.name, place.address, place.lat, place.lng]);
++  const cached = results.get(key);
++  if (cached && cached.expires > Date.now()) return Promise.resolve(cached.image);
++  const running = inFlight.get(key);
++  if (running) return running;
++
++  const params = new URLSearchParams({
++    name: place.name,
++    address: place.address,
++    prefer: "daum",
++    v: "photo-fallback-5",
++  });
++  if (typeof place.lat === "number" && Number.isFinite(place.lat))
++    params.set("lat", String(place.lat));
++  if (typeof place.lng === "number" && Number.isFinite(place.lng))
++    params.set("lng", String(place.lng));
++
++  const task = fetch(`/api/tour/photos?${params}`, {
++    signal: AbortSignal.timeout(12000),
++  }).then(async (response): Promise<string | null> => {
++    if (!response.ok) return null;
++    const payload: unknown = await response.json();
++    if (!payload || typeof payload !== "object") return null;
++    const image = (payload as { image?: unknown }).image;
++    return typeof image === "string" && image.startsWith("https://") ? image : null;
++  }).catch((): null => null).then((image) => {
++    if (results.size > 400) results.clear();
++    results.set(key, {
++      image,
++      expires: Date.now() + (image ? 6 * 60 * 60 * 1000 : 30 * 1000),
++    });
++    return image;
++  }).finally(() => inFlight.delete(key));
++  inFlight.set(key, task);
++  return task;
++}
+--- a/src/pages/tripDetailPage/Schedule.tsx
++++ b/src/pages/tripDetailPage/Schedule.tsx
+@@ -92,6 +92,7 @@
+ import type { SavedTrip } from "../../api/trips";
+ import { useAuth } from "../../contexts/AuthContext";
+ import defaultTripImage from "../../assets/where.webp";
++import { findDaumFallbackPhoto, isDefaultPlaceImage } from "../../api/kakao/placePhotoFallback";
+ import MainSidebar from "../../components/MainSidebar/MainSidebar";
+ import * as S from "./ScheduleStyle";
+ import {
+@@ -299,6 +300,50 @@
+           lng: typeof place.lng === "number" ? place.lng : undefined,
+         })),
+     ]),
++  );
++}
++
++/** 기존 저장 데이터가 캐릭터 이미지이거나 외부 사진 주소가 깨졌을 때 다음 검색 사진으로 복구합니다. */
++function ScheduleStopPhoto({ stop }: { stop: Stop }) {
++  const key = JSON.stringify([stop.title, stop.address, stop.lat, stop.lng]);
++  const [broken, setBroken] = useState<{ key: string; urls: string[] } | null>(null);
++  const [resolved, setResolved] = useState<{ key: string; image: string | null } | null>(null);
++  const original = stop.image?.trim() || "";
++  const brokenUrls = broken?.key === key ? broken.urls : [];
++  const needsFallback = isDefaultPlaceImage(original) || brokenUrls.includes(original);
++
++  useEffect(() => {
++    if (!needsFallback || !stop.address.trim()) return;
++    let alive = true;
++    void findDaumFallbackPhoto({
++      name: stop.title, address: stop.address, lat: stop.lat, lng: stop.lng,
++    }).then((image) => {
++      if (alive) setResolved({ key, image });
++    });
++    return () => { alive = false; };
++  }, [key, needsFallback, stop.title, stop.address, stop.lat, stop.lng]);
++
++  const fetched = resolved?.key === key ? resolved.image : null;
++  const src = !needsFallback
++    ? original
++    : fetched && !brokenUrls.includes(fetched)
++      ? fetched
++      : defaultTripImage;
++  return (
++    <S.StopImage
++      data-stop-image
++      src={src}
++      alt={stop.title}
++      title={fetched && src === fetched ? "다음 이미지 검색 결과 · 실제 장소와 다를 수 있음" : undefined}
++      draggable={false}
++      onError={() => {
++        if (src === defaultTripImage) return;
++        setBroken((previous) => ({
++          key,
++          urls: [...new Set([...(previous?.key === key ? previous.urls : []), src])],
++        }));
++      }}
++    />
+   );
+ }
+ 
+@@ -845,18 +890,7 @@
+           </S.MobileStopCategory>
+         </S.StopTime>
+ 
+-        <S.StopImage
+-          data-stop-image
+-          src={stop.image || defaultTripImage}
+-          alt={stop.title}
+-          draggable={false}
+-          onError={(event) => {
+-            const image = event.currentTarget;
+-            if (image.getAttribute("src") !== defaultTripImage) {
+-              image.src = defaultTripImage;
+-            }
+-          }}
+-        />
++        <ScheduleStopPhoto stop={stop} />
+ 
+         <S.StopDetails data-stop-details>
+           <S.StopTitleLine>
+--- a/src/components/modal/add-plan/PlaceAddModal.tsx
++++ b/src/components/modal/add-plan/PlaceAddModal.tsx
+@@ -31,6 +31,7 @@
+   X,
+ } from "lucide-react";
+ import * as S from "./placeAddModalStyle";
++import { findDaumFallbackPhoto, isDefaultPlaceImage } from "../../../api/kakao/placePhotoFallback";
+ import Dropdown from "../../dropdown/Dropdown";
+ import { useSavedPlaces } from "../../../contexts/SavedPlacesContext";
+ // 프로젝트의 기존 TimePicker 경로에 맞춰 이 import만 조정하세요.
+@@ -1278,20 +1279,48 @@
+ }
+ 
+ function PlaceImage({ place }: { place: Place }) {
+-  const [failedSource, setFailedSource] = useState<string | undefined>();
+   const mobile = useSyncExternalStore(subscribeMobile, getMobile, () => false);
++  const key = JSON.stringify([place.id, place.name, place.address, place.lat, place.lng]);
++  const [broken, setBroken] = useState<{ key: string; urls: string[] } | null>(null);
++  const [resolved, setResolved] = useState<{ key: string; image: string | null } | null>(null);
++  const brokenUrls = broken?.key === key ? broken.urls : [];
++  const original = place.image?.trim() || "";
++  const needsFallback = isDefaultPlaceImage(original) || brokenUrls.includes(original);
++
++  useEffect(() => {
++    if (!needsFallback || mobile) return;
++    let active = true;
++    void findDaumFallbackPhoto({
++      name: place.name, address: place.address, lat: place.lat, lng: place.lng,
++    }).then((image) => {
++      if (active) setResolved({ key, image });
++    });
++    return () => { active = false; };
++  }, [key, needsFallback, mobile, place.name, place.address, place.lat, place.lng]);
+ 
+   // 모바일에서는 이미지 영역 자체를 렌더링하지 않습니다.
+   if (mobile) return null;
++  const daum = resolved?.key === key ? resolved.image : null;
++  const image = !needsFallback
++    ? original
++    : daum && !brokenUrls.includes(daum)
++      ? daum
++      : original && !brokenUrls.includes(original)
++        ? original
++        : null;
+ 
+   return (
+     <div className="place-image">
+-      {place.image && failedSource !== place.image ? (
++      {image ? (
+         <img
+-          src={place.image}
+-          alt=""
++          src={image}
++          alt={`${place.name} 관련 사진`}
++          title={image === daum ? "다음 이미지 검색 결과 · 실제 장소와 다를 수 있음" : undefined}
+           loading="lazy"
+-          onError={() => setFailedSource(place.image)}
++          onError={() => setBroken((previous) => ({
++            key,
++            urls: [...new Set([...(previous?.key === key ? previous.urls : []), image])],
++          }))}
+         />
+       ) : (
+         <ImageOff size={24} aria-hidden="true" />
+--- a/src/api/kakao/searchPlaceModal.ts
++++ b/src/api/kakao/searchPlaceModal.ts
+@@ -186,7 +186,7 @@
+   if (running) return running;
+   const promise = (async () => {
+     const params = new URLSearchParams({
+-      v: "photo-balanced-4",
++      v: "photo-balanced-5",
+       name: item.place_name,
+       address: item.road_address_name || item.address_name || "",
+       lat: item.y,
+--- a/src/components/search/TourPlaceImage.tsx
++++ b/src/components/search/TourPlaceImage.tsx
+@@ -23,7 +23,7 @@
+   if (saved && saved.expires > Date.now()) return Promise.resolve(saved.value);
+   const pending = inFlight.get(id);
+   if (pending) return pending;
+-  const params = new URLSearchParams({ name: place.name, address: place.address, v: "photo-balanced-4" });
++  const params = new URLSearchParams({ name: place.name, address: place.address, v: "photo-balanced-5" });
+   if (Number.isFinite(place.lat)) params.set("lat", String(place.lat));
+   if (Number.isFinite(place.lng)) params.set("lng", String(place.lng));
+   if (preferDaum) params.set("prefer", "daum");
