@@ -15,9 +15,8 @@ import RoutyProfile from "./components/RoutyProfile/RoutyProfile";
 import { useAuth } from "./contexts/AuthContext";
 import Schedule from "./pages/tripDetailPage/Schedule";
 import TripInvitePage from "./pages/tripInvitePage/TripInvitePage";
-// import NotificationPage from "./pages/notificationPage/NotificationPage";
+import NotificationPage from "./pages/notificationPage/NotificationPage";
 // import NotificationPreview from "./components/notification/NotificationPreview";
-import NotificationPage from "./components/notification/NotificationPreview";
 
 function CreateTripRoute() {
   const navigate = useNavigate();

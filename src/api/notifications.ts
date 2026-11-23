@@ -94,6 +94,8 @@ function normalizeNotification(value: unknown): NotificationItem {
 
   return {
     id,
+    requestId:
+      typeof value.requestId === "string" ? value.requestId : undefined,
     kind: kind as NotificationKind,
     tripId,
     tripName,

@@ -54,19 +54,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
     }
-    // if (req.method === "GET" && action === "feed") {
-    //   const { data, error } = await db.rpc("routy_schedule_notification_feed", {
-    //     p_action: "list",
-    //     p_ids: [],
-    //   });
-    //   if (error) throw operationError("FEED_LOOKUP", error.code);
-    //   return res.status(200).json(data);
-    // }
+
     if (req.method === "GET" && action === "feed") {
-      const { data, error } = await db.rpc("routy_schedule_notification_feed", {
-        p_action: "list",
-        p_ids: [],
-      });
+      const { data, error } = await db.rpc(
+        "routy_schedule_notification_feed_v2",
+        {
+          p_action: "list",
+          p_ids: [],
+        },
+      );
 
       if (error) {
         console.error("Notification feed RPC failed", {
