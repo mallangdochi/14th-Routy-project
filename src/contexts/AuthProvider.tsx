@@ -9,6 +9,7 @@ import {
 
 import { getCurrentUser, type AuthUser } from "../api/auth";
 import { AuthContext } from "./AuthContext";
+import { useNotificationSync } from "../components/notification/useNotificationSync";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -27,6 +28,8 @@ export default function AuthProvider({ children }: AuthProviderProps) {
   const lastCheckStartedAt = useRef<number | null>(null);
 
   const userId = user?.id ?? null;
+
+  useNotificationSync(userId, loading);
 
   const loadUser = useCallback((force = false): Promise<void> => {
     // 최초 조회와 백그라운드 조회는 진행 중인 요청을 공유합니다.
