@@ -13,6 +13,7 @@ export type NotificationItem = {
   day?: number;
   tripDateLabel?: string;
   id: string;
+  requestId?: string;
   tripId: string;
   tripName: string;
   requesterName: string;
@@ -29,7 +30,10 @@ export type NotificationProps = {
   initialTab?: NotificationTab;
   emptyImageSrc?: string;
   /** 서버 처리가 성공한 뒤 상위에서 items를 갱신합니다. */
-  onDecision?: (item: NotificationItem, decision: "approved" | "rejected") => Promise<void> | void;
+  onDecision?: (
+    item: NotificationItem,
+    decision: "approved" | "rejected",
+  ) => Promise<void> | void;
   /** 일정 변경/시작 알림만 호출. 성공 후 읽음 처리합니다. */
   onRead?: (item: NotificationItem) => Promise<void> | void;
   /** 미지정 시 /trips/:tripId 로 이동합니다. */
