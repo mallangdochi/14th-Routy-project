@@ -93,7 +93,6 @@ import {
   MobileEyeButton,
 } from "./RoutyBookLoginStyle";
 import { useSignup } from "../RoutySignup/SignupContext";
-import { loginWithEmail } from "../../api/auth";
 import { destinationAfterLogin } from "../../utils/firstLoginProfile";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -156,15 +155,14 @@ export default function RoutyBookLogin({
   const location = useLocation();
   const fieldId = useId();
 
-  const { refreshUser } = useAuth();
+  const { signIn } = useAuth();
 
   const handleLogin = async (
     email: string,
     password: string,
     remember: boolean,
   ): Promise<void> => {
-    const user = await loginWithEmail(email, password, remember);
-    await refreshUser();
+    const user = await signIn(email, password, remember);
     const destination = destinationAfterLogin(
       user.email ?? "",
       user.profileCompleted,

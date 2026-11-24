@@ -44,25 +44,15 @@ export async function loginWithEmail(
     throw new Error("로그인 사용자 응답 형식이 올바르지 않습니다.");
   }
 
-  const user = data.user;
-  if (typeof user.id !== "string") {
-    throw new Error("로그인 사용자 응답 형식이 올바르지 않습니다.");
+  // Old deployment compatibility: retrieve the full profile only if needed.
+  if (!("settings" in data.user) || !("loginId" in data.user)) {
+    const current = await getCurrentUser();
+    if (!current || current.id !== data.user.id) {
+      throw new Error("로그인 사용자 정보를 확인하지 못했습니다.");
+    }
+    return current;
   }
-  return {
-    id: user.id,
-    email:
-      "email" in user && typeof user.email === "string"
-        ? user.email
-        : undefined,
-    username:
-      "username" in user && typeof user.username === "string"
-        ? user.username
-        : null,
-    profileCompleted:
-      "profileCompleted" in user && typeof user.profileCompleted === "boolean"
-        ? user.profileCompleted
-        : undefined,
-  };
+  return parseAuthUser(data.user as Record<string, unknown> & { id: string });
 }
 
 export interface AuthUser {
@@ -126,8 +116,12 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     throw new Error("사용자 응답 형식이 올바르지 않습니다.");
   }
 
-  const user = data.user as Record<string, unknown>;
+  return parseAuthUser(data.user as Record<string, unknown> & { id: string });
+}
 
+function parseAuthUser(
+  user: Record<string, unknown> & { id: string },
+): AuthUser {
   const getText = (key: string): string | null => {
     const value = user[key];
 
@@ -157,7 +151,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     `${getText("lastName") ?? ""}${getText("firstName") ?? ""}`;
 
   return {
-    id: data.user.id,
+    id: user.id,
     email: getText("email") ?? undefined,
 
     loginId: getText("loginId"),
@@ -455,6 +449,4 @@ export async function signupWithEmail(form: SignupRequest): Promise<void> {
   ) {
     throw new Error("회원가입 응답이 올바르지 않습니다.");
   }
-
-  // window.alert(message);
 }

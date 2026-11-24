@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { serializeCookieHeader } from "@supabase/ssr";
+import { clearAppSession } from "../../session.js";
 import { config } from "dotenv";
 import { createSupabaseServer } from "../../supabase.js";
 
@@ -46,6 +46,7 @@ export default async function handler(
   }
 
   try {
+    const startedAt = performance.now();
     const supabase = createSupabaseServer(request, response);
     const { error } = await supabase.auth.signOut({ scope: "local" });
 
@@ -55,24 +56,9 @@ export default async function handler(
       });
     }
 
-    const rememberCookie = serializeCookieHeader("routy_remember", "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
-
-    const existingHeader = response.getHeader("Set-Cookie");
-
-    const existingCookies =
-      existingHeader === undefined
-        ? []
-        : Array.isArray(existingHeader)
-          ? existingHeader.map(String)
-          : [String(existingHeader)];
-
-    response.setHeader("Set-Cookie", [...existingCookies, rememberCookie]);
+    // signOut must succeed before removing the app session.
+    clearAppSession(request, response, process.env.SUPABASE_URL!);
+    response.setHeader("Server-Timing", `signout;dur=${(performance.now() - startedAt).toFixed(1)}`);
 
     return response.status(200).json({ success: true });
   } catch {

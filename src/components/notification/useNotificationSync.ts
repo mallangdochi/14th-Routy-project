@@ -19,7 +19,12 @@ export function useNotificationSync(userId: string | null, loading: boolean) {
    active?.stop();
    selectNotificationUser(userId);
    void syncBrowserPushSession(userId).catch(() => undefined);
-   const refresh = () => { if (document.visibilityState === "visible") void refreshNotifications(); };
+   let lastRefresh = Date.now();
+   const refresh = () => {
+    if (document.visibilityState !== "visible" || Date.now() - lastRefresh < 5000) return;
+    lastRefresh = Date.now();
+    void refreshNotifications();
+   };
    const settingsRefresh = () => { void refreshNotifications(true); };
    const timer = window.setInterval(refresh, 30000);
    window.addEventListener("focus", refresh);
@@ -40,10 +45,12 @@ export function useNotificationSync(userId: string | null, loading: boolean) {
   session.consumers++;
   return () => {
    session.consumers--;
-   if (active === session && session.consumers === 0) {
-    session.stop(); active = null;
-    // 페이지 이동으로 소비자가 잠시 없어져도 현재 계정의 조회 결과는 유지합니다.
-   }
+   // StrictMode's immediate cleanup/setup reuses the same session.
+   queueMicrotask(() => {
+    if (active === session && session.consumers === 0) {
+     session.stop(); active = null;
+    }
+   });
   };
  }, [userId, loading]);
 }

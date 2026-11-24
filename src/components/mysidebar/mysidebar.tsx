@@ -49,7 +49,6 @@ import {
   LogoutConfirmButton,
 } from "../MainSidebar/MainSidebarStyle";
 import { useAuth } from "../../contexts/AuthContext";
-import { logout } from "../../api/auth";
 
 type MenuId = "profile" | "security" | "settings" | "support";
 
@@ -132,7 +131,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
+  const { user, signOut } = useAuth();
 
   const isLoggedIn = Boolean(user);
   const profileName = user?.username?.trim() || "회원";
@@ -214,8 +213,7 @@ export default function Sidebar({
     setLogoutError("");
 
     try {
-      await logout();
-      await refreshUser();
+      await signOut();
 
       setIsLogoutOpen(false);
 

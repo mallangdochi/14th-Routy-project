@@ -1,4 +1,3 @@
-import { useNotificationSync } from "../../components/notification/useNotificationSync";
 import { useAuth } from "../../contexts/AuthContext";
 import { decideTripJoinRequest } from "../../api/tripSharing";
 import { dismissNotifications, restoreNotifications } from "../../api/notifications";
@@ -26,7 +25,6 @@ export default function NotificationPage() {
   const { user, loading: authLoading, error: authError } = useAuth();
   const state = useNotificationState();
   const userId = user?.id ?? "";
-  useNotificationSync(userId || null, authLoading);
   const current = state.userId === userId;
   const props: NotificationProps = {
     items: current ? state.items : [],

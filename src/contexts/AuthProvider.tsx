@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { getCurrentUser, type AuthUser } from "../api/auth";
+import { getCurrentUser, loginWithEmail, logout, type AuthUser } from "../api/auth";
 import { AuthContext } from "./AuthContext";
 import { useNotificationSync } from "../components/notification/useNotificationSync";
 
@@ -26,14 +26,16 @@ export default function AuthProvider({ children }: AuthProviderProps) {
   const requestId = useRef(0);
   const inFlight = useRef<Promise<void> | null>(null);
   const lastCheckStartedAt = useRef<number | null>(null);
+  const authChanging = useRef(false);
 
   const userId = user?.id ?? null;
 
-  useNotificationSync(userId, loading);
+  useNotificationSync(userId, loading && !userId);
 
-  const loadUser = useCallback((force = false): Promise<void> => {
+  const loadUser = useCallback((): Promise<void> => {
     // 최초 조회와 백그라운드 조회는 진행 중인 요청을 공유합니다.
-    if (!force && inFlight.current) {
+    if (authChanging.current) return Promise.resolve();
+    if (inFlight.current) {
       return inFlight.current;
     }
 
@@ -88,13 +90,52 @@ export default function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const refreshUser = useCallback((): Promise<void> => {
-    setLoading(true);
+    if (authChanging.current) return Promise.resolve();
+    // Background/profile refresh should not replace the already rendered UI.
+    if (!userId) setLoading(true);
     setError("");
 
-    // 변경 전부터 진행 중이던 요청 대신 새로운 상태를 조회합니다.
-    // 이전 요청의 응답은 requestId 검사로 무시됩니다.
-    return loadUser(true);
-  }, [loadUser]);
+    // A profile mutation may have happened after the previous read began.
+    // Wait for the previous cookie-bearing response before reading again.
+    const pending = inFlight.current;
+    return pending ? pending.then(() => loadUser()) : loadUser();
+  }, [loadUser, userId]);
+
+  const commitUser = useCallback((nextUser: AuthUser | null) => {
+    requestId.current += 1;
+    inFlight.current = null;
+    lastCheckStartedAt.current = Date.now();
+    setUser(nextUser);
+    setError("");
+    setLoading(false);
+  }, []);
+
+  const signIn = useCallback(async (loginId: string, password: string, remember: boolean) => {
+    if (authChanging.current) throw new Error("인증 요청을 처리 중입니다.");
+    authChanging.current = true;
+    try {
+      // Prevent a concurrent /me response from arriving after login.
+      await inFlight.current;
+      const nextUser = await loginWithEmail(loginId, password, remember);
+      commitUser(nextUser);
+      return nextUser;
+    } finally {
+      authChanging.current = false;
+    }
+  }, [commitUser]);
+
+  const signOut = useCallback(async () => {
+    if (authChanging.current) throw new Error("인증 요청을 처리 중입니다.");
+    authChanging.current = true;
+    try {
+      await inFlight.current;
+      // Keep the authenticated UI on server failure; only clear on success.
+      await logout();
+      commitUser(null);
+    } finally {
+      authChanging.current = false;
+    }
+  }, [commitUser]);
 
   useEffect(() => {
     mounted.current = true;
@@ -112,7 +153,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      if (inFlight.current) {
+      if (inFlight.current || authChanging.current) {
         return;
       }
 
@@ -159,8 +200,10 @@ export default function AuthProvider({ children }: AuthProviderProps) {
       loading,
       error,
       refreshUser,
+      signIn,
+      signOut,
     }),
-    [user, loading, error, refreshUser],
+    [user, loading, error, refreshUser, signIn, signOut],
   );
 
   return (

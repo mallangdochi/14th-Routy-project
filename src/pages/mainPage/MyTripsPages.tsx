@@ -96,7 +96,7 @@ function toTripCardData(trip: SavedTrip, today: string): TripCardData {
   };
 }
 export default function MyTripsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const userId = user?.id;
   const navigate = useNavigate();
 
@@ -106,6 +106,11 @@ export default function MyTripsPage() {
 
   const [attempt, setAttempt] = useState(0);
   const [queryResult, setQueryResult] = useState<TripQueryResult | null>(null);
+  const tripRequest = useRef<{
+    userId: string;
+    attempt: number;
+    promise: Promise<SavedTrip[]>;
+  } | null>(null);
 
   const tabsRef = useRef<HTMLDivElement>(null);
 
@@ -115,17 +120,24 @@ export default function MyTripsPage() {
       ? queryResult
       : null;
 
-  const isLoading = Boolean(userId) && currentResult === null;
+  const isLoading = (authLoading && !userId) || (Boolean(userId) && currentResult === null);
   const loadError = currentResult?.error ?? "";
 
   useEffect(() => {
-    if (!userId) return;
-
-    const controller = new AbortController();
-
-    void getMyTrips(controller.signal)
+    if (!userId) {
+      tripRequest.current = null;
+      return;
+    }
+    let active = true;
+    // StrictMode cleanup/setup for the same account and attempt shares a request.
+    let request = tripRequest.current;
+    if (!request || request.userId !== userId || request.attempt !== attempt) {
+      request = { userId, attempt, promise: getMyTrips() };
+      tripRequest.current = request;
+    }
+    void request.promise
       .then((savedTrips) => {
-        if (controller.signal.aborted) return;
+        if (!active) return;
 
         setQueryResult({
           userId,
@@ -135,7 +147,7 @@ export default function MyTripsPage() {
         });
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
+        if (!active) return;
 
         setQueryResult({
           userId,
@@ -149,7 +161,7 @@ export default function MyTripsPage() {
       });
 
     return () => {
-      controller.abort();
+      active = false;
     };
   }, [userId, attempt]);
 
@@ -267,10 +279,10 @@ export default function MyTripsPage() {
         }
         aria-busy={isLoading}
       >
-        {!user ? (
-          <Logout />
-        ) : isLoading ? (
+        {isLoading ? (
           <Loader />
+        ) : !user ? (
+          <Logout />
         ) : (
           <div className="trips-page-inner">
             <div className="trips-breadcrumb" aria-label="현재 위치">
