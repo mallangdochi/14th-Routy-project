@@ -719,3 +719,16 @@ export const ChecklistStyle = styled.section({
     },
   },
 });
+
+export const ChecklistLoading = styled.div({
+  width: "100%",
+  minHeight: "calc(100dvh - 320px)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+
+  "& > *": {
+    minHeight: 0,
+    height: "auto",
+  },
+});

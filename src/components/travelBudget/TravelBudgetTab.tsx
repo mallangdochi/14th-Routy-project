@@ -31,6 +31,7 @@ import {
   type Expense,
   calendarTripDays,
 } from "./budgetData";
+import Loader from "../loader/Loader";
 type DayKey = string;
 type ExpenseForm = Omit<Expense, "id">;
 type Group = {
@@ -510,8 +511,9 @@ function BudgetContents({
 
   if (loading)
     return (
-      <TravelBudgetTabStyle>
-        <p role="status">가계부 정보를 불러오고 있습니다.</p>
+      <TravelBudgetTabStyle className="is-loading">
+        {/* <p role="status">가계부 정보를 불러오고 있습니다.</p> */}
+        <Loader />
       </TravelBudgetTabStyle>
     );
   if (error || !snapshot)
