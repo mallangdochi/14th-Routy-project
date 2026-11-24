@@ -1,13 +1,5 @@
 @font-face {
   font-family: "Pretendard";
-  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Light.woff2")
-    format("woff2");
-  font-weight: 300;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Pretendard";
   src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2")
     format("woff2");
   font-weight: 400;
@@ -38,14 +30,6 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: "Pretendard";
-  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraBold.woff2")
-    format("woff2");
-  font-weight: 800;
-  font-display: swap;
-}
-
 *,
 *::before,
 *::after {
@@ -53,6 +37,26 @@
   margin: 0;
   padding: 0;
   line-height: 150%;
+}
+
+:root {
+  /* Color */
+  --color-background: #fdfcf8;
+  --color-primary: #0b444e;
+
+  /* Font Family */
+  --font-family: "Pretendard", sans-serif;
+
+  /* Typography */
+  --font-title: 700 24px / normal var(--font-family);
+  --font-subtitle: 700 16px / normal var(--font-family);
+  --font-body: 500 14px / normal var(--font-family);
+  --font-minititle: 600 14px / normal var(--font-family);
+  --font-caption: 500 12px / normal var(--font-family);
+
+  /* Letter Spacing */
+  --letter-spacing-title: 0.04em;
+  --letter-spacing-default: 0;
 }
 
 html {
@@ -64,20 +68,15 @@ html {
   scrollbar-gutter: stable;
 }
 
-body {
-  min-width: 320px;
-  font-family:
-    "Pretendard",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  line-height: 1.5;
-}
-
 #root {
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+body {
+  line-height: 1.5;
+  font: var(--font-body);
+  letter-spacing: var(--letter-spacing-default);
 }
 
 ul,
