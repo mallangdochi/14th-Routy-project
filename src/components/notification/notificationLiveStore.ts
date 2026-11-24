@@ -9,12 +9,14 @@ let state = empty;
 let controller: AbortController | null = null;
 let task: Promise<void> | null = null;
 let generation = 0;
+let preferencesCheckedAt = 0;
+const PREFERENCES_INTERVAL = 300_000;
 const listeners = new Set<() => void>();
 function emit(next: State) { state = next; for (const fn of listeners) fn(); }
 function subscribe(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn); }; }
 export function selectNotificationUser(userId: string | null) {
  if (state.userId === userId) return;
- generation++; controller?.abort(); task = null;
+ generation++; controller?.abort(); task = null; preferencesCheckedAt = 0;
  if (state.userId) setPendingNotificationCount(state.userId, 0);
  emit({ userId, items: [], loading: Boolean(userId), error: "" });
 }
@@ -25,14 +27,27 @@ export function refreshNotifications(force = false) {
  const userId = state.userId, version = generation;
  controller = new AbortController();
  const signal = controller.signal;
- const pending = Promise.all([loadNotifications(signal), loadNotificationPreferences(signal)]).then(([items, settings]) => {
+ const shouldLoadPreferences = force || !state.settings || Date.now() - preferencesCheckedAt >= PREFERENCES_INTERVAL;
+ // Preferences can be reused between feed polls. A settings failure must
+ // not prevent the unread badge from being updated.
+ const preferences = shouldLoadPreferences
+  ? loadNotificationPreferences(signal).then(settings => {
+      if (version === generation && !signal.aborted) {
+       preferencesCheckedAt = Date.now();
+       emit({ ...state, settings });
+      }
+    }).catch(() => undefined)
+  : Promise.resolve();
+ const feed = loadNotifications(signal).then(items => {
   if (version !== generation || signal.aborted) return;
   setPendingNotificationItems(userId, items);
-  emit({ userId, items, settings, loading: false, error: "" });
+  emit({ ...state, userId, items, loading: false, error: "" });
  }).catch((reason: unknown) => {
   if (version === generation && !signal.aborted)
    emit({ ...state, loading: false, error: reason instanceof Error ? reason.message : "알림을 불러오지 못했습니다." });
- }).finally(() => { if (task === pending) task = null; });
+ });
+ const pending = Promise.all([feed, preferences]).then(() => undefined)
+  .finally(() => { if (task === pending) task = null; });
  task = pending; return pending;
 }
 export function updateNotificationItems(userId: string, change: (items: NotificationItem[]) => NotificationItem[]) {

@@ -1,32 +1,15 @@
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
-  useRef,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { getSavedPlaces, savePlace, removeSavedPlace } from "../api/savedPlaces";
 
-import {
-  getSavedPlaces,
-  savePlace,
-  removeSavedPlace,
-} from "../api/savedPlaces";
-
-type PlaceCategory =
-  | "attraction"
-  | "restaurant"
-  | "cafe"
-  | "accommodation"
-  | "other";
-
-type PlaceIdentity = {
-  provider: string;
-  placeId: string;
-};
-
+type PlaceCategory = "attraction" | "restaurant" | "cafe" | "accommodation" | "other";
+type PlaceIdentity = { provider: string; placeId: string };
 type SavePlaceInput = PlaceIdentity & {
   name: string;
   category: PlaceCategory;
@@ -36,317 +19,124 @@ type SavePlaceInput = PlaceIdentity & {
   latitude?: number | null;
   longitude?: number | null;
 };
-
-type SavedPlace = SavePlaceInput & {
-  createdAt: string;
-};
-
+type SavedPlace = SavePlaceInput & { createdAt: string };
 type SavedPlacesContextValue = {
   savedPlaces: SavedPlace[];
   isLoading: boolean;
   loadError: string | null;
-
   isSaved: (place: PlaceIdentity) => boolean;
   isPending: (place: PlaceIdentity) => boolean;
-
   toggleSaved: (place: SavePlaceInput) => Promise<void>;
   reload: () => Promise<void>;
 };
-
-type SavedPlacesProviderProps = {
-  userId: string | null;
-  children: ReactNode;
-};
-
+type SavedPlacesProviderProps = { userId: string | null; children: ReactNode };
 const SavedPlacesContext = createContext<SavedPlacesContextValue | null>(null);
+const getPlaceKey = (place: PlaceIdentity) => JSON.stringify([place.provider, place.placeId]);
+const getErrorMessage = (error: unknown) => error instanceof Error
+  ? error.message : "저장한 장소를 처리하지 못했어요.";
 
-function getPlaceKey(place: PlaceIdentity): string {
-  return JSON.stringify([place.provider, place.placeId]);
-}
+/** Each account receives a separate store, but App stays mounted. */
+function createSavedPlacesStore(userId: string | null) {
+  const listeners = new Set<() => void>();
+  const pendingKeys = new Set<string>();
+  let active = false;
+  let task: Promise<void> | null = null;
+  let initialLoadStarted = false;
+  let snapshot: SavedPlacesContextValue = {
+    savedPlaces: [],
+    isLoading: Boolean(userId),
+    loadError: null,
+    isSaved: () => false,
+    isPending: () => false,
+    toggleSaved,
+    reload,
+  };
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "저장한 장소를 처리하지 못했어요.";
-}
-
-/**
- * 로그인 계정이 바뀌면 내부 상태도 새로 생성.
- * 로그아웃 시 이전 사용자의 저장 목록을 비움.
- */
-export function SavedPlacesProvider({
-  userId,
-  children,
-}: SavedPlacesProviderProps) {
-  return (
-    <SavedPlacesSession key={userId ?? "guest"} userId={userId}>
-      {children}
-    </SavedPlacesSession>
-  );
-}
-
-function SavedPlacesSession({ userId, children }: SavedPlacesProviderProps) {
-  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
-
-  const [isLoading, setIsLoading] = useState(Boolean(userId));
-
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  const [pendingKeys, setPendingKeys] = useState<Set<string>>(() => new Set());
-
-  // 렌더링 전 연속 클릭까지 차단하기 위한 값.
-  const pendingKeysRef = useRef(new Set<string>());
-
-  // 클릭 처리에서는 가장 최근 저장 목록을 확인.
-  const savedPlacesRef = useRef<SavedPlace[]>([]);
-
-  const loadingRef = useRef(Boolean(userId));
-  const loadErrorRef = useRef<string | null>(null);
-
-  // 이전 조회 응답이 최신 상태를 덮어쓰지 않도록 구분.
-  const requestVersionRef = useRef(0);
-
-  // 언마운트 이후 요청 결과 반영 방지.
-  const mountedRef = useRef(false);
-
-  const applyPlaces = useCallback((places: SavedPlace[]) => {
-    savedPlacesRef.current = places;
-    setSavedPlaces(places);
-  }, []);
-
-  /**
-   * 로그인한 사용자의 저장 목록 최초 조회.
-   */
-  useEffect(() => {
-    mountedRef.current = true;
-
-    if (!userId) {
-      return () => {
-        mountedRef.current = false;
-      };
-    }
-
-    let active = true;
-    const requestVersion = ++requestVersionRef.current;
-
-    void getSavedPlaces()
-      .then((places) => {
-        if (!active || requestVersion !== requestVersionRef.current) {
-          return;
-        }
-
-        applyPlaces(places);
-
-        loadErrorRef.current = null;
-        setLoadError(null);
-      })
-      .catch((error: unknown) => {
-        if (!active || requestVersion !== requestVersionRef.current) {
-          return;
-        }
-
-        const message = getErrorMessage(error);
-
-        loadErrorRef.current = message;
-        setLoadError(message);
-      })
-      .finally(() => {
-        if (!active || requestVersion !== requestVersionRef.current) {
-          return;
-        }
-
-        loadingRef.current = false;
-        setIsLoading(false);
-      });
-
-    return () => {
-      active = false;
-      mountedRef.current = false;
-      requestVersionRef.current += 1;
+  function emit(change: Partial<SavedPlacesContextValue>) {
+    const next = { ...snapshot, ...change };
+    const savedKeys = new Set(next.savedPlaces.map(getPlaceKey));
+    const keys = new Set(pendingKeys);
+    snapshot = {
+      ...next,
+      isSaved: place => savedKeys.has(getPlaceKey(place)),
+      isPending: place => keys.has(getPlaceKey(place)),
     };
-  }, [userId, applyPlaces]);
+    for (const listener of listeners) listener();
+  }
 
-  /**
-   * 저장 목록 다시 조회.
-   * 저장·삭제 처리 중이거나 이미 조회 중이면 중복 실행하지 않음.
-   */
-  const reload = useCallback(async (): Promise<void> => {
-    if (
-      !userId ||
-      !mountedRef.current ||
-      loadingRef.current ||
-      pendingKeysRef.current.size > 0
-    ) {
-      return;
-    }
+  function reload(): Promise<void> {
+    if (!userId || !active || pendingKeys.size) return Promise.resolve();
+    if (task) return task;
+    emit({ isLoading: true, loadError: null });
+    const pending = getSavedPlaces().then(places => {
+      emit({ savedPlaces: places });
+    }).catch((error: unknown) => {
+      emit({ loadError: getErrorMessage(error) });
+    }).finally(() => {
+      if (task === pending) {
+        task = null;
+        emit({ isLoading: false });
+      }
+    });
+    task = pending;
+    return pending;
+  }
 
-    const requestVersion = ++requestVersionRef.current;
-
-    loadingRef.current = true;
-    loadErrorRef.current = null;
-
-    setIsLoading(true);
-    setLoadError(null);
-
+  async function toggleSaved(place: SavePlaceInput): Promise<void> {
+    if (!userId) throw new Error("로그인 후 장소를 저장할 수 있어요.");
+    if (!active) return;
+    if (snapshot.isLoading) throw new Error("저장 목록을 불러오는 중이에요. 잠시 후 다시 시도해 주세요.");
+    if (snapshot.loadError) throw new Error("저장 목록을 불러오지 못했어요. 목록을 다시 불러온 후 시도해 주세요.");
+    const key = getPlaceKey(place);
+    if (pendingKeys.has(key)) return;
+    const wasSaved = snapshot.isSaved(place);
+    pendingKeys.add(key);
+    emit({});
     try {
-      const places = await getSavedPlaces();
-
-      if (!mountedRef.current || requestVersion !== requestVersionRef.current) {
-        return;
+      if (wasSaved) {
+        await removeSavedPlace({ provider: place.provider, placeId: place.placeId });
+        if (active) emit({ savedPlaces: snapshot.savedPlaces.filter(item => getPlaceKey(item) !== key) });
+      } else {
+        const savedPlace = await savePlace(place);
+        if (active) emit({
+          savedPlaces: [savedPlace, ...snapshot.savedPlaces.filter(item => getPlaceKey(item) !== key)],
+        });
       }
-
-      applyPlaces(places);
-    } catch (error) {
-      if (!mountedRef.current || requestVersion !== requestVersionRef.current) {
-        return;
-      }
-
-      const message = getErrorMessage(error);
-
-      loadErrorRef.current = message;
-      setLoadError(message);
     } finally {
-      if (mountedRef.current && requestVersion === requestVersionRef.current) {
-        loadingRef.current = false;
-        setIsLoading(false);
-      }
+      pendingKeys.delete(key);
+      if (active) emit({});
     }
-  }, [userId, applyPlaces]);
+  }
 
-  const savedKeys = useMemo(
-    () => new Set(savedPlaces.map(getPlaceKey)),
-    [savedPlaces],
-  );
-
-  /**
-   * 해당 장소의 저장 여부.
-   */
-  const isSaved = useCallback(
-    (place: PlaceIdentity): boolean => {
-      return savedKeys.has(getPlaceKey(place));
+  return {
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
     },
-    [savedKeys],
-  );
-
-  /**
-   * 해당 장소의 저장·삭제 요청 진행 여부.
-   */
-  const isPending = useCallback(
-    (place: PlaceIdentity): boolean => {
-      return pendingKeys.has(getPlaceKey(place));
+    getSnapshot: () => snapshot,
+    start() {
+      active = true;
+      if (!initialLoadStarted) {
+        initialLoadStarted = true;
+        if (userId) void reload();
+      }
+      return () => { active = false; };
     },
-    [pendingKeys],
-  );
+  };
+}
 
-  /**
-   * 저장되지 않은 장소 → 저장.
-   * 저장된 장소 → 저장 해제.
-   *
-   * 서버 요청 성공 후에만 목록을 변경.
-   */
-  const toggleSaved = useCallback(
-    async (place: SavePlaceInput): Promise<void> => {
-      if (!userId) {
-        throw new Error("로그인 후 장소를 저장할 수 있어요.");
-      }
-
-      if (!mountedRef.current) return;
-
-      if (loadingRef.current) {
-        throw new Error(
-          "저장 목록을 불러오는 중이에요. 잠시 후 다시 시도해 주세요.",
-        );
-      }
-
-      if (loadErrorRef.current) {
-        throw new Error(
-          "저장 목록을 불러오지 못했어요. 목록을 다시 불러온 후 시도해 주세요.",
-        );
-      }
-
-      const key = getPlaceKey(place);
-
-      if (pendingKeysRef.current.has(key)) return;
-
-      const wasSaved = savedPlacesRef.current.some(
-        (item) => getPlaceKey(item) === key,
-      );
-
-      pendingKeysRef.current.add(key);
-      setPendingKeys(new Set(pendingKeysRef.current));
-
-      try {
-        if (wasSaved) {
-          await removeSavedPlace({
-            provider: place.provider,
-            placeId: place.placeId,
-          });
-
-          if (!mountedRef.current) return;
-
-          applyPlaces(
-            savedPlacesRef.current.filter((item) => getPlaceKey(item) !== key),
-          );
-        } else {
-          const savedPlace = await savePlace(place);
-
-          if (!mountedRef.current) return;
-
-          applyPlaces([
-            savedPlace,
-            ...savedPlacesRef.current.filter(
-              (item) => getPlaceKey(item) !== key,
-            ),
-          ]);
-        }
-      } finally {
-        pendingKeysRef.current.delete(key);
-
-        if (mountedRef.current) {
-          setPendingKeys(new Set(pendingKeysRef.current));
-        }
-      }
-    },
-    [userId, applyPlaces],
-  );
-
-  const value = useMemo<SavedPlacesContextValue>(
-    () => ({
-      savedPlaces,
-      isLoading,
-      loadError,
-      isSaved,
-      isPending,
-      toggleSaved,
-      reload,
-    }),
-    [
-      savedPlaces,
-      isLoading,
-      loadError,
-      isSaved,
-      isPending,
-      toggleSaved,
-      reload,
-    ],
-  );
-
-  return (
-    <SavedPlacesContext.Provider value={value}>
-      {children}
-    </SavedPlacesContext.Provider>
-  );
+export function SavedPlacesProvider({ userId, children }: SavedPlacesProviderProps) {
+  // No key on the provider or children. Old account responses belong only
+  // to their old store, even if they arrive after a new login.
+  const store = useMemo(() => createSavedPlacesStore(userId), [userId]);
+  const value = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  useEffect(() => store.start(), [store]);
+  return <SavedPlacesContext.Provider value={value}>{children}</SavedPlacesContext.Provider>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useSavedPlaces(): SavedPlacesContextValue {
   const context = useContext(SavedPlacesContext);
-
-  if (context === null) {
-    throw new Error(
-      "useSavedPlaces는 SavedPlacesProvider 안에서 사용해야 합니다.",
-    );
-  }
-
+  if (!context) throw new Error("useSavedPlaces는 SavedPlacesProvider 안에서 사용해야 합니다.");
   return context;
 }

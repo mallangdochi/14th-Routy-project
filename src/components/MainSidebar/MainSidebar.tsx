@@ -41,7 +41,6 @@ import {
   UserRound,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-import { logout } from "../../api/auth";
 
 type MenuId = "myTrip" | "search" | "saved" | "notification" | "settings";
 
@@ -140,7 +139,7 @@ function getProfileImage(avatarUrl?: string | null): string {
 
 const MainSidebar = () => {
   const navigate = useNavigate();
-  const { user, loading, error, refreshUser } = useAuth();
+  const { user, loading, error, refreshUser, signOut } = useAuth();
   const pendingCount = usePendingNotificationCount(user?.id);
 
   const profileLabel = loading
@@ -460,8 +459,7 @@ const MainSidebar = () => {
     setLogoutError("");
 
     try {
-      await logout();
-      await refreshUser();
+      await signOut();
 
       setIsLogoutOpen(false);
       setIsProfileOpen(false);

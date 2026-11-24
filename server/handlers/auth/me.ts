@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { config } from "dotenv";
 import { createSupabaseServer } from "../../supabase.js";
+import { AUTH_PROFILE_COLUMNS, toAuthUser } from "../../authUser.js";
 
 if (process.env.NODE_ENV !== "production") {
   config({ path: ".env.local" });
@@ -63,29 +64,7 @@ export default async function handler(
     }
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select(
-        `
-  id,
-  login_id,
-  username,
-  avatar_url,
-  first_name,
-  last_name,
-  full_name,
-  birth,
-  phone,
-  agree_terms,
-  agree_privacy,
-  agree_marketing,
-  agree_location,
-  invite_notifications,
-  itinerary_notifications,
-  trip_start_notifications,
-  default_itinerary_view,
-  agreed_at,
-  created_at
-`,
-      )
+      .select(AUTH_PROFILE_COLUMNS)
       .eq("id", user.id)
       .maybeSingle();
     const profileFinishedAt = performance.now();
@@ -118,59 +97,7 @@ export default async function handler(
       });
     }
 
-    const nickname =
-      typeof profile.username === "string" ? profile.username.trim() : "";
-
-    const avatarUrl =
-      typeof profile.avatar_url === "string" ? profile.avatar_url : null;
-
-    return response.status(200).json({
-      user: {
-        id: user.id,
-        email: user.email,
-        loginId: profile.login_id,
-
-        username: nickname || null,
-        avatarUrl,
-
-        profileCompleted:
-          nickname.length >= 2 && nickname.length <= 12 && Boolean(avatarUrl),
-
-        firstName: profile.first_name,
-        lastName: profile.last_name,
-
-        fullName:
-          typeof profile.full_name === "string" && profile.full_name.trim()
-            ? profile.full_name
-            : `${profile.last_name ?? ""}${profile.first_name ?? ""}`,
-
-        birth: profile.birth,
-        phone: profile.phone,
-
-        agreeTerms: profile.agree_terms,
-        agreePrivacy: profile.agree_privacy,
-        agreeMarketing: profile.agree_marketing,
-        agreeLocation: profile.agree_location,
-
-        settings: {
-          inviteNotifications: profile.invite_notifications === true,
-
-          itineraryNotifications: profile.itinerary_notifications === true,
-
-          tripStartNotifications: profile.trip_start_notifications === true,
-
-          locationServiceAllowed: profile.agree_location === true,
-
-          marketingAllowed: profile.agree_marketing === true,
-
-          defaultItineraryView:
-            profile.default_itinerary_view === "map" ? "map" : "schedule",
-        },
-
-        agreedAt: profile.agreed_at,
-        createdAt: profile.created_at,
-      },
-    });
+    return response.status(200).json({ user: toAuthUser(user, profile) });
   } catch (error) {
     console.error("Current user lookup error:", error);
 
